@@ -1,0 +1,113 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: General project standards for architecture, code, testing, and AI behavior.
+globs: 
+alwaysApply: true
+---
+
+# Development Rules
+
+## Project Awareness & Context
+- Always read `OVERVIEW.md` at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
+- Check `TASKS.md` before starting a new task. If the task isn't listed, add it with a brief description.
+- Use consistent naming conventions, file structure, and architecture patterns as described in `OVERVIEW.md`.
+- We are working in a Windows machine, so command line instructions need to be given in PowerShell syntax.
+- All user-facing content must be in Spanish as specified in the project requirements.
+
+## Monorepo & Package Management
+- Use `pnpm` as the package manager for all operations (install, add, remove packages).
+- When adding dependencies, specify the correct workspace (e.g., `pnpm add --filter web react`).
+- Shared dependencies should be installed at the root level when appropriate.
+- Never mix package managers (don't use npm or yarn commands).
+- Respect workspace boundaries - packages should not directly import from each other's internal modules.
+
+## Code Structure & Modularity
+- Never create a file longer than 800 lines. Refactor by splitting into modules if needed.
+- Organize code into clearly separated modules, grouped by feature or responsibility.
+- Use clear, consistent imports (prefer relative imports within packages).
+- Follow the monorepo structure: `/packages/api`, `/packages/web`, `/packages/app`.
+- Shared components between web and app should be properly abstracted.
+
+## TypeScript Standards
+- Always use TypeScript with strict mode enabled.
+- Define proper interfaces and types for all data structures.
+- Use "function" keyword for pure functions. Omit semicolons.
+- Avoid unnecessary curly braces in conditional statements.
+- For single-line statements in conditionals, omit curly braces.
+- Use concise, one-line syntax for simple conditional statements (e.g., if (condition) doSomething()).
+- Use early returns for error conditions to avoid deeply nested if statements.
+- Avoid unnecessary else statements; use if-return pattern instead.
+- Place the happy path last in the function for improved readability.
+- Implement proper error logging and user-friendly error messages.
+- Export types and interfaces for reuse across the monorepo.
+
+## File Naming Conventions
+- Use `kebab-case.ts` for general files.
+- Use `PascalCase.tsx` for React components.
+- Use `camelCase` for variables and functions.
+- Use `UPPER_CASE` for constants and environment variables.
+- API routes should follow RESTful conventions (`/api/events`, `/api/events/[city]`).
+
+## API & Data Management
+- All API communication should use RESTful patterns with clear JSON responses.
+- API responses must include proper error handling and status codes.
+- Use proper TypeScript interfaces for API request/response types.
+- Mock data should be stored in `events.json` until we migrate to a real database.
+- API endpoints should be consistent across web and mobile apps.
+
+## SEO & Performance
+- Next.js pages must use Server-Side Rendering (SSR) for city-specific pages.
+- Include proper meta tags and titles for SEO optimization.
+- Dynamic routes should follow the pattern `/eventos/[city]` for SEO-friendly URLs.
+- Optimize images and assets for web performance.
+
+## Styling & UI
+- Use a utility-first CSS approach compatible with both web and React Native.
+- Maintain consistency between web and mobile UI components.
+- Follow mobile-first design principles.
+- Keep styling modular and reusable across packages.
+
+## Testing & Reliability
+- Always create unit tests and E2E tests for new features.
+- Unit tests should include at least:
+  - 1 test for expected use
+  - 1 edge case
+  - 1 failure
+- Any shortcomings, bugs, or problems detected in the code being tested should be fixed immediately.
+- Test API endpoints with proper mock data.
+- Test SSR functionality for SEO-critical pages.
+
+## Git & Version Control
+- Follow Conventional Commits standard (feat:, fix:, docs:, chore:).
+- Commit frequently with descriptive messages.
+- Never commit sensitive information (`.env` files are protected by `.gitignore`).
+- Keep commits focused on single features or fixes.
+
+## Environment & Configuration
+- Use environment variables for all sensitive information.
+- Store configuration in `.env` files (excluded from version control).
+- Document required environment variables in `OVERVIEW.md`.
+- Use different configurations for development, staging, and production.
+
+## Task Completion
+- Mark completed tasks in `TASKS.md` immediately.
+- Add new sub-tasks or TODOs discovered during development to `TASKS.md`.
+- Update task descriptions if scope changes during development.
+
+## Documentation & Explainability
+- Comment non-obvious code; ensure it's understandable to a mid-level developer.
+- For complex logic, add an inline `// Reason:` comment explaining the why.
+- Update `OVERVIEW.md` if architectural decisions change.
+- Document API endpoints and their expected parameters.
+
+## Behavior Rules
+- Never assume missing context. Ask questions if uncertain.
+- Never hallucinate libraries or functions; only use verified npm packages.
+- Always confirm file paths and module names exist before referencing.
+- Never delete or overwrite existing code unless explicitly instructed or if part of a task from `TASKS.md`.
+- Always test changes in the appropriate environment before marking tasks complete.
+- Prioritize simplicity and maintainability over complex solutions. 

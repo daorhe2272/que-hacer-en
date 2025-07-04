@@ -48,7 +48,20 @@ The project will be developed in phases:
 4.  **Phase 4: Future Enhancements**
     *   Geolocation, advanced filtering, map views, user accounts, etc.
 
-## 5. Styling & Conventions
+## 5. Configuration & Environment Variables
+
+The project uses a `.env` file in the root directory to store sensitive configuration and credentials. This file is excluded from version control for security reasons.
+
+**Required Environment Variables:**
+*   `GITHUB_USERNAME`: GitHub username or organization name for repository operations
+*   `GITHUB_REPOSITORY`: GitHub repository name for the project
+
+**Important Notes:**
+*   The `.env` file should never be committed to version control
+*   All sensitive information (API keys, credentials, etc.) should be stored in environment variables
+*   Each environment (development, staging, production) should have its own set of environment variables
+
+## 6. Styling & Conventions
 
 ### Styling
 
