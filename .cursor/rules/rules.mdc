@@ -1,9 +1,4 @@
 ---
-description: 
-globs: 
-alwaysApply: true
----
----
 description: General project standards for architecture, code, testing, and AI behavior.
 globs: 
 alwaysApply: true
@@ -66,10 +61,29 @@ alwaysApply: true
 - Optimize images and assets for web performance.
 
 ## Styling & UI
-- Use a utility-first CSS approach compatible with both web and React Native.
-- Maintain consistency between web and mobile UI components.
-- Follow mobile-first design principles.
-- Keep styling modular and reusable across packages.
+
+### Design System Reference
+- **ALWAYS consult `DESIGN.json`** for detailed component specifications, colors, typography, and animations
+- Never create custom colors, shadows, or animations outside the established design system
+- Use utility-first CSS approach compatible with both web and React Native
+- Maintain consistency between web and mobile UI components
+- Follow mobile-first design principles with progressive enhancement
+- Keep styling modular and reusable across packages
+
+### Core Principles
+- **Colors**: Use only the defined palette (primary purple, accent orange, teal, neutrals)
+- **Typography**: `leading-heading` (120%) for headings, `leading-body` (150%) for text
+- **Animations**: All transitions use `duration-300 ease-in-out` timing
+- **Components**: Maximum 200 lines, use established shadow/border patterns
+- **Accessibility**: WCAG AA standards, keyboard navigation, semantic HTML
+
+### Critical DO NOTs
+- DO NOT apply hero gradients to non-hero elements
+- DO NOT use colors outside the defined palette
+- DO NOT create animations longer than 300ms
+- DO NOT use more than 3 font weights (regular, medium, bold)
+- DO NOT create components longer than 200 lines
+- DO NOT use visible alt text for decorative images
 
 ## Testing & Reliability
 - Always create unit tests and E2E tests for new features.

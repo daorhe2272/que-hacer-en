@@ -1,0 +1,330 @@
+{
+  "designSystem": {
+    "colors": {
+      "primary": {
+        "purple": "#6366F1",
+        "purpleDark": "#4F46E5",
+        "purpleLight": "#8B5CF6"
+      },
+      "accent": {
+        "orange": "#F97316",
+        "orangeDark": "#EA580C"
+      },
+      "neutral": {
+        "white": "#FFFFFF",
+        "gray50": "#F9FAFB",
+        "gray100": "#F3F4F6",
+        "gray200": "#E5E7EB",
+        "gray400": "#9CA3AF",
+        "gray500": "#6B7280",
+        "gray600": "#4B5563",
+        "gray900": "#111827"
+      },
+      "background": {
+        "heroGradient": "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%)",
+        "page": "#FFFFFF",
+        "section": "#F9FAFB"
+      }
+    },
+    "typography": {
+      "fontStrategy": "system-fonts",
+      "fontStack": "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif",
+      "weights": {
+        "regular": 400,
+        "medium": 500,
+        "bold": 700
+      },
+      "lineHeights": {
+        "headings": "120% (leading-tight)",
+        "body": "150% (default/leading-relaxed)"
+      },
+      "heroTitle": {
+        "fontSize": "3.5rem",
+        "fontWeight": "700",
+        "lineHeight": "1.1",
+        "color": "#FFFFFF",
+        "accentColor": "#F97316",
+        "responsive": "text-4xl md:text-5xl lg:text-6xl"
+      },
+      "heroSubtitle": {
+        "fontSize": "1.25rem",
+        "fontWeight": "400",
+        "color": "rgba(255, 255, 255, 0.9)"
+      },
+      "sectionTitle": {
+        "fontSize": "1.875rem",
+        "fontWeight": "700",
+        "color": "#111827",
+        "responsive": "text-2xl md:text-3xl"
+      },
+      "eventTitle": {
+        "fontSize": "1.125rem",
+        "fontWeight": "700",
+        "color": "#111827"
+      },
+      "body": {
+        "fontSize": "1rem",
+        "fontWeight": "400",
+        "color": "#4B5563"
+      }
+    },
+    "components": {
+      "heroSection": {
+        "background": "url('/hero-background.jpeg') with gradient overlay",
+        "backgroundImage": "/hero-background.jpeg",
+        "gradientOverlay": "linear-gradient(135deg, #5b21b6 0%, #4c1d95 50%, #3c1361 100%) with 80% opacity",
+        "padding": "6rem 1.5rem",
+        "minHeight": "70vh",
+        "textAlign": "left",
+        "alignment": "left-aligned content with max-width container",
+        "structure": "background image + gradient overlay + content",
+        "DO_NOT": [
+          "Apply gradient to text elements",
+          "Use gradient on buttons within hero",
+          "Apply hero gradient to cards or other components",
+          "Center align hero content",
+          "Remove gradient overlay as it ensures text readability"
+        ]
+      },
+      "topNavigation": {
+        "background": "#FFFFFF",
+        "shadow": "0 1px 3px rgba(0, 0, 0, 0.1)",
+        "height": "4rem",
+        "padding": "0 1.5rem",
+        "position": "sticky",
+        "top": "0",
+        "zIndex": "100",
+        "width": "100%",
+        "elements": {
+          "locationSelector": {
+            "background": "transparent",
+            "border": "1px solid #E5E7EB",
+            "borderRadius": "0.5rem",
+            "padding": "0.5rem 1rem",
+            "color": "#4B5563"
+          },
+          "searchIcon": {
+            "size": "1.25rem",
+            "color": "#6B7280",
+            "hover": "#374151"
+          },
+          "createEventButton": {
+            "background": "#6366F1",
+            "color": "#FFFFFF",
+            "borderRadius": "0.5rem",
+            "padding": "0.75rem 1.5rem",
+            "fontWeight": "600",
+            "hover": {
+              "background": "#4F46E5"
+            }
+          }
+        }
+      },
+      "searchComponent": {
+        "container": {
+          "background": "#FFFFFF",
+          "borderRadius": "0.5rem",
+          "shadow": "0 10px 25px rgba(0, 0, 0, 0.1)",
+          "padding": "0.75rem",
+          "display": "flex",
+          "gap": "0.5rem",
+          "maxWidth": "48rem"
+        },
+        "input": {
+          "background": "transparent",
+          "border": "none",
+          "padding": "0.75rem 1rem",
+          "fontSize": "1rem",
+          "placeholder": "#9CA3AF",
+          "flex": "1"
+        },
+        "dropdown": {
+          "background": "#F9FAFB",
+          "border": "1px solid #E5E7EB",
+          "borderRadius": "0.5rem",
+          "padding": "0.75rem 1rem",
+          "color": "#4B5563",
+          "minWidth": "10rem"
+        },
+        "button": {
+          "background": "#6366F1",
+          "color": "#FFFFFF",
+          "borderRadius": "0.5rem",
+          "padding": "0.75rem 2rem",
+          "fontWeight": "600",
+          "hover": {
+            "background": "#4F46E5"
+          }
+        },
+        "DO_NOT": [
+          "Apply hero gradient to search container",
+          "Use primary purple for input background",
+          "Apply button styling to dropdown"
+        ]
+      },
+      "categoryFilters": {
+        "container": {
+          "display": "flex",
+          "gap": "1rem",
+          "padding": "1rem 0",
+          "overflowX": "auto"
+        },
+        "filterButton": {
+          "default": {
+            "background": "transparent",
+            "color": "#6B7280",
+            "border": "1px solid #E5E7EB",
+            "borderRadius": "2rem",
+            "padding": "0.5rem 1.5rem",
+            "fontSize": "0.875rem",
+            "fontWeight": "500",
+            "whiteSpace": "nowrap"
+          },
+          "active": {
+            "background": "#6366F1",
+            "color": "#FFFFFF",
+            "border": "1px solid #6366F1"
+          },
+          "hover": {
+            "background": "#F3F4F6",
+            "color": "#374151"
+          }
+        },
+        "DO_NOT": [
+          "Add event counters to category buttons",
+          "Make buttons too wide with badges"
+        ]
+      },
+      "eventCards": {
+        "container": {
+          "background": "#FFFFFF",
+          "borderRadius": "1rem",
+          "shadow": "0 4px 6px rgba(0, 0, 0, 0.05)",
+          "overflow": "hidden",
+          "hover": {
+            "shadow": "0 10px 25px rgba(0, 0, 0, 0.1)",
+            "transform": "translateY(-2px)"
+          }
+        },
+        "image": {
+          "aspectRatio": "16/9",
+          "objectFit": "cover",
+          "altText": "empty string for decorative images"
+        },
+        "categoryBadge": {
+          "position": "absolute top-3 left-3",
+          "background": "#5B21B6",
+          "color": "#FFFFFF",
+          "borderRadius": "9999px",
+          "padding": "0.25rem 0.75rem",
+          "fontSize": "0.75rem",
+          "fontWeight": "500"
+        },
+        "content": {
+          "padding": "1.5rem"
+        },
+        "dateDisplay": {
+          "fontSize": "0.875rem",
+          "color": "#F97316",
+          "fontWeight": "500",
+          "position": "top of event name",
+          "format": "short weekday, day month (e.g., 'mar, 5 ago')"
+        },
+        "title": {
+          "fontSize": "1.125rem",
+          "fontWeight": "700",
+          "color": "#111827",
+          "marginBottom": "0.5rem"
+        },
+        "metadata": {
+          "fontSize": "0.875rem",
+          "color": "#6B7280"
+        },
+        "button": {
+          "background": "#F4F3FF",
+          "color": "#3C1361",
+          "borderRadius": "0.5rem",
+          "padding": "0.75rem 1rem",
+          "fontWeight": "500",
+          "hover": {
+            "background": "#EDE9FE"
+          }
+        },
+        "grid": {
+          "responsive": "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+          "gap": "1.5rem"
+        },
+        "DO_NOT": [
+          "Apply hero gradient to card backgrounds",
+          "Use primary purple for card content",
+          "Apply button styling to card elements",
+          "Show visible alt text for images",
+          "Put category in content section"
+        ]
+      },
+      "pageLayout": {
+        "maxWidth": "1200px",
+        "margin": "0 auto",
+        "padding": "0 1.5rem"
+      }
+    },
+    "spacing": {
+      "xs": "0.25rem",
+      "sm": "0.5rem",
+      "md": "1rem",
+      "lg": "1.5rem",
+      "xl": "2rem",
+      "2xl": "3rem",
+      "3xl": "4rem"
+    },
+    "breakpoints": {
+      "sm": "640px",
+      "md": "768px",
+      "lg": "1024px",
+      "xl": "1280px"
+    },
+    "animations": {
+      "cardHover": {
+        "transform": "translateY(-2px)",
+        "duration": "200ms",
+        "ease": "ease-out"
+      },
+      "buttonHover": {
+        "duration": "150ms",
+        "ease": "ease-in-out"
+      }
+    }
+  },
+  "implementationNotes": {
+    "fontStrategy": {
+      "approach": "System fonts only - no custom web fonts loaded",
+      "rationale": "Optimal performance for Latin American markets with varying internet speeds",
+      "benefits": [
+        "Zero loading time - fonts already installed",
+        "No FOUT/FOIT issues",
+        "Smaller bundle size",
+        "Better Core Web Vitals",
+        "Reduced data usage for mobile users",
+        "Native feel on each platform"
+      ],
+      "implementation": "Uses Tailwind's default font-sans class"
+    },
+    "tailwindCustomizations": {
+      "gradients": {
+        "heroBg": "bg-gradient-to-br from-purple-700 via-purple-800 to-purple-900"
+      },
+      "shadows": {
+        "cardHover": "shadow-xl",
+        "search": "shadow-lg"
+      }
+    },
+    "componentPriority": [
+      "1. Hero section with gradient background",
+      "2. Top navigation with location and create event button",
+      "3. Search component with integrated dropdown",
+      "4. Category filter buttons",
+      "5. Event cards grid layout",
+      "6. Responsive design implementation"
+    ]
+  }
+} 

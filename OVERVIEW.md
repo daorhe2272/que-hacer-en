@@ -28,25 +28,37 @@ A core architectural requirement is strong SEO performance. To achieve this, the
 *   **Frontend (Mobile)**: React Native, Expo
 *   **Backend**: Node.js, Express.js
 *   **Database**: A simple `events.json` file will be used for the initial phase (MVP). This will be migrated to a more robust database like PostgreSQL or MongoDB as the application scales.
-*   **Styling**: A utility-first CSS framework compatible with both web and React Native (like Tailwind CSS with NativeWind) is recommended to maximize style reuse.
+*   **Styling**: Tailwind CSS for utility-first styling. The web package uses Tailwind CSS with PostCSS and Autoprefixer for optimal browser compatibility.
 
 ## 4. Development Roadmap
 
 The project will be developed in phases:
 
-1.  **Phase 1: Project Foundation & Backend (MVP)**
-    *   Set up the monorepo structure.
-    *   Develop the Node.js API with endpoints for fetching events.
-    *   Create a mock `events.json` database.
-2.  **Phase 2: Web App Frontend (MVP)**
-    *   Build the Next.js web application.
-    *   Create the landing page (city selection) and event listing pages.
-    *   Implement SSR for city-specific event pages.
-3.  **Phase 3: Mobile App**
+1.  **Phase 1: Project Foundation & Backend (MVP)** ✅ *Partially Complete*
+    *   Set up the monorepo structure. ✅
+    *   Develop the Node.js API with endpoints for fetching events. ⏳ *Pending*
+    *   Create a mock `events.json` database. ✅
+2.  **Phase 2: Web App Frontend (MVP)** ✅ *Complete*
+    *   Build the Next.js web application. ✅
+    *   Create the landing page (city selection) and event listing pages. ✅
+    *   Implement SSR for city-specific event pages. ✅
+    *   Design and implement comprehensive UI/UX system. ✅
+    *   Custom background image integration with gradient overlay. ✅
+    *   Sticky navigation with search functionality. ✅
+    *   System fonts implementation for optimal performance. ✅
+    *   Responsive search component with enhanced width. ✅
+3.  **Phase 3: Backend API Development** ⏳ *Next Priority*
+    *   Complete Node.js/Express API implementation
+    *   Connect frontend to backend API
+    *   Implement authentication and user management
+    *   Add real-time features and caching
+4.  **Phase 4: Mobile App**
     *   Develop the Expo mobile app, reusing components from the web app.
     *   Adapt UI/UX for mobile devices.
-4.  **Phase 4: Future Enhancements**
-    *   Geolocation, advanced filtering, map views, user accounts, etc.
+    *   Implement mobile-specific features (push notifications, offline support)
+5.  **Phase 5: Advanced Features**
+    *   Geolocation, advanced filtering, map views, user accounts
+    *   Payment integration, analytics, and performance optimization
 
 ## 5. Configuration & Environment Variables
 
@@ -55,6 +67,12 @@ The project uses a `.env` file in the root directory to store sensitive configur
 **Required Environment Variables:**
 *   `GITHUB_USERNAME`: GitHub username or organization name for repository operations
 *   `GITHUB_REPOSITORY`: GitHub repository name for the project
+*   `PORT`: Port for the API server (default: 4001)
+*   `NEXT_PUBLIC_API_URL`: URL for the API server (e.g., http://localhost:4001)
+
+**Development Ports:**
+*   **Web Application**: Port 4000 (configured in packages/web/package.json)
+*   **API Server**: Port 4001 (will be configured when implementing the API)
 
 **Important Notes:**
 *   The `.env` file should never be committed to version control
@@ -65,9 +83,18 @@ The project uses a `.env` file in the root directory to store sensitive configur
 
 ### Styling
 
-*   **Framework**: To be decided, but a utility-first approach is recommended for consistency.
-*   **Design**: The design should be clean, modern, and mobile-first. A minimalistic approach is preferred, focusing on readability and ease of use.
-*   **Colors**: A simple color palette will be defined, with a primary accent color for branding and a set of neutral grays for text and backgrounds.
+*   **Framework**: Tailwind CSS with comprehensive custom design system
+*   **Design Philosophy**: Apple-level aesthetics with cultural relevance for Latin American markets
+*   **Color System**: 
+    *   Primary: Purple 600 (#6A3DE8) - main brand color
+    *   Accent: Orange 400 (#FF6B35) - highlights and CTAs
+    *   Complementary: Teal 500 (#00A9A5) - visual variety
+    *   Extended color ramps with 50-900 shades for each color
+    *   Dark purple gradient overlay (primary-700 to primary-900) for hero sections
+*   **Typography**: System fonts with 150% line height for body text, 120% for headings
+*   **Navigation**: Sticky top navigation with integrated search functionality
+*   **Animations**: Custom fadeIn/slideIn animations with 0.3s ease-in-out timing
+*   **Components**: Reusable component library with consistent shadows, borders, and interactions
 
 ### Conventions
 
@@ -75,3 +102,4 @@ The project uses a `.env` file in the root directory to store sensitive configur
 *   **Component Structure**: Components should be organized by feature. Shared components will reside in a common `components` directory within the `web` and `app` packages.
 *   **Commits**: The [Conventional Commits](https://www.conventionalcommits.org/) standard should be followed (e.g., `feat:`, `fix:`, `docs:`, `chore:`).
 *   **API**: All communication between the frontend and backend will be done via a RESTful API with clear and consistent JSON responses.
+*   **Project Planning**: Comprehensive task tracking in `TASKS.md` and strategic questions in `QUESTIONS.md` guide development priorities and ensure professional-level quality.

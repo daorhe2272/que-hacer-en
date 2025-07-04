@@ -14,7 +14,8 @@ export function getAllEvents(): Event[] {
   return [
     ...events.bogota,
     ...events.medellin,
-    ...events.cali
+    ...events.cali,
+    ...events.barranquilla
   ]
 }
 
@@ -42,10 +43,9 @@ export function getUpcomingEvents(city?: CityKey): Event[] {
 export function formatEventDate(dateString: string): string {
   const date = new Date(dateString)
   return date.toLocaleDateString('es-CO', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short'
   })
 }
 

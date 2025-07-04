@@ -20,6 +20,7 @@ export interface EventsData {
   bogota: Event[]
   medellin: Event[]
   cali: Event[]
+  barranquilla: Event[]
 }
 
 export type CityKey = keyof EventsData 
