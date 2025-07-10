@@ -29,7 +29,7 @@ export default function HeroSection({ cityName }: HeroSectionProps) {
         
         {/* Hero Subtitle */}
         <p className="text-xl sm:text-2xl text-white/90 mb-12 max-w-2xl animate-fadeIn">
-          Los mejores eventos, conciertos, talleres y experiencias en América Latina
+          Los mejores eventos, conciertos, talleres y experiencias en Colombia
         </p>
 
         {/* Search Component */}

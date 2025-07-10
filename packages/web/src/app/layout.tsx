@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   authors: [{ name: 'Qué hacer en...' }],
   creator: 'Qué hacer en...',
   publisher: 'Qué hacer en...',
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
   formatDetection: {
     email: false,
     address: false,
