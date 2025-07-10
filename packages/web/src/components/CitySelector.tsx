@@ -26,13 +26,14 @@ export default function CitySelector() {
       
       <select 
         onChange={handleCityChange}
-        className="w-full p-3 border border-gray-300 rounded-lg text-gray-700 bg-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        className="w-full p-3 border border-gray-300 rounded-lg text-gray-700 bg-white focus:outline-none focus:border-gray-300"
       >
         <option value="">Elige una ciudad...</option>
         <option value="bogota">Bogotá - Capital de Colombia</option>
         <option value="medellin">Medellín - Ciudad de la eterna primavera</option>
         <option value="cali">Cali - Capital mundial de la salsa</option>
         <option value="barranquilla">Barranquilla - Puerta de Oro del Caribe</option>
+        <option value="cartagena">Cartagena - La Heroica</option>
       </select>
     </div>
   )
