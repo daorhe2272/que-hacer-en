@@ -1,0 +1,24 @@
+- Always read `OVERVIEW.md` at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
+- Update `OVERVIEW.md` if architectural decisions change.
+- Check `TASKS.md` before starting a new task. If the task isn't listed, add it with a brief description.
+- Add new sub-tasks or TODOs discovered during development to `TASKS.md`.
+- Update task descriptions if scope changes during development.
+- Always consult `DESIGN.json` for front-end tasks. It includes detailed component specifications, colors, typography, and animations
+- All user-facing content must be in Spanish.
+- Use utility-first CSS approach compatible with both web and React Native.
+- Follow mobile-first design principles with progressive enhancement.
+- Document API endpoints and their expected parameters.
+- Never assume missing context. Ask questions if uncertain.
+- Prioritize simplicity and maintainability over complex solutions.
+- If the user asks you to wrap up your work, that means you need to first, update `TASKS.md` if needed, make sure all recently edited code is clean, follows professional standards and there are no redundancies, create or modify tests if relevant, make sure the tests pass, and finally run the linter.
+
+## Testing & Reliability
+- Always create unit tests and E2E tests for new features.
+- Unit tests should include at least:
+  - 1 test for expected use
+  - 1 edge case
+  - 1 failure
+- Any shortcomings, bugs, or problems detected in the code being tested should be fixed immediately.
+- Test API endpoints with proper mock data.
+- Test SSR functionality for SEO-critical pages.
+- Always test changes in the appropriate environment before marking tasks complete.

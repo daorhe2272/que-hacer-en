@@ -41,6 +41,11 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [x] Enhance search component width for better desktop experience
 - [x] Adjust hero section typography to match prototype specifications
 - [x] Update gradient colors to darker purple tones for better visual impact
+- [x] Hide "Crear Evento" button on mobile view in navigation
+- [x] Replace search icon with search bar on medium+ screens in navigation
+- [x] Improve search bar visibility with better contrast and styling
+- [x] Implement responsive search bar sizing for larger screens
+- [x] Add mobile search functionality with expandable second row
 
 ## Backend API Development (Next Priority)
 - [ ] Set up Express.js server with TypeScript configuration
