@@ -4,9 +4,10 @@ import SearchComponent from '@/components/SearchComponent'
 
 interface HeroSectionProps {
   cityName?: string
+  cityId?: string
 }
 
-export default function HeroSection({ cityName }: HeroSectionProps) {
+export default function HeroSection({ cityName, cityId }: HeroSectionProps) {
   return (
     <section 
       className="min-h-[70vh] flex items-center px-4 sm:px-6 lg:px-8 relative bg-cover bg-center bg-no-repeat"
@@ -34,7 +35,7 @@ export default function HeroSection({ cityName }: HeroSectionProps) {
 
         {/* Search Component */}
         <div className="max-w-3xl">
-          <SearchComponent />
+          <SearchComponent cityId={cityId} />
         </div>
       </div>
     </section>

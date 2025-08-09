@@ -1,4 +1,4 @@
-- Always read `OVERVIEW.md` at the start of a new conversation to understand the project's architecture, goals, style, and constraints.
+- Always read `OVERVIEW.md` at the start of a new conversation to understand the project's architecture, goals, and constraints.
 - Update `OVERVIEW.md` if architectural decisions change.
 - Check `TASKS.md` before starting a new task. If the task isn't listed, add it with a brief description.
 - Add new sub-tasks or TODOs discovered during development to `TASKS.md`.
@@ -10,9 +10,9 @@
 - Document API endpoints and their expected parameters.
 - Never assume missing context. Ask questions if uncertain.
 - Prioritize simplicity and maintainability over complex solutions.
-- If the user asks you to wrap up your work, that means you need to first, update `TASKS.md` if needed, make sure all recently edited code is clean, follows professional standards and there are no redundancies, create or modify tests if relevant, make sure the tests pass, and finally run the linter.
+- If the user asks you to wrap up your work, that means you need to first, update `TASKS.md` if needed, make sure all recently edited code is clean, follows professional standards and there are no redundancies, create or modify tests if relevant, make sure the tests pass, run the appropriate linter, add and commit the changes to the repository. Finally push to changes to an appropriately named remote branch.
 
-## Testing & Reliability
+## Testing Guidelines
 - Always create unit tests and E2E tests for new features.
 - Unit tests should include at least:
   - 1 test for expected use

@@ -14,13 +14,27 @@ const categories = [
   { value: 'cine', label: 'Cine' },
 ]
 
-export default function SearchComponent() {
+import { useRouter } from 'next/navigation'
+
+interface SearchComponentProps {
+  cityId?: string
+}
+
+export default function SearchComponent({ cityId }: SearchComponentProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const router = useRouter()
 
   const handleSearch = () => {
-    // TODO: Implement search functionality
-    console.log('Searching for:', { searchTerm, selectedCategory })
+    if (cityId) {
+      const params = new URLSearchParams()
+      if (searchTerm) params.set('q', searchTerm)
+      if (selectedCategory) params.set('category', selectedCategory)
+      const query = params.toString()
+      router.push(`/eventos/${cityId}${query ? `?${query}` : ''}`)
+      return
+    }
+    // TODO: Implementar navegación desde home cuando no haya ciudad aún
   }
 
   return (

@@ -24,4 +24,5 @@ export interface EventsData {
   cartagena: Event[]
 }
 
-export type CityKey = keyof EventsData 
+export type CityKey = keyof EventsData
+

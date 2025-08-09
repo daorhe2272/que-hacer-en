@@ -69,6 +69,11 @@ The project uses a `.env` file in the root directory to store sensitive configur
 *   `GITHUB_REPOSITORY`: GitHub repository name for the project
 *   `PORT`: Port for the API server (default: 4001)
 *   `NEXT_PUBLIC_API_URL`: URL for the API server (e.g., http://localhost:4001)
+*   `CORS_ORIGINS`: Comma-separated list of allowed origins for CORS (e.g., http://localhost:4000)
+
+**API Defaults:**
+*   Paginación: `page` inicia en 1, `limit` por defecto 20, máximo 100
+*   Orden: `sort` admite `date` o `price`, `order` admite `asc` o `desc`
 
 **Development Ports:**
 *   **Web Application**: Port 4000 (configured in packages/web/package.json)

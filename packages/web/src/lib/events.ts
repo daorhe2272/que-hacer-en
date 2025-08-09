@@ -15,7 +15,8 @@ export function getAllEvents(): Event[] {
     ...events.bogota,
     ...events.medellin,
     ...events.cali,
-    ...events.barranquilla
+    ...events.barranquilla,
+    ...events.cartagena
   ]
 }
 

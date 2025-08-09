@@ -1,5 +1,6 @@
 import type { Event } from '@/types/event'
 import { formatEventDate, formatEventPrice } from '@/lib/events'
+import Image from 'next/image'
 
 interface EventCardProps {
   event: Event
@@ -7,14 +8,17 @@ interface EventCardProps {
 
 export default function EventCard({ event }: EventCardProps) {
   return (
-    <div className="bg-white rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 ease-in-out overflow-hidden group hover:-translate-y-1 animate-fadeIn">
+    <div data-testid="event-card" data-price={event.price} className="bg-white rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 ease-in-out overflow-hidden group hover:-translate-y-1 animate-fadeIn">
             {/* Event Image */}
       <div className="relative h-48 bg-gradient-to-br from-primary-400 to-primary-600 overflow-hidden">
         {event.image ? (
-          <img
+          <Image
             src={event.image}
             alt={event.title}
-            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+            className="object-cover"
+            priority={false}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

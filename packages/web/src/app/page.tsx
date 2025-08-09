@@ -140,9 +140,10 @@ export default function HomePage() {
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                {/* Brand Section */}
                <div className="lg:col-span-1">
-                 <div className="mb-4">
-                   <img src="/logo-wide-dark.png" alt="¿Qué hacer en...?" className="h-16 w-auto rounded-lg border border-gray-700" />
-                 </div>
+                  <div className="mb-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo-wide-dark.png" alt="¿Qué hacer en...?" className="h-16 w-auto rounded-lg border border-gray-700" />
+                  </div>
                  <p className="text-gray-400 mb-4">
                    Descubre los mejores eventos en toda Colombia. Conciertos, festivales, talleres, gastronomía y mucho más.
                  </p>
