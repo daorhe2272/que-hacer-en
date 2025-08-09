@@ -7,6 +7,8 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
   },
   images: {
+    // En CI/E2E deshabilitamos la optimización para evitar fetch a remotos en tests
+    unoptimized: process.env.CI === 'true' || process.env.E2E === 'true',
     remotePatterns: [
       {
         protocol: 'https',

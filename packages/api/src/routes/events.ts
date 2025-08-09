@@ -52,8 +52,23 @@ router.get('/', (req, res) => {
 
     if (sort) {
       const dir = order === 'desc' ? -1 : 1
-      if (sort === 'date') events = events.sort((a, b) => (a.date.localeCompare(b.date)) * dir)
-      if (sort === 'price') events = events.sort((a, b) => (a.price - b.price) * dir)
+      if (sort === 'date') {
+        events = events.sort((a, b) => {
+          const aKey = `${a.date}T${a.time}`
+          const bKey = `${b.date}T${b.time}`
+          const cmp = aKey.localeCompare(bKey)
+          if (cmp !== 0) return cmp * dir
+          // Desempate estable y determinista
+          return a.id.localeCompare(b.id)
+        })
+      }
+      if (sort === 'price') {
+        events = events.sort((a, b) => {
+          const cmp = a.price - b.price
+          if (cmp !== 0) return cmp * dir
+          return a.id.localeCompare(b.id)
+        })
+      }
     }
 
     const total = events.length

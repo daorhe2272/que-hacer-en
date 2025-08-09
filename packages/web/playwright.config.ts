@@ -11,19 +11,21 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'pnpm --filter @que-hacer-en/api dev',
+      command: process.env.CI ? 'pnpm --filter @que-hacer-en/api run start' : 'pnpm --filter @que-hacer-en/api dev',
       port: 4001,
       reuseExistingServer: true
     },
     {
-      command: 'next dev -p 4000',
+      command: process.env.CI ? 'next start -p 4000' : 'next dev -p 4000',
       port: 4000,
       reuseExistingServer: true,
-      env: { NEXT_PUBLIC_API_URL: 'http://localhost:4001' }
+      env: { NEXT_PUBLIC_API_URL: 'http://localhost:4001', E2E: 'true' }
     }
   ],
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ]
 })
 

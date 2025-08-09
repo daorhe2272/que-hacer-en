@@ -38,12 +38,13 @@ export default function SearchComponent({ cityId }: SearchComponentProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-search p-3 flex flex-col sm:flex-row gap-3 w-full">
+    <div data-testid="search" className="bg-white rounded-lg shadow-search p-3 flex flex-col sm:flex-row gap-3 w-full">
       {/* Search Input */}
       <div className="flex-1">
         <input
           type="text"
           placeholder="Buscar eventos, artistas, lugares..."
+          aria-label="Buscar"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-4 py-3 text-base placeholder-gray-400 border-0 focus:outline-none focus:ring-0 bg-transparent"
@@ -55,6 +56,7 @@ export default function SearchComponent({ cityId }: SearchComponentProps) {
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
+          aria-label="Categoría"
           className="w-full px-4 py-3 text-base text-gray-600 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         >
           {categories.map((category) => (
@@ -67,6 +69,7 @@ export default function SearchComponent({ cityId }: SearchComponentProps) {
 
       {/* Search Button */}
       <button
+        data-testid="search-submit"
         onClick={handleSearch}
         className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-lg font-medium text-base transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 whitespace-nowrap"
       >

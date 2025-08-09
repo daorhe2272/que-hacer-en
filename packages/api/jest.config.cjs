@@ -8,6 +8,22 @@ module.exports = {
     '^.+\\.(ts)$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
   verbose: false,
+  collectCoverage: true,
+  coverageDirectory: '<rootDir>/coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  collectCoverageFrom: [
+    '<rootDir>/src/**/*.ts',
+    '!<rootDir>/src/types/**',
+    '!**/*.d.ts'
+  ],
+  coverageThreshold: {
+    global: {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90
+    }
+  }
 }
 
 

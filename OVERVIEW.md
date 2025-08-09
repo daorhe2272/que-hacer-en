@@ -108,3 +108,30 @@ The project uses a `.env` file in the root directory to store sensitive configur
 *   **Commits**: The [Conventional Commits](https://www.conventionalcommits.org/) standard should be followed (e.g., `feat:`, `fix:`, `docs:`, `chore:`).
 *   **API**: All communication between the frontend and backend will be done via a RESTful API with clear and consistent JSON responses.
 *   **Project Planning**: Comprehensive task tracking in `TASKS.md` and strategic questions in `QUESTIONS.md` guide development priorities and ensure professional-level quality.
+
+## 7. Testing & CI/CD
+
+The project enforces quality via automated pipelines:
+
+- GitHub Actions runs lint, unit tests, build, and end-to-end tests with Node 22 and pnpm caching
+- High test coverage thresholds are enforced in CI; coverage and E2E reports are uploaded as artifacts
+- Unit tests focus on the API (validation, pagination, sorting, error handling)
+
+### E2E Strategy (Web)
+
+- Playwright tests cover core user flows and run against a production build of the web app
+- Browser matrix: Chromium, Firefox, WebKit
+- Tests use accessible selectors (ARIA) and minimal `data-testid` only when necessary
+- For CI/E2E scenarios, Next.js image optimization is disabled to avoid external fetches during tests
+
+## 8. API Guarantees (High-Level)
+
+- Pagination returns page, limit, total, and totalPages
+- Sorting is stable; date sorting considers date+time with deterministic tie-breaking
+- Requests and responses propagate `x-correlation-id` for traceability
+- Standard rate-limit headers are included to communicate limits and remaining requests
+
+## 9. Environment & Configuration Notes
+
+- Core variables include `NEXT_PUBLIC_API_URL` and `CORS_ORIGINS`, managed via `.env`
+- An optional `E2E` flag can be used in test environments to adjust runtime behavior (e.g., image optimization)

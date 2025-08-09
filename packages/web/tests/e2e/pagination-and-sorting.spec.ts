@@ -9,12 +9,14 @@ test.describe('Eventos - paginación y orden', () => {
     await expect(cards.first()).toBeVisible()
 
     // Cambiar tamaño de página
-    await page.selectOption('select[aria-label="Por página"]', { label: '12' })
+    await page.selectOption('select[aria-label="Por página"]', '12')
     await expect(page).toHaveURL(/limit=12/)
+    const next = page.getByRole('link', { name: 'Siguiente' })
+    // Puede no existir si totalPages === 1 en la ciudad/limit actual
+    if (await next.count()) await expect(next).toBeVisible()
 
     // Ir a siguiente página si existe
-    const next = page.getByRole('link', { name: 'Siguiente' })
-    if (await next.isVisible() && await next.isEnabled()) {
+    if (await next.count() && await next.isVisible() && await next.isEnabled()) {
       await next.click()
       await expect(page).toHaveURL(/page=2/)
     }

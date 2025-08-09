@@ -68,11 +68,11 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [x] Pagination & sorting
   - [x] Query params: page, limit, sort (date, price)
   - [x] Web UI: soporte de paginación en /eventos/[city] y utilidades de API
-- [ ] Additional API tests (phase 2)
-  - [ ] POST /api/events (happy path válido)
-  - [ ] Cabeceras de rate limit presentes y coherentes
-  - [ ] `x-correlation-id` presente en respuestas y propagado
-  - [ ] Orden por fecha considerando fecha+hora (evitar empates) y orden estable
+- [x] Additional API tests (phase 2)
+  - [x] POST /api/events (happy path válido)
+  - [x] Cabeceras de rate limit presentes y coherentes
+  - [x] `x-correlation-id` presente en respuestas y propagado
+  - [x] Orden por fecha considerando fecha+hora (evitar empates) y orden estable
 - [ ] Additional filters
   - [ ] Date range (from, to)
   - [ ] Price range (minPrice, maxPrice)
@@ -138,14 +138,20 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Monitoring/Errors: integrate Sentry (web + api)
 - [ ] Analytics basics (page views, filters usage)
 - [ ] CI/CD
-  - [ ] GitHub Actions: lint, test, build on PRs
-  - [ ] Coverage report in CI
-  - [ ] Job E2E headless (Linux) con matriz de navegadores (Chromium/Firefox/WebKit)
+  - [x] GitHub Actions: lint, test, build on PRs
+  - [x] Coverage report in CI
+  - [x] Job E2E headless (Linux) con matriz de navegadores (Chromium/Firefox/WebKit)
+  - [x] Workflow CI completo (pnpm + Node 22 + caché)
+    - [x] Jobs: lint (web+api), unit tests (api), build (web+api)
+    - [x] E2E (Playwright): instalar browsers, ejecutar contra build de producción
+    - [x] Artefactos: subir reportes de Playwright (HTML) y traces al fallar
+    - [x] Disparadores: `pull_request` y `push` a `master`
+    - [x] Concurrency y cancelación de ejecuciones obsoletas en PRs
 
 ### E2E Tests (Web)
 - [ ] Navegación y rutas
-  - [ ] Landing (`/`): selección de ciudad redirige a `/eventos/[city]`
-  - [ ] Ciudad inválida (`/eventos/unknown-city`) muestra 404/not-found
+  - [x] Landing (`/`): selección de ciudad redirige a `/eventos/[city]`
+  - [x] Ciudad inválida (`/eventos/unknown-city`) muestra 404/not-found
   - [ ] Preservación de parámetros al navegar atrás/adelante del navegador
 - [ ] Paginación y tamaño de página
   - [ ] Selector "Por página" (`limit`) cambia conteo y actualiza URL; persiste entre páginas
@@ -153,28 +159,28 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [ ] Deep link fuera de rango (`page` > `totalPages`) maneja estado esperado
 - [ ] Ordenamiento
   - [ ] Orden por fecha asc/desc reordena correctamente
-  - [ ] Orden por precio asc/desc reordena correctamente
+  - [x] Orden por precio asc/desc reordena correctamente
   - [ ] Persistencia de `sort` y `order` al cambiar de página y al cambiar `limit`
 - [ ] Búsqueda y filtros
   - [ ] Búsqueda por texto (`q`) con acentos/diacríticos-insensible
   - [ ] Filtro por categoría resetea `page` y preserva otros parámetros
   - [ ] Combinación de `q` + categoría con paginación y orden aplicado
 - [ ] Estados vacíos y error
-  - [ ] `NoResults` cuando no hay coincidencias (contenido y enlaces sugeridos)
+  - [x] `NoResults` cuando no hay coincidencias (contenido y enlaces sugeridos)
   - [ ] Falla de red/API caída muestra `ErrorBanner` con mensaje adecuado
   - [ ] Botón "Reintentar" de `ErrorBanner` dispara recarga (cuando se migre a client)
 - [ ] Accesibilidad
   - [ ] Navegación por teclado en paginación y selects; foco visible
-  - [ ] ARIA labels en controles de orden y tamaño de página
+  - [x] ARIA labels en controles de orden y tamaño de página
 - [ ] SEO (bloqueado hasta implementación)
   - [ ] Título/meta tags por ciudad
   - [ ] `sitemap.xml` y `robots.txt`
   - [ ] JSON-LD `schema.org/Event` en listas/detalle
 - [ ] Infraestructura E2E
-  - [ ] Ejecutar E2E contra build de producción (`next build` + `next start`)
-  - [ ] Mock/unoptimized de `next/image` para E2E
+  - [x] Ejecutar E2E contra build de producción (`next build` + `next start`)
+  - [x] Mock/unoptimized de `next/image` para E2E
   - [ ] Fixtures/seed de datos deterministas para E2E
-  - [ ] Matriz de navegadores (Chromium, Firefox, WebKit)
+  - [x] Matriz de navegadores (Chromium, Firefox, WebKit)
 
 ## Documentation & DX
 - [ ] Provide .env.example (root, web, api) with variable explanations

@@ -28,7 +28,7 @@ app.use(morgan('dev'))
 const correlationIdMiddleware: RequestHandler = (req, res, next) => {
   const incoming = req.headers['x-correlation-id']
   const id = typeof incoming === 'string' && incoming.length > 0 ? incoming : crypto.randomUUID()
-  ;(req as any).correlationId = id
+  req.correlationId = id
   res.setHeader('x-correlation-id', id)
   next()
 }
