@@ -129,6 +129,14 @@ jobs:
       - name: Install Playwright browsers
         run: pnpm --filter @que-hacer-en/web exec playwright install --with-deps
 
+      - name: Build api
+        run: pnpm --filter @que-hacer-en/api run build
+
+      - name: Build web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4001
+        run: pnpm --filter @que-hacer-en/web run build
+
       - name: Start API (prod build)
         run: pnpm --filter @que-hacer-en/api run start &
 
@@ -141,7 +149,7 @@ jobs:
 
       - name: Wait for services
         run: |
-          npx -y wait-on http://localhost:4001/api/health http://localhost:4000
+          npx -y wait-on --timeout 180000 --httpTimeout 10000 http://localhost:4001/api/health http://localhost:4000
 
       - name: Run E2E tests (Chromium/Firefox/WebKit)
         env:
