@@ -2,18 +2,6 @@
 
 This file outlines the development tasks for the "Qué hacer en..." project. We will track our progress here by checking off items as we complete them. This list will be continuously updated as the project evolves.
 
-## 🎯 Current Priority Focus
-
-**Phase 2: Web App Frontend (MVP)** has been successfully completed! The frontend design is now fully implemented with custom background images, sticky navigation, system fonts, and comprehensive UI/UX matching the prototype specifications.
-
-**Phase 3: Backend API Development** is our immediate priority. With the frontend complete, we need to build the backend infrastructure to support real data and user interactions.
-
-**Next Sprint Goals:**
-1. Set up Express.js API server with TypeScript
-2. Create basic CRUD endpoints for events
-3. Connect frontend to backend API
-4. Implement UX improvements (loading states, error handling)
-
 ## Project Foundation (MVP)
 - [x] Set up monorepo structure with pnpm workspaces (/api, /web, /app packages)
 - [x] Configure environment variables and .env setup for all packages
@@ -73,15 +61,18 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [x] Cabeceras de rate limit presentes y coherentes
   - [x] `x-correlation-id` presente en respuestas y propagado
   - [x] Orden por fecha considerando fecha+hora (evitar empates) y orden estable
-- [ ] Additional filters
-  - [ ] Date range (from, to)
-  - [ ] Price range (minPrice, maxPrice)
-- [ ] Performance
-  - [ ] In-memory response caching by filter combination
+- [x] Additional filters
+  - [x] Date range (from, to)
+  - [x] Price range (minPrice, maxPrice)
+- [x] Performance
+  - [x] In-memory response caching by filter combination
 - [x] Additional tests
   - [x] Validation error cases
   - [x] Pagination and limits
   - [x] Accent/diacritics-insensitive search
+  - [x] Cache hit/expiry coverage vía router factory
+  - [x] Search OR branches (título, descripción, location, tags)
+  - [x] CORS: lista vacía permite origen entrante
 
 ## UX Enhancements (Based on Questions Analysis)
 - [x] Implement loading states and skeleton screens for event cards
@@ -107,15 +98,27 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 
 ## Database & Data Management
 - [ ] Single source of truth for data
-  - [ ] Remove packages/web/src/data/events.json
-  - [ ] Document API as the only data source
+  - [x] Remove packages/web/src/data/events.json
+  - [x] Document API as the only data source
+  - [x] Remove duplicate `packages/api/events.json`
+  - [x] Seed reads `events.json` from repo root
+  - [ ] API reads from PostgreSQL for all endpoints
+  - [ ] Retirar fallback JSON en entornos no-test una vez estable DB
 - [ ] Category normalization
   - [ ] Master dictionary (slug + label) and mapping in API/UI
-- [ ] Choose and set up production database (PostgreSQL/MongoDB)
-- [ ] Design comprehensive database schema
-- [ ] Implement data migration from JSON to database
-- [ ] Add database indexing for performance
+- [x] Choose database: PostgreSQL
+- [ ] Set up production database (provider, backups, monitoring)
+- [x] Design comprehensive database schema
+- [x] Implement data migration from JSON to database
+- [x] Add database indexing for performance
 - [ ] Set up backup and recovery procedures
+  - [x] Apply migrations in Supabase (Session Pooler)
+  - [x] Seed Supabase with `events.json`
+  - [ ] Configurar Session Pooler (6543) en todos los entornos (dev/CI/prod)
+  - [ ] Gestionar secretos: `DATABASE_URL` en CI/CD y hosting
+  - [ ] Backups/PITR y alertas básicas en proveedor
+  - [ ] Mejorar índices de búsqueda: GIN trigram funcional con `unaccent(lower(...))` (title, description, venue, tags)
+  - [ ] Tests API en modo DB (cobertura de filtros combinados y orden estable)
 
 ## Authentication & User Management
 - [ ] Design user authentication strategy (email, social, phone)
@@ -123,16 +126,6 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Create user profile management
 - [ ] Add user roles (attendees, organizers, admins)
 - [ ] Implement favorite events and user preferences
-
-## Mobile Application (React Native)
-- [ ] Set up Expo development environment
-- [ ] Create shared component library between web and mobile
-- [ ] Implement platform-specific navigation
-- [ ] Add push notifications
-- [ ] Implement offline functionality
-- [ ] Share types and utilities with web
-- [ ] First screens: city selector + event feed
-- [ ] Sync filters and queries with API
 
 ## Observability & Quality
 - [ ] Monitoring/Errors: integrate Sentry (web + api)
@@ -183,8 +176,9 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [x] Matriz de navegadores (Chromium, Firefox, WebKit)
 
 ## Documentation & DX
-- [ ] Provide .env.example (root, web, api) with variable explanations
-  - [ ] Añadir valores por defecto para dev/test (puertos, NEXT_PUBLIC_API_URL)
+- [x] Provide .env.example (root, web, api) with variable explanations
+  - [x] Añadir valores por defecto para dev/test (puertos, NEXT_PUBLIC_API_URL)
+- [x] Frontend: scripts usan PORT en lugar de `-p 4000`; Playwright inyecta `PORT=4000` en E2E
 - [ ] Document API endpoints in packages/api/README.md
 - [ ] Developer guide: local setup and common scripts (pnpm)
   - [ ] Documentar flujo E2E (webServer, scripts, variables) en `packages/web/README.md`
@@ -206,3 +200,13 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Implement A/B testing framework
 - [ ] Add content moderation and safety features
 - [ ] Create API rate limiting and security measures
+
+## Mobile Application (React Native)
+- [ ] Set up Expo development environment
+- [ ] Create shared component library between web and mobile
+- [ ] Implement platform-specific navigation
+- [ ] Add push notifications
+- [ ] Implement offline functionality
+- [ ] Share types and utilities with web
+- [ ] First screens: city selector + event feed
+- [ ] Sync filters and queries with API

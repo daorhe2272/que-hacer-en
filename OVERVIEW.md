@@ -62,27 +62,31 @@ The project will be developed in phases:
 
 ## 5. Configuration & Environment Variables
 
-The project uses a `.env` file in the root directory to store sensitive configuration and credentials. This file is excluded from version control for security reasons.
+- General
+  - Real env files (`.env`, `.env.local`) are not committed.
+  - Prefer per-package envs over root-level values.
 
-**Required Environment Variables:**
-*   `GITHUB_USERNAME`: GitHub username or organization name for repository operations
-*   `GITHUB_REPOSITORY`: GitHub repository name for the project
-*   `PORT`: Port for the API server (default: 4001)
-*   `NEXT_PUBLIC_API_URL`: URL for the API server (e.g., http://localhost:4001)
-*   `CORS_ORIGINS`: Comma-separated list of allowed origins for CORS (e.g., http://localhost:4000)
+- Web (`packages/web`)
+  - `PORT` (default 4000)
+  - `NEXT_PUBLIC_API_URL` (e.g., `http://localhost:4001`)
+  - `NEXT_PUBLIC_WEB_URL` (e.g., `http://localhost:4000`)
+  - `WEB_BASE_URL` (Playwright baseURL)
+  - `E2E`, `CI` (flags)
 
-**API Defaults:**
-*   Paginación: `page` inicia en 1, `limit` por defecto 20, máximo 100
-*   Orden: `sort` admite `date` o `price`, `order` admite `asc` o `desc`
+- API (`packages/api`)
+  - `PORT` (default 4001)
+  - `CORS_ORIGINS` (CSV; empty = allow all)
+  - `HOST` (optional)
 
-**Development Ports:**
-*   **Web Application**: Port 4000 (configured in packages/web/package.json)
-*   **API Server**: Port 4001 (will be configured when implementing the API)
+- App (`packages/app`)
+  - `EXPO_PUBLIC_API_URL`
 
-**Important Notes:**
-*   The `.env` file should never be committed to version control
-*   All sensitive information (API keys, credentials, etc.) should be stored in environment variables
-*   Each environment (development, staging, production) should have its own set of environment variables
+- Quick usage (PowerShell)
+  - API: `pnpm --filter @que-hacer-en/api start`
+  - Web: `$env:PORT="4000"; pnpm --filter @que-hacer-en/web start`
+  - E2E: `pnpm --filter @que-hacer-en/web e2e`
+
+Notes: prefer `CORS_ORIGINS`.
 
 ## 6. Styling & Conventions
 

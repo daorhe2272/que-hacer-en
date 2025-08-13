@@ -15,12 +15,16 @@ export async function fetchEventsByCity(city: string): Promise<Event[]> {
 
 export type ApiEventsResult = { events: Event[]; pagination?: { page: number; limit: number; total: number; totalPages: number }; error?: string }
 
-export async function fetchAllEvents(params?: { city?: string; category?: string; q?: string; page?: number; limit?: number; sort?: 'date' | 'price'; order?: 'asc' | 'desc' }): Promise<ApiEventsResult> {
+export async function fetchAllEvents(params?: { city?: string; category?: string; q?: string; from?: string; to?: string; minPrice?: number; maxPrice?: number; page?: number; limit?: number; sort?: 'date' | 'price'; order?: 'asc' | 'desc' }): Promise<ApiEventsResult> {
   try {
     const usp = new URLSearchParams()
     if (params?.city) usp.set('city', params.city)
     if (params?.category) usp.set('category', params.category)
     if (params?.q) usp.set('q', params.q)
+    if (params?.from) usp.set('from', params.from)
+    if (params?.to) usp.set('to', params.to)
+    if (typeof params?.minPrice === 'number') usp.set('minPrice', String(params.minPrice))
+    if (typeof params?.maxPrice === 'number') usp.set('maxPrice', String(params.maxPrice))
     if (params?.page) usp.set('page', String(params.page))
     if (params?.limit) usp.set('limit', String(params.limit))
     if (params?.sort) usp.set('sort', params.sort)

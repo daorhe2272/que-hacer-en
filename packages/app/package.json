@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "build": "expo export",
     "lint": "echo \"skip lint (no fuentes aún)\"",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "clean": "expo r -c"
   },
   "dependencies": {

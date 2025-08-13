@@ -195,6 +195,47 @@ describe('Events API', () => {
     const sortedAsc = [...prices].sort((a, b) => a - b)
     expect(prices).toEqual(sortedAsc)
   })
+
+  // New filters: date range and price range
+  test('GET /api/events with from filters events on/after the date', async () => {
+    const res = await request(app).get('/api/events?from=2024-06-01')
+    expect(res.status).toBe(200)
+    const dates = (res.body.events as Array<{ date: string }>).map(e => e.date)
+    expect(dates.every(d => d >= '2024-06-01')).toBe(true)
+  })
+
+  test('GET /api/events with to filters events on/before the date', async () => {
+    const res = await request(app).get('/api/events?to=2024-03-31')
+    expect(res.status).toBe(200)
+    const dates = (res.body.events as Array<{ date: string }>).map(e => e.date)
+    expect(dates.every(d => d <= '2024-03-31')).toBe(true)
+  })
+
+  test('GET /api/events with minPrice filters events by minimum price', async () => {
+    const res = await request(app).get('/api/events?minPrice=50000')
+    expect(res.status).toBe(200)
+    const prices = (res.body.events as Array<{ price: number }>).map(e => e.price)
+    expect(prices.every(p => p >= 50000)).toBe(true)
+  })
+
+  test('GET /api/events with maxPrice filters events by maximum price', async () => {
+    const res = await request(app).get('/api/events?maxPrice=10000')
+    expect(res.status).toBe(200)
+    const prices = (res.body.events as Array<{ price: number }>).map(e => e.price)
+    expect(prices.every(p => p <= 10000)).toBe(true)
+  })
+
+  test('GET /api/events with from+to within city bounds returns only that window', async () => {
+    const res = await request(app).get('/api/events?city=bogota&from=2024-04-01&to=2024-04-30')
+    expect(res.status).toBe(200)
+    const dates = (res.body.events as Array<{ date: string }>).map(e => e.date)
+    expect(dates.every(d => d >= '2024-04-01' && d <= '2024-04-30')).toBe(true)
+  })
+
+  test('GET /api/events returns 400 for bad from format', async () => {
+    const res = await request(app).get('/api/events?from=2024/01/01')
+    expect(res.status).toBe(400)
+  })
 })
 
 describe('Infra (CORS y Correlation ID)', () => {

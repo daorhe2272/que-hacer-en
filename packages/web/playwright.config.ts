@@ -11,15 +11,15 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: process.env.CI ? 'pnpm --filter @que-hacer-en/api run start' : 'pnpm --filter @que-hacer-en/api dev',
+      command: process.env.CI ? 'pnpm --filter @que-hacer-en/api run start' : 'pnpm --filter @que-hacer-en/api run start',
       port: 4001,
       reuseExistingServer: true
     },
     {
-      command: process.env.CI ? 'next start -p 4000' : 'next dev -p 4000',
+      command: 'pnpm build && next start',
       port: 4000,
       reuseExistingServer: true,
-      env: { NEXT_PUBLIC_API_URL: 'http://localhost:4001', E2E: 'true' }
+      env: { NEXT_PUBLIC_API_URL: 'http://localhost:4001', E2E: 'true', PORT: '4000' }
     }
   ],
   projects: [

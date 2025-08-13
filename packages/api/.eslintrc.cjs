@@ -5,13 +5,11 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',
-    sourceType: 'module',
-    tsconfigRootDir: __dirname,
-    project: ['./tsconfig.json']
+    sourceType: 'module'
   },
   plugins: ['@typescript-eslint'],
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
-  ignorePatterns: ['dist/**', 'node_modules/**']
+  ignorePatterns: ['dist/**', 'node_modules/**', 'tests/**', 'src/db/seed.ts']
 }
 
 

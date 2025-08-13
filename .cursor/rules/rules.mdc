@@ -94,6 +94,7 @@ alwaysApply: true
 - Any shortcomings, bugs, or problems detected in the code being tested should be fixed immediately.
 - Test API endpoints with proper mock data.
 - Test SSR functionality for SEO-critical pages.
+- Do not make tests pass by adjusting coverage thresholds. Focus on increasing coverage instead.
 
 ## Git & Version Control
 - Follow Conventional Commits standard (feat:, fix:, docs:, chore:).

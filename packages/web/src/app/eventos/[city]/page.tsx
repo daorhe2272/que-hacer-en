@@ -7,7 +7,7 @@ import HeroSection from '@/components/HeroSection'
 import EventCard from '@/components/EventCard'
 //
 import ClientFilters from '@/components/ClientFilters'
-import ErrorBanner from '@/components/ErrorBanner'
+import ErrorBannerClient from '@/components/ErrorBannerClient'
 import NoResults from '@/components/NoResults'
 import SortControls from '@/components/SortControls'
 import PageSizeSelector from '@/components/PageSizeSelector'
@@ -98,7 +98,7 @@ export default async function CityEventsPage({ params, searchParams }: { params:
           </div>
 
           {/* Error State */}
-          {error && <ErrorBanner message={error} onRetry={() => { /* TODO: agregar acción client-side si migramos esta sección a client */ }} />}
+          {error && <ErrorBannerClient message={error} />}
 
           {/* Category Filters */}
           {/* Client controller for query param navigation */}
