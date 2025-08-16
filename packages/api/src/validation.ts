@@ -6,7 +6,7 @@ export const cityEnum = z.enum(['bogota', 'medellin', 'cali', 'barranquilla', 'c
 
 export const listQuerySchema = z.object({
   city: cityEnum.optional(),
-  category: z.enum(CATEGORIES.map(c => c.slug) as [string, ...string[]]).optional(),
+  category: z.enum(CATEGORIES.map((c: { slug: string }) => c.slug) as [string, ...string[]]).optional(),
   q: z.string().min(1).max(200).optional(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

@@ -51,7 +51,15 @@ describe('Events API', () => {
   })
 
   test('POST /api/events validation error', async () => {
-    const res = await request(app).post('/api/events').send({ title: 'x' })
+    // Mock JWT verification for auth middleware
+    jest.doMock('jose', () => ({
+      jwtVerify: jest.fn(async () => ({ payload: { sub: 'user-1', email: 'organizer@example.com', user_role: 'organizer' } }))
+    }))
+    
+    const res = await request(app)
+      .post('/api/events')
+      .set('Authorization', 'Bearer valid')
+      .send({ title: 'x' })
     expect(res.status).toBe(400)
   })
 
@@ -122,6 +130,11 @@ describe('Events API', () => {
   })
 
   test('POST /api/events happy path', async () => {
+    // Mock JWT verification for auth middleware
+    jest.doMock('jose', () => ({
+      jwtVerify: jest.fn(async () => ({ payload: { sub: 'user-1', email: 'organizer@example.com', user_role: 'organizer' } }))
+    }))
+
     const body = {
       title: 'Charla de Tecnología',
       description: 'Charlas sobre IA y futuro',
@@ -138,7 +151,10 @@ describe('Events API', () => {
       tags: ['tech'],
       status: 'active'
     }
-    const res = await request(app).post('/api/events').send(body)
+    const res = await request(app)
+      .post('/api/events')
+      .set('Authorization', 'Bearer valid')
+      .send(body)
     expect(res.status).toBe(201)
     expect(res.body.event.title).toBe('Charla de Tecnología')
   })

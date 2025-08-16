@@ -64,6 +64,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared package
+        run: pnpm --filter @que-hacer-en/shared run build
+
       - name: Test api (coverage)
         run: pnpm --filter @que-hacer-en/api run test:coverage
 
@@ -97,6 +100,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared package
+        run: pnpm --filter @que-hacer-en/shared run build
+
       - name: Build api
         run: pnpm --filter @que-hacer-en/api run build
 
@@ -128,6 +134,9 @@ jobs:
 
       - name: Install Playwright browsers
         run: pnpm --filter @que-hacer-en/web exec playwright install --with-deps
+
+      - name: Build shared package
+        run: pnpm --filter @que-hacer-en/shared run build
 
       - name: Build api
         run: pnpm --filter @que-hacer-en/api run build
