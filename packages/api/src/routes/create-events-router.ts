@@ -4,6 +4,7 @@ import path from 'path'
 import type { Event, EventsData, CityKey } from '../types'
 import { listQuerySchema, eventSchema } from '../validation'
 import { listEventsDb, getEventByLegacyIdDb, listEventsByCityDb } from '../db/repository'
+import { authenticate, requireRole } from '../middleware/auth'
 
 export type CreateEventsRouterOptions = {
   enableCache?: boolean
@@ -65,7 +66,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
 
       const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
-      const useDb = !!process.env.DATABASE_URL && process.env.NODE_ENV !== 'test'
+      const useDb = process.env.NODE_ENV !== 'test'
 
       let payload: { events: Event[], pagination: { page: number, limit: number, total: number, totalPages: number } }
       if (useDb) {
@@ -133,7 +134,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
   router.get('/id/:id', async (req, res) => {
     try {
       const { id } = req.params
-      const useDb = !!process.env.DATABASE_URL && process.env.NODE_ENV !== 'test'
+      const useDb = process.env.NODE_ENV !== 'test'
       const found = useDb ? await getEventByLegacyIdDb(id) : (() => {
         const data = readEvents()
         const all: Event[] = [
@@ -158,7 +159,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
   router.get('/:city', async (req, res) => {
     try {
       const { city } = req.params
-      const useDb = !!process.env.DATABASE_URL && process.env.NODE_ENV !== 'test'
+      const useDb = process.env.NODE_ENV !== 'test'
       if (useDb) {
         const events = await listEventsByCityDb(city)
         if (!events) {
@@ -180,14 +181,28 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
     }
   })
 
-  router.post('/', (req, res) => {
-    const parsed = eventSchema.safeParse(req.body)
-    if (!parsed.success) {
-      res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
-      return
-    }
-    res.status(201).json({ message: 'Evento recibido (mock)', event: parsed.data })
-  })
+  const enableAuth = process.env.ENABLE_AUTH === 'true'
+
+  if (enableAuth) {
+    router.post('/', authenticate, requireRole('organizer', 'admin'), (req, res) => {
+      const parsed = eventSchema.safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
+        return
+      }
+      res.status(201).json({ message: 'Evento recibido (mock)', event: parsed.data })
+    })
+  } else {
+    router.post('/', (req, res) => {
+      const parsed = eventSchema.safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
+        return
+      }
+      res.status(201).json({ message: 'Evento recibido (mock)', event: parsed.data })
+    })
+  }
+
 
   return router
 }

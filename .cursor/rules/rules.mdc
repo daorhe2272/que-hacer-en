@@ -11,7 +11,6 @@ alwaysApply: true
 - Check `TASKS.md` before starting a new task. If the task isn't listed, add it with a brief description.
 - Use consistent naming conventions, file structure, and architecture patterns as described in `OVERVIEW.md`.
 - We are working in a Windows machine, so command line instructions need to be given in PowerShell syntax.
-- All user-facing content must be in Spanish as specified in the project requirements.
 
 ## Monorepo & Package Management
 - Use `pnpm` as the package manager for all operations (install, add, remove packages).

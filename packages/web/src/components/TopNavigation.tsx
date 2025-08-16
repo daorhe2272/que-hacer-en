@@ -2,7 +2,10 @@
 
 import { MapPin, ChevronDown } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
+import { useSession } from '@/lib/session'
+import Image from 'next/image'
 
 const cities = [
   { id: 'bogota', name: 'Bogotá' },
@@ -16,6 +19,16 @@ export default function TopNavigation() {
   const router = useRouter()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const { isAuthenticated, user, signOut } = useSession()
+
+  useEffect(() => {
+    // Keep to ensure module is client side initialized for auth events
+    try {
+      const supabase = getSupabaseBrowserClient()
+      supabase.auth.getSession()
+    } catch {}
+  }, [])
 
   function handleCitySelect(cityId: string) {
     setIsDropdownOpen(false)
@@ -29,7 +42,7 @@ export default function TopNavigation() {
           {/* Logo */}
           <div className="flex-shrink-0">
             <a href="/" className="flex items-center">
-              <img src="/logo-wide.png" alt="¿Qué hacer en...?" className="h-12 w-auto" />
+              <Image src="/logo-wide.png" alt="¿Qué hacer en...?" width={192} height={48} className="h-12 w-auto" priority />
             </a>
           </div>
 
@@ -89,10 +102,62 @@ export default function TopNavigation() {
               )}
             </div>
 
-            {/* Create Event Button */}
-            <button className="hidden md:block bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-              Crear Evento
-            </button>
+            {/* Create Event Button / Login */}
+            {isAuthenticated ? (
+              <>
+                {/* Desktop view */}
+                <div className="hidden md:flex items-center gap-3">
+                  <button className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                    Crear Evento
+                  </button>
+                  <div className="relative group">
+                    <button className="px-3 py-2 text-sm text-gray-700 hover:text-gray-900 rounded-lg transition-colors duration-200">
+                      {user?.email ?? 'Cuenta'}
+                    </button>
+                    <div className="hidden group-hover:block absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      <button onClick={() => signOut()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900">Cerrar sesión</button>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Mobile view */}
+                <div className="md:hidden relative">
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-600 text-white text-sm font-medium"
+                  >
+                    {user?.email?.[0]?.toUpperCase() ?? 'U'}
+                  </button>
+                  
+                  {isUserMenuOpen && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      <div className="py-2">
+                        <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">
+                          {user?.email}
+                        </div>
+                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+                          Crear Evento
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setIsUserMenuOpen(false)
+                            signOut()
+                          }} 
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Cerrar sesión
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <a href="/login" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 md:px-6 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                <span className="hidden sm:inline">Iniciar sesión</span>
+                <span className="sm:hidden">Login</span>
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -122,11 +187,14 @@ export default function TopNavigation() {
         </div>
       )}
 
-      {/* Backdrop to close dropdown when clicking outside */}
-      {isDropdownOpen && (
+      {/* Backdrop to close dropdowns when clicking outside */}
+      {(isDropdownOpen || isUserMenuOpen) && (
         <div 
           className="fixed inset-0 z-40" 
-          onClick={() => setIsDropdownOpen(false)}
+          onClick={() => {
+            setIsDropdownOpen(false)
+            setIsUserMenuOpen(false)
+          }}
         />
       )}
     </nav>

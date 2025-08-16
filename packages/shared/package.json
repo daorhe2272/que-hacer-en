@@ -1,0 +1,17 @@
+{
+  "name": "@que-hacer-en/shared",
+  "version": "1.0.0",
+  "description": "Shared utilities and constants for Qué hacer en... monorepo",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "rimraf": "^5.0.0"
+  }
+}
+
+

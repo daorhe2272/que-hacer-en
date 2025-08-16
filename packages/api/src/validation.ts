@@ -1,11 +1,12 @@
 import { z } from 'zod'
+import { CATEGORIES } from '@que-hacer-en/shared'
 import { DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT, DEFAULT_PAGE_NUMBER } from './constants'
 
 export const cityEnum = z.enum(['bogota', 'medellin', 'cali', 'barranquilla', 'cartagena'])
 
 export const listQuerySchema = z.object({
   city: cityEnum.optional(),
-  category: z.string().min(1).max(100).optional(),
+  category: z.enum(CATEGORIES.map(c => c.slug) as [string, ...string[]]).optional(),
   q: z.string().min(1).max(200).optional(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

@@ -61,12 +61,12 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
   if (q) {
     const term = `%${normalize(q)}%`
     where.push(`(
-      unaccent(lower(e.title)) LIKE unaccent(lower($${i})) OR
-      unaccent(lower(e.description)) LIKE unaccent(lower($${i})) OR
-      unaccent(lower(e.venue)) LIKE unaccent(lower($${i})) OR
+      e.title_norm LIKE $${i} OR
+      e.description_norm LIKE $${i} OR
+      e.venue_norm LIKE $${i} OR
       EXISTS (
         SELECT 1 FROM event_tags et JOIN tags t ON t.id = et.tag_id
-        WHERE et.event_id = e.id AND unaccent(lower(t.name)) LIKE unaccent(lower($${i}))
+        WHERE et.event_id = e.id AND t.name_norm LIKE $${i}
       )
     )`)
     args.push(term); i++

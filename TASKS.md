@@ -2,79 +2,16 @@
 
 This file outlines the development tasks for the "Qué hacer en..." project. We will track our progress here by checking off items as we complete them. This list will be continuously updated as the project evolves.
 
-## Project Foundation (MVP)
-- [x] Set up monorepo structure with pnpm workspaces (/api, /web, /app packages)
-- [x] Configure environment variables and .env setup for all packages
+## ✅ Completed: Web App Frontend (MVP)
+  Delivered a Next.js frontend in TypeScript with SSR, a city-selection landing page, SEO-friendly event listings at `/eventos/[city]`, a mock events dataset for multiple cities, and a mobile-first responsive layout.
 
-## Web App Frontend (MVP)
-- [x] Initialize Next.js web application with TypeScript and SSR configuration
-- [x] Create mock events.json database with sample event data for multiple cities
-- [x] Create landing page with city selection functionality
-- [x] Build event listing page with server-side rendering for SEO (/eventos/[city])
-- [x] Set up responsive design with mobile-first approach
+## ✅ Completed: UI/UX Design Implementation
+  Delivered a cohesive, responsive UI aligned with the design system: city‑aware hero with purple gradient, sticky navigation with a prominent responsive search, reusable event cards and category filters, polished interactions, and performance‑oriented system fonts.
 
-## UI/UX Design Implementation
-- [x] Create comprehensive design system based on provided prototype
-- [x] Implement hero section with purple gradient background and city-specific content
-- [x] Build search component with integrated category dropdown
-- [x] Create top navigation bar with location selector and "Crear Evento" button
-- [x] Design and implement event cards with proper styling and layout
-- [x] Build category filter navigation (Todos, Música, Arte, etc.)
-- [x] Implement responsive design for mobile and desktop
-- [x] Add hover states and interactive animations
-- [x] Create reusable UI components following design system
-- [x] Implement custom background image integration with gradient overlay
-- [x] Configure sticky navigation with enhanced search functionality
-- [x] Implement system fonts strategy for optimal performance in Latin American markets
-- [x] Enhance search component width for better desktop experience
-- [x] Adjust hero section typography to match prototype specifications
-- [x] Update gradient colors to darker purple tones for better visual impact
-- [x] Hide "Crear Evento" button on mobile view in navigation
-- [x] Replace search icon with search bar on medium+ screens in navigation
-- [x] Improve search bar visibility with better contrast and styling
-- [x] Implement responsive search bar sizing for larger screens
-- [x] Add mobile search functionality with expandable second row
+## ✅ Completed; Backend API Development
+  Delivered a TypeScript Express REST API powering the web app: validated endpoints for listing and fetching events (city-specific, with rich filtering including category, text, date and price ranges), pagination and sorting; consistent error handling and structured logging; security hardening with rate limiting, environment-aware CORS and correlation IDs; in-memory caching for performance; fully integrated with the frontend and covered by comprehensive tests (validation, stable ordering, headers and diacritics-insensitive search).
 
-## Backend API Development (Next Priority)
-- [x] Set up Express.js server with TypeScript configuration
-- [x] Design and implement RESTful API endpoints
-  - [x] GET /api/events (all events with filtering)
-  - [x] GET /api/events/[city] (city-specific events)
-  - [x] GET /api/events/id/[id] (individual event details)
-  - [x] POST /api/events (create event - for organizers)
-- [x] Implement proper error handling and validation
-  - [x] Define event schema (zod/joi)
-  - [x] Validate query params (city, category, q)
-  - [x] Consistent error responses (status codes + payload)
-- [x] Connect frontend to backend API instead of local mock data
-- [x] Add request logging and basic security measures
- - [x] Add API unit tests (Jest + Supertest)
-- [x] Security hardening
-  - [x] Rate limiting (express-rate-limit)
-  - [x] CORS by environment (dev/stage/prod)
-  - [x] Correlation ID in logs
-- [x] Pagination & sorting
-  - [x] Query params: page, limit, sort (date, price)
-  - [x] Web UI: soporte de paginación en /eventos/[city] y utilidades de API
-- [x] Additional API tests (phase 2)
-  - [x] POST /api/events (happy path válido)
-  - [x] Cabeceras de rate limit presentes y coherentes
-  - [x] `x-correlation-id` presente en respuestas y propagado
-  - [x] Orden por fecha considerando fecha+hora (evitar empates) y orden estable
-- [x] Additional filters
-  - [x] Date range (from, to)
-  - [x] Price range (minPrice, maxPrice)
-- [x] Performance
-  - [x] In-memory response caching by filter combination
-- [x] Additional tests
-  - [x] Validation error cases
-  - [x] Pagination and limits
-  - [x] Accent/diacritics-insensitive search
-  - [x] Cache hit/expiry coverage vía router factory
-  - [x] Search OR branches (título, descripción, location, tags)
-  - [x] CORS: lista vacía permite origen entrante
-
-## UX Enhancements (Based on Questions Analysis)
+## 🚧 In progress: UX Enhancements (Based on Questions Analysis)
 - [x] Implement loading states and skeleton screens for event cards
 - [ ] Add progressive loading for images and search results
 - [ ] Enhance search with autocomplete and suggestions
@@ -84,53 +21,101 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [x] Wire category and text filters via URL params and SSR to API
 - [ ] Add CTA: "Ver más de [Categoría] en [Ciudad]" when category is active
 - [x] Pagination UI (classic or Load More)
-- [ ] ErrorBanner: add inline "Reintentar" action
-- [ ] Images perf: ensure progressive/lazy via next/image in all lists
-  - [ ] Configurar `next.config.js` con `images.remotePatterns` para pruebas o usar assets locales en test
+- [x] ErrorBanner: add inline "Reintentar" action
+- [x] Images perf: ensure progressive/lazy via next/image in all lists
+  - [x] Configurar `next.config.js` con `images.remotePatterns` para pruebas o usar assets locales en test
 - [ ] SEO
   - [ ] OG/Twitter cards per city
   - [ ] sitemap.xml and robots.txt
   - [ ] JSON-LD schema.org/Event for lists/detail
   
-### Web Error Handling
-- [ ] ErrorBanner: acción "Reintentar" funcional
-  - [ ] Migrar sección a client o añadir boundary client para disparar recarga
+### ✅ Completed: Web Error Handling
+- [x] ErrorBanner: acción "Reintentar" funcional
+  - [x] Migrar sección a client o añadir boundary client para disparar recarga
 
-## Database & Data Management
-- [ ] Single source of truth for data
-  - [x] Remove packages/web/src/data/events.json
-  - [x] Document API as the only data source
-  - [x] Remove duplicate `packages/api/events.json`
-  - [x] Seed reads `events.json` from repo root
-  - [ ] API reads from PostgreSQL for all endpoints
-  - [ ] Retirar fallback JSON en entornos no-test una vez estable DB
-- [ ] Category normalization
-  - [ ] Master dictionary (slug + label) and mapping in API/UI
-- [x] Choose database: PostgreSQL
-- [ ] Set up production database (provider, backups, monitoring)
-- [x] Design comprehensive database schema
-- [x] Implement data migration from JSON to database
-- [x] Add database indexing for performance
-- [ ] Set up backup and recovery procedures
-  - [x] Apply migrations in Supabase (Session Pooler)
-  - [x] Seed Supabase with `events.json`
-  - [ ] Configurar Session Pooler (6543) en todos los entornos (dev/CI/prod)
-  - [ ] Gestionar secretos: `DATABASE_URL` en CI/CD y hosting
-  - [ ] Backups/PITR y alertas básicas en proveedor
-  - [ ] Mejorar índices de búsqueda: GIN trigram funcional con `unaccent(lower(...))` (title, description, venue, tags)
-  - [ ] Tests API en modo DB (cobertura de filtros combinados y orden estable)
+## ✅ Completed: Database & Data Management
+  Established the API as the single source of truth and migrated from JSON to PostgreSQL: designed and indexed the schema, normalized categories with a master dictionary, applied migrations and Session Pooler configuration in Supabase, seeded from the repo `events.json`, removed JSON fallbacks in non‑test environments, optimized search with GIN trigram + unaccent, and managed `DATABASE_URL` secrets across environments with DB‑mode tests validating combined filters and stable ordering.
+ - [ ] Set up backup and recovery procedures (pending)
 
-## Authentication & User Management
-- [ ] Design user authentication strategy (email, social, phone)
-- [ ] Implement user registration and login
-- [ ] Create user profile management
-- [ ] Add user roles (attendees, organizers, admins)
-- [ ] Implement favorite events and user preferences
+## 🚧 In progress: Authentication & User Management
+- [x] Elegir proveedor de autenticación: Supabase Auth
+- [ ] Configurar Supabase y variables de entorno
+  - [x] Auth (Dashboard): `Site URL` y `Redirect URLs` configuradas
+  - [x] Web: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - [x] API: `SUPABASE_URL`, `SUPABASE_JWT_SECRET` o verificación por JWKS
+  - [x] Google OAuth: configurar en Supabase Dashboard (Authentication > Providers > Google)
+  - [x] Configurar redirect URLs en Google Cloud Console para OAuth
+  - [ ] Prod/Stage: `ENABLE_AUTH=true` (tests: off)
+- [ ] Web (Next.js)
+  - [x] Instalar `@supabase/ssr` y `@supabase/supabase-js`
+  - [x] Helper SSR de Supabase con cookies HttpOnly
+  - [x] Helper cliente (Supabase browser client)
+  - [x] Provider/hook de sesión (contexto)
+  - [x] Reenviar Bearer token al API en fetch SSR
+  - [x] Reenviar Bearer token al API en fetch cliente
+  - [x] Página `/login` (email/password + registro + Google OAuth)
+  - [x] Contexto: obtener perfil de usuario desde `/api/users/me` y exponer email/role
+  - [x] OAuth providers (Google) con callback handler
+  - [x] Cerrar sesión y menú de usuario en `TopNavigation`
+  - [x] Gatear botón "Crear Evento" por sesión
+  - [x] Aplicar hero background styling a página de error de auth (`/auth/auth-code-error`)
+  - [x] Responsive user dropdown menu en móvil (TopNavigation)
+  - [x] Mensajes de error de login en español (códigos de error de Supabase)
+- [ ] API (Express)
+  - [x] Instalar `jose` y `@supabase/supabase-js`
+  - [x] Middleware: verificar JWT con JWKS de Supabase; adjuntar `req.user`
+  - [x] Autorización por rol: `requireRole('organizer'|'admin')`
+  - [x] Proteger `POST /api/events` y rutas de gestión
+  - [x] Endpoint `GET /api/users/me` (upsert y retorno de perfil)
+  - [ ] Event creation/management endpoints para organizers
+  - [ ] Role-based route protection en Next.js middleware
+- [ ] Base de datos
+  - [x] Tabla `users` (id uuid de auth, role enum: attendee|organizer|admin, perfil)
+  - [x] Upsert de usuario/perfil en primer login
+  - [ ] (Opcional) `organizer_profiles` con verificación
+- [ ] Roles y permisos
+  - [ ] Rol por defecto: `attendee`; bootstrap de `admin`
+  - [ ] `organizer` puede crear/editar sus eventos
+- [ ] Favoritos y preferencias
+  - [x] Esquema `favorites(user_id,event_id)`
+  - [ ] Esquema `user_preferences(jsonb)`
+  - [ ] API endpoints para favoritos (`POST/DELETE /api/users/favorites`, `GET /api/users/favorites`)
+  - [ ] UI favoritos en event cards y perfil de usuario
+  - [ ] Endpoints y UI conectados
+- [ ] Seguridad
+  - [ ] CORS restringido a `NEXT_PUBLIC_WEB_URL` en prod
+  - [ ] Cookies HttpOnly, Secure, SameSite=Lax
+  - [ ] Rate limiting en rutas sensibles
+  - [ ] Logs con `x-correlation-id` en fallos de auth
+  - [ ] Validación adicional en registro (fortaleza de contraseñas)
+  - [ ] Rate limiting específico en endpoints de auth (login/register)
+- [ ] Tests
+  - [x] API: middleware (token válido/expirado/ausente) y checks de rol
+  - [x] API: `/api/users/me` (401/200/404/500)
+  - [ ] Web E2E: flujo login/registro, toggle entre modos, validation
+  - [ ] Web E2E: Google OAuth flow y callback handling
+  - [ ] Web E2E: gating de "Crear evento", logout
+  - [ ] Web E2E: auth error scenarios y página de error
+  - [ ] API: favorites endpoints testing
+  - [ ] User role switching y permissions testing
 
-## Observability & Quality
+## ⏳ Pending: Authentication UX Enhancements
+- [ ] Página "Forgot Password" con reset por email
+- [ ] Mejorar UX de confirmación de email en registro
+- [ ] Redirección inteligente post-login (remember intended page)
+- [ ] Loading states más granulares en OAuth flow
+- [ ] Manejo de errores específicos (email ya existe, contraseña débil, etc.)
+- [ ] Agregar "Remember me" option para sesiones extendidas
+- [ ] Avatar/profile picture integration con Google OAuth
+- [ ] Welcome email o onboarding flow post-registro
+- [ ] Event creation form para organizers
+- [ ] Favorites functionality testing en UI
+
+## 🚧 In progress: Observability & Quality
 - [ ] Monitoring/Errors: integrate Sentry (web + api)
 - [ ] Analytics basics (page views, filters usage)
-- [ ] CI/CD
+ - [ ] Alertas básicas (uptime de API, errores 5xx, latencia)
+- [x] CI/CD
   - [x] GitHub Actions: lint, test, build on PRs
   - [x] Coverage report in CI
   - [x] Job E2E headless (Linux) con matriz de navegadores (Chromium/Firefox/WebKit)
@@ -141,27 +126,27 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
     - [x] Disparadores: `pull_request` y `push` a `master`
     - [x] Concurrency y cancelación de ejecuciones obsoletas en PRs
 
-### E2E Tests (Web)
+### 🚧 In progress: E2E Tests (Web)
 - [ ] Navegación y rutas
   - [x] Landing (`/`): selección de ciudad redirige a `/eventos/[city]`
   - [x] Ciudad inválida (`/eventos/unknown-city`) muestra 404/not-found
   - [ ] Preservación de parámetros al navegar atrás/adelante del navegador
-- [ ] Paginación y tamaño de página
-  - [ ] Selector "Por página" (`limit`) cambia conteo y actualiza URL; persiste entre páginas
-  - [ ] "Anterior" deshabilitado en página 1; "Siguiente" deshabilitado en última
-  - [ ] Deep link fuera de rango (`page` > `totalPages`) maneja estado esperado
-- [ ] Ordenamiento
-  - [ ] Orden por fecha asc/desc reordena correctamente
+- [x] Paginación y tamaño de página
+  - [x] Selector "Por página" (`limit`) cambia conteo y actualiza URL; persiste entre páginas
+  - [x] "Anterior" deshabilitado en página 1; "Siguiente" deshabilitado en última
+  - [x] Deep link fuera de rango (`page` > `totalPages`) maneja estado esperado
+- [x] Ordenamiento
+  - [x] Orden por fecha asc/desc reordena correctamente
   - [x] Orden por precio asc/desc reordena correctamente
-  - [ ] Persistencia de `sort` y `order` al cambiar de página y al cambiar `limit`
-- [ ] Búsqueda y filtros
-  - [ ] Búsqueda por texto (`q`) con acentos/diacríticos-insensible
-  - [ ] Filtro por categoría resetea `page` y preserva otros parámetros
-  - [ ] Combinación de `q` + categoría con paginación y orden aplicado
-- [ ] Estados vacíos y error
+  - [x] Persistencia de `sort` y `order` al cambiar de página y al cambiar `limit`
+- [x] Búsqueda y filtros
+  - [x] Búsqueda por texto (`q`) con acentos/diacríticos-insensible
+  - [x] Filtro por categoría resetea `page` y preserva otros parámetros
+  - [x] Combinación de `q` + categoría con paginación y orden aplicado
+- [x] Estados vacíos y error
   - [x] `NoResults` cuando no hay coincidencias (contenido y enlaces sugeridos)
-  - [ ] Falla de red/API caída muestra `ErrorBanner` con mensaje adecuado
-  - [ ] Botón "Reintentar" de `ErrorBanner` dispara recarga (cuando se migre a client)
+  - [x] Falla de red/API caída muestra `ErrorBanner` con mensaje adecuado
+  - [x] Botón "Reintentar" de `ErrorBanner` dispara recarga (funcional vía ErrorBannerClient)
 - [ ] Accesibilidad
   - [ ] Navegación por teclado en paginación y selects; foco visible
   - [x] ARIA labels en controles de orden y tamaño de página
@@ -175,25 +160,30 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [ ] Fixtures/seed de datos deterministas para E2E
   - [x] Matriz de navegadores (Chromium, Firefox, WebKit)
 
-## Documentation & DX
+## 🚧 In progress: Documentation & DX
 - [x] Provide .env.example (root, web, api) with variable explanations
   - [x] Añadir valores por defecto para dev/test (puertos, NEXT_PUBLIC_API_URL)
 - [x] Frontend: scripts usan PORT en lugar de `-p 4000`; Playwright inyecta `PORT=4000` en E2E
 - [ ] Document API endpoints in packages/api/README.md
 - [ ] Developer guide: local setup and common scripts (pnpm)
   - [ ] Documentar flujo E2E (webServer, scripts, variables) en `packages/web/README.md`
+  - [ ] Documentar Supabase Auth (variables y flujo de login/logout) en `packages/web/README.md`
+  - [ ] Documentar configuración de Google OAuth (Supabase + Google Cloud Console)
+ - [ ] Añadir guía de roles (attendee/organizer/admin) y bootstrap de admin
 
-## Advanced Features & Optimization
+## ⏳ Pending: Advanced Features & Optimization
 - [ ] Add geolocation feature to auto-detect user's city
 - [ ] Create interactive map view for event locations  
+- [ ] Expand the number of locations to include all cities in Colombia
 - [ ] Implement payment processing and booking system
 - [ ] Add social media sharing and viral features
 - [ ] Create recommendation engine based on user behavior
 - [ ] Implement analytics and performance monitoring
 - [ ] Add multilingual support and localization
 - [ ] Create event organizer dashboard and management tools
+- [ ] Expand one by one to other countries
 
-## Business & Growth Features
+## ⏳ Pending: Business & Growth Features
 - [ ] Implement revenue model (commissions, subscriptions, ads)
 - [ ] Add email marketing and user retention features
 - [ ] Create referral programs and user acquisition tools
@@ -201,7 +191,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Add content moderation and safety features
 - [ ] Create API rate limiting and security measures
 
-## Mobile Application (React Native)
+## ⏳ Pending: Mobile Application (React Native)
 - [ ] Set up Expo development environment
 - [ ] Create shared component library between web and mobile
 - [ ] Implement platform-specific navigation

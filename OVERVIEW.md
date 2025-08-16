@@ -27,16 +27,16 @@ A core architectural requirement is strong SEO performance. To achieve this, the
 *   **Frontend (Web)**: React, Next.js
 *   **Frontend (Mobile)**: React Native, Expo
 *   **Backend**: Node.js, Express.js
-*   **Database**: A simple `events.json` file will be used for the initial phase (MVP). This will be migrated to a more robust database like PostgreSQL or MongoDB as the application scales.
+*   **Database**: PostgreSQL (Supabase). `events.json` is retained for seeding and test-only fallback.
 *   **Styling**: Tailwind CSS for utility-first styling. The web package uses Tailwind CSS with PostCSS and Autoprefixer for optimal browser compatibility.
 
 ## 4. Development Roadmap
 
 The project will be developed in phases:
 
-1.  **Phase 1: Project Foundation & Backend (MVP)** ✅ *Partially Complete*
+1.  **Phase 1: Project Foundation & Backend (MVP)** ✅ *Complete*
     *   Set up the monorepo structure. ✅
-    *   Develop the Node.js API with endpoints for fetching events. ⏳ *Pending*
+    *   Develop the Node.js API with endpoints for fetching events. ✅
     *   Create a mock `events.json` database. ✅
 2.  **Phase 2: Web App Frontend (MVP)** ✅ *Complete*
     *   Build the Next.js web application. ✅
@@ -47,11 +47,11 @@ The project will be developed in phases:
     *   Sticky navigation with search functionality. ✅
     *   System fonts implementation for optimal performance. ✅
     *   Responsive search component with enhanced width. ✅
-3.  **Phase 3: Backend API Development** ⏳ *Next Priority*
-    *   Complete Node.js/Express API implementation
-    *   Connect frontend to backend API
-    *   Implement authentication and user management
-    *   Add real-time features and caching
+3.  **Phase 3: Backend API Development** ✅ *Complete (initial release)*
+    *   Node.js/Express API implemented and connected to web frontend ✅
+    *   In-memory response caching for list endpoints ✅
+    *   CORS, rate limiting, correlation IDs, pagination, sorting, and filters ✅
+    *   Authentication and real-time features planned for later
 4.  **Phase 4: Mobile App**
     *   Develop the Expo mobile app, reusing components from the web app.
     *   Adapt UI/UX for mobile devices.
@@ -70,19 +70,25 @@ The project will be developed in phases:
   - `PORT` (default 4000)
   - `NEXT_PUBLIC_API_URL` (e.g., `http://localhost:4001`)
   - `NEXT_PUBLIC_WEB_URL` (e.g., `http://localhost:4000`)
+  - `NEXT_PUBLIC_SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `WEB_BASE_URL` (Playwright baseURL)
   - `E2E`, `CI` (flags)
 
 - API (`packages/api`)
   - `PORT` (default 4001)
   - `CORS_ORIGINS` (CSV; empty = allow all)
+  - `DATABASE_URL` (PostgreSQL connection string; uses Session Pooler 6543 on Supabase)
   - `HOST` (optional)
+  - `SUPABASE_URL`
+  - `ENABLE_AUTH` (`true` to require auth for protected routes)
 
 - App (`packages/app`)
   - `EXPO_PUBLIC_API_URL`
 
 - Quick usage (PowerShell)
-  - API: `pnpm --filter @que-hacer-en/api start`
+  - API (run): `pnpm --filter @que-hacer-en/api start`
+  - API (DB setup: migrate + seed): `pnpm --filter @que-hacer-en/api db:setup`
   - Web: `$env:PORT="4000"; pnpm --filter @que-hacer-en/web start`
   - E2E: `pnpm --filter @que-hacer-en/web e2e`
 
@@ -119,7 +125,7 @@ The project enforces quality via automated pipelines:
 
 - GitHub Actions runs lint, unit tests, build, and end-to-end tests with Node 22 and pnpm caching
 - High test coverage thresholds are enforced in CI; coverage and E2E reports are uploaded as artifacts
-- Unit tests focus on the API (validation, pagination, sorting, error handling)
+- Unit tests focus on the API (validation, pagination, sorting, error handling) and run against PostgreSQL via Testcontainers where applicable
 
 ### E2E Strategy (Web)
 
@@ -135,7 +141,20 @@ The project enforces quality via automated pipelines:
 - Requests and responses propagate `x-correlation-id` for traceability
 - Standard rate-limit headers are included to communicate limits and remaining requests
 
+### API Endpoints (MVP)
+
+- `GET /api/health`: health check
+- `GET /api/events`: list with filters (`city`, `category`, `q`, `from`, `to`, `minPrice`, `maxPrice`, `page`, `limit`, `sort`, `order`) with in-memory caching
+- `GET /api/events/:city`: events for a city
+- `GET /api/events/id/:id`: event by legacy ID
+- `POST /api/events`: validate and accept event payload (mock create)
+
 ## 9. Environment & Configuration Notes
 
-- Core variables include `NEXT_PUBLIC_API_URL` and `CORS_ORIGINS`, managed via `.env`
+- Core variables include `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, and `DATABASE_URL`, managed via `.env`
 - An optional `E2E` flag can be used in test environments to adjust runtime behavior (e.g., image optimization)
+
+Backend behaviors:
+- CORS allowlist via `CORS_ORIGINS` (empty = allow all)
+- Rate limiting: 100 req/min under `/api/`
+- In-memory cache (default TTL 15s) for event listings, disabled in test

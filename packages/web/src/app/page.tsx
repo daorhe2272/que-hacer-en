@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import TopNavigation from '@/components/TopNavigation'
 import CitySelector from '@/components/CitySelector'
+import Image from 'next/image'
 
 export const metadata: Metadata = {
   title: 'Inicio',
@@ -141,8 +142,7 @@ export default function HomePage() {
                {/* Brand Section */}
                <div className="lg:col-span-1">
                   <div className="mb-4">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/logo-wide-dark.png" alt="¿Qué hacer en...?" className="h-16 w-auto rounded-lg border border-gray-700" />
+                    <Image src="/logo-wide-dark.png" alt="¿Qué hacer en...?" width={256} height={64} className="h-16 w-auto rounded-lg border border-gray-700" />
                   </div>
                  <p className="text-gray-400 mb-4">
                    Descubre los mejores eventos en toda Colombia. Conciertos, festivales, talleres, gastronomía y mucho más.

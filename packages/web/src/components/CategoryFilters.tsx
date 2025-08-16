@@ -1,16 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { CATEGORIES } from '@que-hacer-en/shared'
 
-const categories = [
-  { key: 'todos', label: 'Todos' },
-  { key: 'musica', label: 'Música' },
-  { key: 'arte', label: 'Arte' },
-  { key: 'gastronomia', label: 'Gastronomía' },
-  { key: 'deportes', label: 'Deportes' },
-  { key: 'tecnologia', label: 'Tecnología' },
-  { key: 'networking', label: 'Networking' },
-]
+const categories = CATEGORIES.map(c => ({ key: c.slug, label: c.label }))
 
 interface CategoryFiltersProps {
   selectedCategory?: string

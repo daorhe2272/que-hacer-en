@@ -2,9 +2,26 @@ import type { Event } from '@/types/event'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
 
+export type UserProfile = { id: string, email: string | null, role: 'attendee' | 'organizer' | 'admin' }
+
+async function buildAuthHeadersClient(): Promise<HeadersInit> {
+  const headers: HeadersInit = {}
+  if (typeof window !== 'undefined') {
+    try {
+      const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
+      const supabase = getSupabaseBrowserClient()
+      const { data } = await supabase.auth.getSession()
+      const token = (data.session as { access_token?: string } | null | undefined)?.access_token
+      if (token) headers['Authorization'] = `Bearer ${token}`
+    } catch {}
+  }
+  return headers
+}
+
 export async function fetchEventsByCity(city: string): Promise<Event[]> {
   try {
-    const res = await fetch(`${BASE_URL}/api/events/${city}`, { cache: 'no-store' })
+    const headers = await buildAuthHeadersClient()
+    const res = await fetch(`${BASE_URL}/api/events/${city}`, { cache: 'no-store', headers })
     if (!res.ok) return []
     const data = await res.json()
     return data.events as Event[]
@@ -31,7 +48,8 @@ export async function fetchAllEvents(params?: { city?: string; category?: string
     if (params?.order) usp.set('order', params.order)
     const query = usp.toString()
     const url = `${BASE_URL}/api/events${query ? `?${query}` : ''}`
-    const res = await fetch(url, { cache: 'no-store' })
+    const headers = await buildAuthHeadersClient()
+    const res = await fetch(url, { cache: 'no-store', headers })
     if (!res.ok) return { events: [], error: 'Error al cargar eventos' }
     const data = await res.json()
     return { events: data.events as Event[], pagination: data.pagination, error: undefined }
@@ -42,9 +60,22 @@ export async function fetchAllEvents(params?: { city?: string; category?: string
 
 export async function fetchEventById(id: string): Promise<Event | null> {
   try {
-    const res = await fetch(`${BASE_URL}/api/events/id/${id}`, { cache: 'no-store' })
+    const headers = await buildAuthHeadersClient()
+    const res = await fetch(`${BASE_URL}/api/events/id/${id}`, { cache: 'no-store', headers })
     if (!res.ok) return null
     return res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  try {
+    const headers = await buildAuthHeadersClient()
+    const res = await fetch(`${BASE_URL}/api/users/me`, { cache: 'no-store', headers })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data as UserProfile
   } catch {
     return null
   }
