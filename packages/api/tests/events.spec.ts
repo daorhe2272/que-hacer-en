@@ -1,10 +1,34 @@
 /// <reference types="jest" />
-import { describe, test, expect } from '@jest/globals'
+import { describe, test, expect, beforeAll, afterAll } from '@jest/globals'
 import request from 'supertest'
 import app from '../src/index'
 import fs from 'fs'
 
+// Mock jose before any imports
+jest.mock('jose', () => {
+  return {
+    createRemoteJWKSet: jest.fn(() => ({} as any)),
+    jwtVerify: jest.fn()
+  }
+})
+
 describe('Events API', () => {
+  let originalSupabaseUrl: string | undefined
+  
+  beforeAll(() => {
+    originalSupabaseUrl = process.env.SUPABASE_URL
+    // Set required environment for auth tests
+    process.env.SUPABASE_URL = 'https://test.supabase.co'
+  })
+  
+  afterAll(() => {
+    if (originalSupabaseUrl) {
+      process.env.SUPABASE_URL = originalSupabaseUrl
+    } else {
+      delete process.env.SUPABASE_URL
+    }
+  })
+
   test('GET /api/health returns ok', async () => {
     const res = await request(app).get('/api/health')
     expect(res.status).toBe(200)
@@ -51,10 +75,15 @@ describe('Events API', () => {
   })
 
   test('POST /api/events validation error', async () => {
-    // Mock JWT verification for auth middleware
-    jest.doMock('jose', () => ({
-      jwtVerify: jest.fn(async () => ({ payload: { sub: 'user-1', email: 'organizer@example.com', user_role: 'organizer' } }))
-    }))
+    // Mock JWT verification to return valid user
+    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
+    jwtVerify.mockResolvedValueOnce({ 
+      payload: { 
+        sub: 'user-1', 
+        email: 'organizer@example.com', 
+        user_role: 'organizer' 
+      } 
+    })
     
     const res = await request(app)
       .post('/api/events')
@@ -130,10 +159,15 @@ describe('Events API', () => {
   })
 
   test('POST /api/events happy path', async () => {
-    // Mock JWT verification for auth middleware
-    jest.doMock('jose', () => ({
-      jwtVerify: jest.fn(async () => ({ payload: { sub: 'user-1', email: 'organizer@example.com', user_role: 'organizer' } }))
-    }))
+    // Mock JWT verification to return valid user
+    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
+    jwtVerify.mockResolvedValueOnce({ 
+      payload: { 
+        sub: 'user-1', 
+        email: 'organizer@example.com', 
+        user_role: 'organizer' 
+      } 
+    })
 
     const body = {
       title: 'Charla de Tecnología',
@@ -143,6 +177,7 @@ describe('Events API', () => {
       location: 'Auditorio Central',
       address: 'Calle 1 # 2-34',
       category: 'Tecnología',
+      city: 'bogota',
       price: 10000,
       currency: 'COP',
       image: 'https://example.com/charla.jpg',

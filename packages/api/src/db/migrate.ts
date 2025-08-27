@@ -41,16 +41,16 @@ function getStatements(): string[] {
     `CREATE INDEX IF NOT EXISTS idx_events_category ON events(category_id);`,
     `CREATE INDEX IF NOT EXISTS idx_events_dates ON events(starts_at);`,
     `CREATE INDEX IF NOT EXISTS idx_events_price ON events(price_cents);`,
-    // text search with unaccent+lower using generated columns for better GIN usage
+    // text search with unaccent+lower using regular columns for better compatibility
     `ALTER TABLE events
-      ADD COLUMN IF NOT EXISTS title_norm TEXT GENERATED ALWAYS AS (unaccent(lower(title))) STORED,
-      ADD COLUMN IF NOT EXISTS description_norm TEXT GENERATED ALWAYS AS (unaccent(lower(description))) STORED,
-      ADD COLUMN IF NOT EXISTS venue_norm TEXT GENERATED ALWAYS AS (unaccent(lower(venue))) STORED;`,
+      ADD COLUMN IF NOT EXISTS title_norm TEXT,
+      ADD COLUMN IF NOT EXISTS description_norm TEXT,
+      ADD COLUMN IF NOT EXISTS venue_norm TEXT;`,
     `CREATE INDEX IF NOT EXISTS idx_events_title_trgm ON events USING gin (title_norm gin_trgm_ops);`,
     `CREATE INDEX IF NOT EXISTS idx_events_desc_trgm ON events USING gin (description_norm gin_trgm_ops);`,
     `CREATE INDEX IF NOT EXISTS idx_events_venue_trgm ON events USING gin (venue_norm gin_trgm_ops);`,
     `ALTER TABLE tags
-      ADD COLUMN IF NOT EXISTS name_norm TEXT GENERATED ALWAYS AS (unaccent(lower(name))) STORED;`,
+      ADD COLUMN IF NOT EXISTS name_norm TEXT;`,
     `CREATE INDEX IF NOT EXISTS idx_tags_name_trgm ON tags USING gin (name_norm gin_trgm_ops);`,
     // users and roles
     `DO $$ BEGIN

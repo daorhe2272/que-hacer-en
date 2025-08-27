@@ -27,13 +27,20 @@ export const eventSchema = z.object({
   location: z.string().min(2).max(200),
   address: z.string().min(2).max(200),
   category: z.string().min(2).max(100),
+  city: cityEnum,
   price: z.number().nonnegative(),
   currency: z.string().min(3).max(3),
-  image: z.string().url(),
+  image: z.string().url().optional(),
   organizer: z.string().min(2).max(200),
   capacity: z.number().int().positive(),
   tags: z.array(z.string()).default([]),
   status: z.enum(['active', 'cancelled', 'postponed', 'sold_out']).default('active')
+})
+
+export const createEventSchema = eventSchema.omit({ id: true })
+
+export const updateEventSchema = eventSchema.partial().extend({
+  id: z.string().uuid()
 })
 
 export type ListQuery = z.infer<typeof listQuerySchema>

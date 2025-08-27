@@ -1,8 +1,10 @@
 import { Router } from 'express'
 import { authenticate } from '../middleware/auth'
 import { query } from '../db/client'
+import { addToFavoritesDb, removeFromFavoritesDb, getUserFavoritesDb, isEventFavoritedDb } from '../db/repository'
+import { listQuerySchema } from '../validation'
 
-export const usersRouter = Router()
+export const usersRouter: Router = Router()
 
 usersRouter.get('/me', authenticate, async (req, res) => {
   try {
@@ -38,6 +40,103 @@ usersRouter.get('/me', authenticate, async (req, res) => {
     res.json(row.rows[0])
   } catch (err) {
     res.status(500).json({ error: 'No se pudo recuperar el perfil' })
+  }
+})
+
+// Add event to favorites
+usersRouter.post('/favorites', authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id
+    const { eventId } = req.body
+    
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+    
+    if (!eventId || typeof eventId !== 'string') {
+      res.status(400).json({ error: 'eventId es requerido' })
+      return
+    }
+
+    const success = await addToFavoritesDb(userId, eventId)
+    if (success) {
+      res.status(201).json({ message: 'Evento agregado a favoritos' })
+    } else {
+      res.status(500).json({ error: 'Error al agregar a favoritos' })
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error al agregar a favoritos' })
+  }
+})
+
+// Remove event from favorites
+usersRouter.delete('/favorites/:eventId', authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id
+    const { eventId } = req.params
+    
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    const success = await removeFromFavoritesDb(userId, eventId)
+    if (success) {
+      res.json({ message: 'Evento removido de favoritos' })
+    } else {
+      res.status(404).json({ error: 'Favorito no encontrado' })
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error al remover de favoritos' })
+  }
+})
+
+// Get user's favorite events
+usersRouter.get('/favorites', authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id
+    
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    const parseResult = listQuerySchema.safeParse(req.query)
+    if (!parseResult.success) {
+      res.status(400).json({ error: 'Parámetros inválidos', details: parseResult.error.flatten() })
+      return
+    }
+
+    const params = parseResult.data
+    const { events, total } = await getUserFavoritesDb(userId, params)
+    const { page = 1, limit = 20 } = params
+    const totalPages = Math.ceil(total / limit)
+    
+    res.json({ 
+      events, 
+      pagination: { page, limit, total, totalPages } 
+    })
+  } catch (err) {
+    res.status(500).json({ error: 'Error al cargar favoritos' })
+  }
+})
+
+// Check if event is favorited
+usersRouter.get('/favorites/:eventId/status', authenticate, async (req, res) => {
+  try {
+    const userId = req.user?.id
+    const { eventId } = req.params
+    
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    const isFavorited = await isEventFavoritedDb(userId, eventId)
+    res.json({ isFavorited })
+  } catch (err) {
+    res.status(500).json({ error: 'Error al verificar favorito' })
   }
 })
 
