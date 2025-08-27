@@ -220,4 +220,444 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
   }))
 }
 
+export interface CreateEventParams {
+  title: string
+  description: string
+  date: string
+  time: string
+  location: string
+  address: string
+  category: string
+  city: string
+  price: number
+  currency: string
+  image?: string
+  organizer: string
+  capacity: number
+  tags?: string[]
+  status?: 'active' | 'cancelled' | 'postponed' | 'sold_out'
+}
+
+export interface UpdateEventParams extends Partial<CreateEventParams> {
+  id: string
+}
+
+export async function createEventDb(params: CreateEventParams, _organizerId: string): Promise<EventDto> {
+  const { 
+    title, description, date, time, location, address, 
+    category, city, price, currency, tags = [] 
+  } = params
+
+  const cityRes = await query<{ id: number }>(`SELECT id FROM cities WHERE slug = $1`, [city])
+  if (cityRes.rows.length === 0) {
+    throw new Error('Ciudad no encontrada')
+  }
+  const cityId = cityRes.rows[0].id
+
+  const categoryRes = await query<{ id: number }>(`SELECT id FROM categories WHERE slug = $1`, [normalize(category)])
+  if (categoryRes.rows.length === 0) {
+    throw new Error('Categoría no encontrada')
+  }
+  const categoryId = categoryRes.rows[0].id
+
+  const eventId = crypto.randomUUID()
+  const startsAt = `${date}T${time}:00.000Z`
+
+  await query(
+    `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency]
+  )
+
+  if (tags.length > 0) {
+    for (const tagName of tags) {
+      await query(
+        `INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
+        [tagName]
+      )
+      const tagRes = await query<{ id: number }>(`SELECT id FROM tags WHERE name = $1`, [tagName])
+      if (tagRes.rows.length > 0) {
+        await query(
+          `INSERT INTO event_tags (event_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [eventId, tagRes.rows[0].id]
+        )
+      }
+    }
+  }
+
+  const event = await getEventByIdDb(eventId)
+  if (!event) {
+    throw new Error('Error al crear el evento')
+  }
+  return event
+}
+
+export async function updateEventDb(params: UpdateEventParams, _organizerId: string): Promise<EventDto | null> {
+  const { id, title, description, date, time, location, address, category, city, price, currency, tags } = params
+
+  const existingEvent = await getEventByIdDb(id)
+  if (!existingEvent) {
+    return null
+  }
+
+  const updates: string[] = []
+  const values: unknown[] = []
+  let paramIndex = 1
+
+  if (title !== undefined) {
+    updates.push(`title = $${paramIndex++}`)
+    values.push(title)
+  }
+  if (description !== undefined) {
+    updates.push(`description = $${paramIndex++}`)
+    values.push(description)
+  }
+  if (location !== undefined) {
+    updates.push(`venue = $${paramIndex++}`)
+    values.push(location)
+  }
+  if (address !== undefined) {
+    updates.push(`address = $${paramIndex++}`)
+    values.push(address)
+  }
+  if (price !== undefined) {
+    updates.push(`price_cents = $${paramIndex++}`)
+    values.push(price)
+  }
+  if (currency !== undefined) {
+    updates.push(`currency = $${paramIndex++}`)
+    values.push(currency)
+  }
+  if (date !== undefined && time !== undefined) {
+    updates.push(`starts_at = $${paramIndex++}`)
+    values.push(`${date}T${time}:00.000Z`)
+  }
+  
+  if (city !== undefined) {
+    const cityRes = await query<{ id: number }>(`SELECT id FROM cities WHERE slug = $1`, [city])
+    if (cityRes.rows.length === 0) {
+      throw new Error('Ciudad no encontrada')
+    }
+    updates.push(`city_id = $${paramIndex++}`)
+    values.push(cityRes.rows[0].id)
+  }
+
+  if (category !== undefined) {
+    const categoryRes = await query<{ id: number }>(`SELECT id FROM categories WHERE slug = $1`, [normalize(category)])
+    if (categoryRes.rows.length === 0) {
+      throw new Error('Categoría no encontrada')
+    }
+    updates.push(`category_id = $${paramIndex++}`)
+    values.push(categoryRes.rows[0].id)
+  }
+
+  if (updates.length > 0) {
+    values.push(id)
+    await query(
+      `UPDATE events SET ${updates.join(', ')} WHERE id = $${paramIndex}`,
+      values
+    )
+  }
+
+  if (tags !== undefined) {
+    await query(`DELETE FROM event_tags WHERE event_id = $1`, [id])
+    
+    if (tags.length > 0) {
+      for (const tagName of tags) {
+        await query(
+          `INSERT INTO tags (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
+          [tagName]
+        )
+        const tagRes = await query<{ id: number }>(`SELECT id FROM tags WHERE name = $1`, [tagName])
+        if (tagRes.rows.length > 0) {
+          await query(
+            `INSERT INTO event_tags (event_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [id, tagRes.rows[0].id]
+          )
+        }
+      }
+    }
+  }
+
+  return await getEventByIdDb(id)
+}
+
+export async function deleteEventDb(eventId: string, _organizerId: string): Promise<boolean> {
+  const result = await query(`DELETE FROM events WHERE id = $1`, [eventId])
+  return (result.rowCount ?? 0) > 0
+}
+
+export async function getEventByIdDb(eventId: string): Promise<EventDto | null> {
+  const res = await query<EventRowDto>(
+    `SELECT e.id,
+            e.title,
+            e.description,
+            e.venue as location,
+            e.address,
+            e.price_cents as price,
+            e.currency,
+            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
+            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            ct.label as category,
+            c.slug as city
+     FROM events e
+     JOIN cities c ON c.id = e.city_id
+     JOIN categories ct ON ct.id = e.category_id
+     WHERE e.id = $1
+     LIMIT 1`, [eventId]
+  )
+  const r = res.rows[0]
+  if (!r) return null
+
+  const tagsRes = await query<{ name: string }>(
+    `SELECT t.name FROM tags t 
+     JOIN event_tags et ON t.id = et.tag_id 
+     WHERE et.event_id = $1`, [eventId]
+  )
+
+  const event: EventDto = {
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    date: r.date,
+    time: r.time,
+    location: r.location ?? '',
+    address: r.address ?? '',
+    category: r.category,
+    price: r.price,
+    currency: r.currency,
+    image: '',
+    organizer: '',
+    capacity: 0,
+    tags: tagsRes.rows.map(t => t.name),
+    status: 'active'
+  }
+  return event
+}
+
+export async function listOrganizerEventsDb(_organizerId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
+  const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
+
+  const where: string[] = []
+  const args: unknown[] = []
+  let i = 1
+
+  if (city) { where.push(`c.slug = $${i++}`); args.push(city) }
+  if (category) { where.push(`ct.slug = $${i++}`); args.push(normalize(category)) }
+  if (q) {
+    const term = `%${normalize(q)}%`
+    where.push(`(
+      e.title_norm LIKE $${i} OR
+      e.description_norm LIKE $${i} OR
+      e.venue_norm LIKE $${i} OR
+      EXISTS (
+        SELECT 1 FROM event_tags et JOIN tags t ON t.id = et.tag_id
+        WHERE et.event_id = e.id AND t.name_norm LIKE $${i}
+      )
+    )`)
+    args.push(term); i++
+  }
+  if (from) { where.push(`e.starts_at::date >= $${i++}`); args.push(from) }
+  if (to) { where.push(`e.starts_at::date <= $${i++}`); args.push(to) }
+  if (typeof minPrice === 'number') { where.push(`e.price_cents >= $${i++}`); args.push(minPrice) }
+  if (typeof maxPrice === 'number') { where.push(`e.price_cents <= $${i++}`); args.push(maxPrice) }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+
+  let orderSql = `ORDER BY e.starts_at ${order === 'desc' ? 'DESC' : 'ASC'}, e.id ASC`
+  if (sort === 'price') orderSql = `ORDER BY e.price_cents ${order === 'desc' ? 'DESC' : 'ASC'}, e.id ASC`
+
+  const offset = (page - 1) * limit
+
+  const countRes = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM events e
+     JOIN cities c ON c.id = e.city_id
+     JOIN categories ct ON ct.id = e.category_id
+     ${whereSql}`, args
+  )
+  const total = Number(countRes.rows[0]?.count || '0')
+
+  const rows = await query<EventRowDto>(
+    `SELECT e.id,
+            e.title,
+            e.description,
+            e.venue as location,
+            e.address,
+            e.price_cents as price,
+            e.currency,
+            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
+            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            ct.label as category,
+            c.slug as city
+     FROM events e
+     JOIN cities c ON c.id = e.city_id
+     JOIN categories ct ON ct.id = e.category_id
+     ${whereSql}
+     ${orderSql}
+     LIMIT ${limit} OFFSET ${offset}`, args
+  )
+
+  const events: EventDto[] = []
+  for (const r of rows.rows) {
+    const tagsRes = await query<{ name: string }>(
+      `SELECT t.name FROM tags t 
+       JOIN event_tags et ON t.id = et.tag_id 
+       WHERE et.event_id = $1`, [r.id]
+    )
+
+    events.push({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      date: r.date,
+      time: r.time,
+      location: r.location ?? '',
+      address: r.address ?? '',
+      category: r.category,
+      price: r.price,
+      currency: r.currency,
+      image: '',
+      organizer: '',
+      capacity: 0,
+      tags: tagsRes.rows.map(t => t.name),
+      status: 'active'
+    })
+  }
+
+  return { events, total }
+}
+
+export async function addToFavoritesDb(userId: string, eventId: string): Promise<boolean> {
+  try {
+    await query(
+      `INSERT INTO favorites (user_id, event_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [userId, eventId]
+    )
+    return true
+  } catch (err) {
+    return false
+  }
+}
+
+export async function removeFromFavoritesDb(userId: string, eventId: string): Promise<boolean> {
+  try {
+    const result = await query(
+      `DELETE FROM favorites WHERE user_id = $1 AND event_id = $2`,
+      [userId, eventId]
+    )
+    return (result.rowCount ?? 0) > 0
+  } catch (err) {
+    return false
+  }
+}
+
+export async function getUserFavoritesDb(userId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
+  const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
+
+  const where: string[] = ['f.user_id = $1']
+  const args: unknown[] = [userId]
+  let i = 2
+
+  if (city) { where.push(`c.slug = $${i++}`); args.push(city) }
+  if (category) { where.push(`ct.slug = $${i++}`); args.push(normalize(category)) }
+  if (q) {
+    const term = `%${normalize(q)}%`
+    where.push(`(
+      e.title_norm LIKE $${i} OR
+      e.description_norm LIKE $${i} OR
+      e.venue_norm LIKE $${i} OR
+      EXISTS (
+        SELECT 1 FROM event_tags et JOIN tags t ON t.id = et.tag_id
+        WHERE et.event_id = e.id AND t.name_norm LIKE $${i}
+      )
+    )`)
+    args.push(term); i++
+  }
+  if (from) { where.push(`e.starts_at::date >= $${i++}`); args.push(from) }
+  if (to) { where.push(`e.starts_at::date <= $${i++}`); args.push(to) }
+  if (typeof minPrice === 'number') { where.push(`e.price_cents >= $${i++}`); args.push(minPrice) }
+  if (typeof maxPrice === 'number') { where.push(`e.price_cents <= $${i++}`); args.push(maxPrice) }
+
+  const whereSql = `WHERE ${where.join(' AND ')}`
+
+  let orderSql = `ORDER BY f.created_at ${order === 'desc' ? 'DESC' : 'ASC'}, e.id ASC`
+  if (sort === 'date') orderSql = `ORDER BY e.starts_at ${order === 'desc' ? 'DESC' : 'ASC'}, e.id ASC`
+  if (sort === 'price') orderSql = `ORDER BY e.price_cents ${order === 'desc' ? 'DESC' : 'ASC'}, e.id ASC`
+
+  const offset = (page - 1) * limit
+
+  const countRes = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM favorites f
+     JOIN events e ON e.id = f.event_id
+     JOIN cities c ON c.id = e.city_id
+     JOIN categories ct ON ct.id = e.category_id
+     ${whereSql}`, args
+  )
+  const total = Number(countRes.rows[0]?.count || '0')
+
+  const rows = await query<EventRowDto>(
+    `SELECT e.id,
+            e.title,
+            e.description,
+            e.venue as location,
+            e.address,
+            e.price_cents as price,
+            e.currency,
+            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
+            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            ct.label as category,
+            c.slug as city
+     FROM favorites f
+     JOIN events e ON e.id = f.event_id
+     JOIN cities c ON c.id = e.city_id
+     JOIN categories ct ON ct.id = e.category_id
+     ${whereSql}
+     ${orderSql}
+     LIMIT ${limit} OFFSET ${offset}`, args
+  )
+
+  const events: EventDto[] = []
+  for (const r of rows.rows) {
+    const tagsRes = await query<{ name: string }>(
+      `SELECT t.name FROM tags t 
+       JOIN event_tags et ON t.id = et.tag_id 
+       WHERE et.event_id = $1`, [r.id]
+    )
+
+    events.push({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      date: r.date,
+      time: r.time,
+      location: r.location ?? '',
+      address: r.address ?? '',
+      category: r.category,
+      price: r.price,
+      currency: r.currency,
+      image: '',
+      organizer: '',
+      capacity: 0,
+      tags: tagsRes.rows.map(t => t.name),
+      status: 'active'
+    })
+  }
+
+  return { events, total }
+}
+
+export async function isEventFavoritedDb(userId: string, eventId: string): Promise<boolean> {
+  try {
+    const result = await query<{ exists: boolean }>(
+      `SELECT EXISTS(SELECT 1 FROM favorites WHERE user_id = $1 AND event_id = $2) as exists`,
+      [userId, eventId]
+    )
+    return result.rows[0]?.exists || false
+  } catch (err) {
+    return false
+  }
+}
+
 

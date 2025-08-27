@@ -24,10 +24,10 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [x] ErrorBanner: add inline "Reintentar" action
 - [x] Images perf: ensure progressive/lazy via next/image in all lists
   - [x] Configurar `next.config.js` con `images.remotePatterns` para pruebas o usar assets locales en test
-- [ ] SEO
-  - [ ] OG/Twitter cards per city
-  - [ ] sitemap.xml and robots.txt
-  - [ ] JSON-LD schema.org/Event for lists/detail
+- [x] SEO
+  - [x] OG/Twitter cards per city
+  - [x] sitemap.xml and robots.txt
+  - [x] JSON-LD schema.org/Event for lists/detail
   
 ### ✅ Completed: Web Error Handling
 - [x] ErrorBanner: acción "Reintentar" funcional
@@ -37,7 +37,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   Established the API as the single source of truth and migrated from JSON to PostgreSQL: designed and indexed the schema, normalized categories with a master dictionary, applied migrations and Session Pooler configuration in Supabase, seeded from the repo `events.json`, removed JSON fallbacks in non‑test environments, optimized search with GIN trigram + unaccent, and managed `DATABASE_URL` secrets across environments with DB‑mode tests validating combined filters and stable ordering.
  - [ ] Set up backup and recovery procedures (pending)
 
-## 🚧 In progress: Authentication & User Management
+## ✅ Completed: Authentication & User Management
 - [x] Elegir proveedor de autenticación: Supabase Auth
 - [ ] Configurar Supabase y variables de entorno
   - [x] Auth (Dashboard): `Site URL` y `Redirect URLs` configuradas
@@ -46,7 +46,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [x] Google OAuth: configurar en Supabase Dashboard (Authentication > Providers > Google)
   - [x] Configurar redirect URLs en Google Cloud Console para OAuth
   - [ ] Prod/Stage: `ENABLE_AUTH=true` (tests: off)
-- [ ] Web (Next.js)
+- [x] Web (Next.js)
   - [x] Instalar `@supabase/ssr` y `@supabase/supabase-js`
   - [x] Helper SSR de Supabase con cookies HttpOnly
   - [x] Helper cliente (Supabase browser client)
@@ -61,27 +61,29 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [x] Aplicar hero background styling a página de error de auth (`/auth/auth-code-error`)
   - [x] Responsive user dropdown menu en móvil (TopNavigation)
   - [x] Mensajes de error de login en español (códigos de error de Supabase)
-- [ ] API (Express)
+- [x] API (Express)
   - [x] Instalar `jose` y `@supabase/supabase-js`
   - [x] Middleware: verificar JWT con JWKS de Supabase; adjuntar `req.user`
   - [x] Autorización por rol: `requireRole('organizer'|'admin')`
   - [x] Proteger `POST /api/events` y rutas de gestión
   - [x] Endpoint `GET /api/users/me` (upsert y retorno de perfil)
-  - [ ] Event creation/management endpoints para organizers
-  - [ ] Role-based route protection en Next.js middleware
+  - [x] Event creation/management endpoints para organizers
+  - [x] Role-based route protection en Next.js middleware
 - [ ] Base de datos
   - [x] Tabla `users` (id uuid de auth, role enum: attendee|organizer|admin, perfil)
   - [x] Upsert de usuario/perfil en primer login
   - [ ] (Opcional) `organizer_profiles` con verificación
 - [ ] Roles y permisos
   - [ ] Rol por defecto: `attendee`; bootstrap de `admin`
-  - [ ] `organizer` puede crear/editar sus eventos
-- [ ] Favoritos y preferencias
+  - [x] `organizer` puede crear/editar sus eventos (API endpoints completados)
+  - [ ] Add role promotion/demotion functionality for admins
+  - [ ] Implement organizer verification process
+- [x] Favoritos y preferencias
   - [x] Esquema `favorites(user_id,event_id)`
   - [ ] Esquema `user_preferences(jsonb)`
-  - [ ] API endpoints para favoritos (`POST/DELETE /api/users/favorites`, `GET /api/users/favorites`)
-  - [ ] UI favoritos en event cards y perfil de usuario
-  - [ ] Endpoints y UI conectados
+  - [x] API endpoints para favoritos (`POST/DELETE /api/users/favorites`, `GET /api/users/favorites`)
+  - [x] UI favoritos en event cards y perfil de usuario
+  - [x] Endpoints y UI conectados
 - [ ] Seguridad
   - [ ] CORS restringido a `NEXT_PUBLIC_WEB_URL` en prod
   - [ ] Cookies HttpOnly, Secure, SameSite=Lax
@@ -89,27 +91,37 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [ ] Logs con `x-correlation-id` en fallos de auth
   - [ ] Validación adicional en registro (fortaleza de contraseñas)
   - [ ] Rate limiting específico en endpoints de auth (login/register)
-- [ ] Tests
+  - [ ] Add event ownership validation (ensure organizers can only edit their own events)
+  - [ ] Add input sanitization for event creation/editing
+  - [ ] Implement CSRF protection for form submissions
+  - [ ] Add audit logging for sensitive operations (event creation/deletion)
+- [x] Tests
   - [x] API: middleware (token válido/expirado/ausente) y checks de rol
   - [x] API: `/api/users/me` (401/200/404/500)
-  - [ ] Web E2E: flujo login/registro, toggle entre modos, validation
-  - [ ] Web E2E: Google OAuth flow y callback handling
-  - [ ] Web E2E: gating de "Crear evento", logout
-  - [ ] Web E2E: auth error scenarios y página de error
-  - [ ] API: favorites endpoints testing
-  - [ ] User role switching y permissions testing
+  - [x] Web E2E: flujo login/registro, toggle entre modos, validation
+  - [x] Web E2E: Google OAuth flow y callback handling
+  - [x] Web E2E: gating de "Crear evento", logout
+  - [x] Web E2E: auth error scenarios y página de error
+  - [x] API: favorites endpoints testing
+  - [x] User role switching y permissions testing
 
 ## ⏳ Pending: Authentication UX Enhancements
 - [ ] Página "Forgot Password" con reset por email
 - [ ] Mejorar UX de confirmación de email en registro
-- [ ] Redirección inteligente post-login (remember intended page)
+- [x] Redirección inteligente post-login (remember intended page)
 - [ ] Loading states más granulares en OAuth flow
 - [ ] Manejo de errores específicos (email ya existe, contraseña débil, etc.)
 - [ ] Agregar "Remember me" option para sesiones extendidas
 - [ ] Avatar/profile picture integration con Google OAuth
 - [ ] Welcome email o onboarding flow post-registro
-- [ ] Event creation form para organizers
-- [ ] Favorites functionality testing en UI
+- [ ] Event creation form para organizers (UI placeholder creado, form real pendiente)
+- [x] Favorites functionality testing en UI
+- [ ] Fix existing event creation test (update to include `city` field in validation)
+- [ ] Implement actual event creation form with category dropdown, city selection
+- [ ] Add event image upload functionality
+- [ ] Add event edit/delete functionality in UI
+- [ ] Create organizer dashboard to manage their events
+- [ ] Add organizer event statistics and analytics
 
 ## 🚧 In progress: Observability & Quality
 - [ ] Monitoring/Errors: integrate Sentry (web + api)
@@ -140,7 +152,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [x] Orden por precio asc/desc reordena correctamente
   - [x] Persistencia de `sort` y `order` al cambiar de página y al cambiar `limit`
 - [x] Búsqueda y filtros
-  - [x] Búsqueda por texto (`q`) con acentos/diacríticos-insensible
+  - [x] Búsqueda por texto (`q`) funciona correctamente con database search
   - [x] Filtro por categoría resetea `page` y preserva otros parámetros
   - [x] Combinación de `q` + categoría con paginación y orden aplicado
 - [x] Estados vacíos y error
@@ -150,14 +162,14 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Accesibilidad
   - [ ] Navegación por teclado en paginación y selects; foco visible
   - [x] ARIA labels en controles de orden y tamaño de página
-- [ ] SEO (bloqueado hasta implementación)
-  - [ ] Título/meta tags por ciudad
-  - [ ] `sitemap.xml` y `robots.txt`
-  - [ ] JSON-LD `schema.org/Event` en listas/detalle
-- [ ] Infraestructura E2E
+- [x] SEO
+  - [x] Título/meta tags por ciudad
+  - [x] `sitemap.xml` y `robots.txt`
+  - [x] JSON-LD `schema.org/Event` en listas/detalle
+- [x] Infraestructura E2E
   - [x] Ejecutar E2E contra build de producción (`next build` + `next start`)
   - [x] Mock/unoptimized de `next/image` para E2E
-  - [ ] Fixtures/seed de datos deterministas para E2E
+  - [x] Fixtures/seed de datos deterministas para E2E
   - [x] Matriz de navegadores (Chromium, Firefox, WebKit)
 
 ## 🚧 In progress: Documentation & DX

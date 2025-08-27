@@ -4,8 +4,36 @@ import CitySelector from '@/components/CitySelector'
 import Image from 'next/image'
 
 export const metadata: Metadata = {
-  title: 'Inicio',
-  description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti.',
+  title: '¿Qué hacer en...? - Descubre los mejores eventos en Colombia',
+  description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti. Conciertos, festivales, arte y cultura en toda Colombia.',
+  keywords: ['eventos colombia', 'actividades colombia', 'conciertos', 'festivales', 'que hacer'],
+  openGraph: {
+    title: '¿Qué hacer en...? - Descubre los mejores eventos en Colombia',
+    description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti. Conciertos, festivales, arte y cultura en toda Colombia.',
+    url: process.env.NEXT_PUBLIC_WEB_URL,
+    siteName: '¿Qué hacer en...?',
+    locale: 'es_CO',
+    type: 'website',
+    images: [
+      {
+        url: `${process.env.NEXT_PUBLIC_WEB_URL}/og-image.jpg`,
+        width: 1200,
+        height: 630,
+        alt: '¿Qué hacer en...? - Eventos en Colombia',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '¿Qué hacer en...? - Descubre los mejores eventos en Colombia',
+    description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti.',
+    images: [`${process.env.NEXT_PUBLIC_WEB_URL}/og-image.jpg`],
+    creator: '@quehaceren',
+    site: '@quehaceren',
+  },
+  alternates: {
+    canonical: process.env.NEXT_PUBLIC_WEB_URL,
+  },
 }
 
 export default function HomePage() {

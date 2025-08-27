@@ -1,5 +1,9 @@
+'use client'
+
 import type { Event } from '@/types/event'
 import { formatEventDate, formatEventPrice } from '@/lib/events'
+import { useSession } from '@/lib/session'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 
 interface EventCardProps {
@@ -7,6 +11,74 @@ interface EventCardProps {
 }
 
 export default function EventCard({ event }: EventCardProps) {
+  const { isAuthenticated, user } = useSession()
+  const [isFavorited, setIsFavorited] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Check if event is favorited on mount
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      checkFavoriteStatus()
+    }
+  }, [isAuthenticated, user, event.id])
+
+  async function checkFavoriteStatus() {
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/favorites/${event.id}/status`, {
+        headers: {
+          'Authorization': `Bearer ${await getAccessToken()}`,
+          'x-correlation-id': crypto.randomUUID()
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setIsFavorited(data.isFavorited)
+      }
+    } catch (err) {
+      console.error('Error checking favorite status:', err)
+    }
+  }
+
+  async function getAccessToken(): Promise<string> {
+    const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
+    const supabase = getSupabaseBrowserClient()
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token || ''
+  }
+
+  async function toggleFavorite() {
+    if (!isAuthenticated || isLoading) return
+    
+    setIsLoading(true)
+    try {
+      const token = await getAccessToken()
+      const method = isFavorited ? 'DELETE' : 'POST'
+      const url = isFavorited 
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/users/favorites/${event.id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/users/favorites`
+      
+      const body = isFavorited ? undefined : JSON.stringify({ eventId: event.id })
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'x-correlation-id': crypto.randomUUID()
+        },
+        body
+      })
+
+      if (response.ok) {
+        setIsFavorited(!isFavorited)
+      }
+    } catch (err) {
+      console.error('Error toggling favorite:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div data-testid="event-card" data-price={event.price} className="bg-white rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 ease-in-out overflow-hidden group hover:-translate-y-1 animate-fadeIn">
             {/* Event Image */}
@@ -34,6 +106,40 @@ export default function EventCard({ event }: EventCardProps) {
             {event.category}
           </span>
         </div>
+
+        {/* Favorite Button */}
+        {isAuthenticated && (
+          <div className="absolute top-3 right-3">
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                toggleFavorite()
+              }}
+              disabled={isLoading}
+              className={`p-2 rounded-full backdrop-blur-sm transition-all duration-200 hover:scale-110 ${
+                isFavorited 
+                  ? 'bg-red-500 text-white' 
+                  : 'bg-white/80 text-gray-600 hover:bg-white/90'
+              } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              aria-label={isFavorited ? 'Remover de favoritos' : 'Agregar a favoritos'}
+            >
+              <svg 
+                className="w-4 h-4" 
+                fill={isFavorited ? 'currentColor' : 'none'} 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Event Content */}

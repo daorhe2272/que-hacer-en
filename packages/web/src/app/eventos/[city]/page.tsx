@@ -13,6 +13,7 @@ import NoResults from '@/components/NoResults'
 import SortControls from '@/components/SortControls'
 import PageSizeSelector from '@/components/PageSizeSelector'
 import Pagination from '@/components/Pagination'
+import EventsJsonLd from '@/components/EventsJsonLd'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,11 +41,41 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const cityName = cityNames[city]
+  const title = `Eventos en ${cityName}`
+  const description = `Descubre los mejores eventos y actividades en ${cityName}. Conciertos, festivales, obras de teatro y mucho más.`
+  const url = `${process.env.NEXT_PUBLIC_WEB_URL || 'https://quehaceren.co'}/eventos/${city}`
   
   return {
-    title: `Eventos en ${cityName}`,
-    description: `Descubre los mejores eventos y actividades en ${cityName}. Conciertos, festivales, obras de teatro y mucho más.`,
+    title,
+    description,
     keywords: [`eventos ${cityName}`, `actividades ${cityName}`, `que hacer en ${cityName}`],
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: '¿Qué hacer en...?',
+      locale: 'es_CO',
+      type: 'website',
+      images: [
+        {
+          url: `${process.env.NEXT_PUBLIC_WEB_URL || 'https://quehaceren.co'}/og-image.jpg`,
+          width: 1200,
+          height: 630,
+          alt: `Eventos en ${cityName} - ¿Qué hacer en...?`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${process.env.NEXT_PUBLIC_WEB_URL || 'https://quehaceren.co'}/og-image.jpg`],
+      creator: '@quehaceren',
+      site: '@quehaceren',
+    },
+    alternates: {
+      canonical: url,
+    },
   }
 }
 
@@ -72,6 +103,9 @@ export default async function CityEventsPage({ params, searchParams }: { params:
 
   return (
     <>
+      {/* JSON-LD Structured Data */}
+      <EventsJsonLd events={events} cityName={cityName} city={city} />
+      
       {/* Top Navigation */}
       <TopNavigation />
       

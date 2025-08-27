@@ -107,14 +107,23 @@ export default function TopNavigation() {
               <>
                 {/* Desktop view */}
                 <div className="hidden md:flex items-center gap-3">
-                  <button className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                  <button 
+                    onClick={() => router.push('/crear-evento')}
+                    className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                  >
                     Crear Evento
                   </button>
                   <div className="relative group">
-                    <button className="px-3 py-2 text-sm text-gray-700 hover:text-gray-900 rounded-lg transition-colors duration-200">
+                    <button className="px-3 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 hover:border-gray-400 rounded-lg transition-all duration-200 bg-white hover:bg-gray-50 min-w-[100px]">
                       {user?.email ?? 'Cuenta'}
                     </button>
                     <div className="hidden group-hover:block absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                      <button 
+                        onClick={() => router.push('/favoritos')}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                      >
+                        Mis Favoritos
+                      </button>
                       <button onClick={() => signOut()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900">Cerrar sesión</button>
                     </div>
                   </div>
@@ -135,8 +144,23 @@ export default function TopNavigation() {
                         <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">
                           {user?.email}
                         </div>
-                        <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900">
+                        <button 
+                          onClick={() => {
+                            router.push('/crear-evento')
+                            setIsUserMenuOpen(false)
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
                           Crear Evento
+                        </button>
+                        <button 
+                          onClick={() => {
+                            router.push('/favoritos')
+                            setIsUserMenuOpen(false)
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Mis Favoritos
                         </button>
                         <button 
                           onClick={() => {
