@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { Route } from 'next'
 
 type Props = {
   city: string
@@ -14,7 +15,7 @@ type Props = {
 export default function Pagination({ city, page, totalPages, q, category, sort, order, limit }: Props) {
   if (totalPages <= 1) return null
 
-  function buildHref(nextPage: number) {
+  function buildHref(nextPage: number): Route {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (category) params.set('category', category)
@@ -23,7 +24,7 @@ export default function Pagination({ city, page, totalPages, q, category, sort, 
     if (limit) params.set('limit', limit.toString())
     params.set('page', nextPage.toString())
     
-    return `/eventos/${city}?${params.toString()}`
+    return `/eventos/${city}?${params.toString()}` as Route
   }
 
   const prevPage = page > 1 ? page - 1 : null
@@ -34,7 +35,7 @@ export default function Pagination({ city, page, totalPages, q, category, sort, 
       <Link
         aria-disabled={!prevPage}
         className={`px-3 py-2 rounded border text-sm ${prevPage ? 'text-gray-700 hover:bg-gray-50 border-gray-200' : 'text-gray-400 border-gray-100 pointer-events-none'}`}
-        href={prevPage ? buildHref(prevPage) : `/eventos/${city}`}
+        href={prevPage ? buildHref(prevPage) : `/eventos/${city}` as Route}
       >
         Anterior
       </Link>
@@ -42,7 +43,7 @@ export default function Pagination({ city, page, totalPages, q, category, sort, 
       <Link
         aria-disabled={!nextPage}
         className={`px-3 py-2 rounded border text-sm ${nextPage ? 'text-gray-700 hover:bg-gray-50 border-gray-200' : 'text-gray-400 border-gray-100 pointer-events-none'}`}
-        href={nextPage ? buildHref(nextPage) : `/eventos/${city}`}
+        href={nextPage ? buildHref(nextPage) : `/eventos/${city}` as Route}
       >
         Siguiente
       </Link>
