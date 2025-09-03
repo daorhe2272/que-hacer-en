@@ -267,6 +267,55 @@ test.describe('Flujos de autenticación', () => {
   })
 })
 
+test.describe('Redirect Parameter Handling (UI Only)', () => {
+  test('Login page accepts redirect parameter in URL', async ({ page }) => {
+    // Go to login with redirect parameter
+    await page.goto('/login?redirect=/favoritos')
+    
+    // Should be on login page
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
+    
+    // URL should contain the redirect parameter
+    const url = page.url()
+    expect(url.includes('redirect=%2Ffavoritos') || url.includes('redirect=/favoritos')).toBe(true)
+  })
+
+  test('Login page handles complex redirect URLs in parameter', async ({ page }) => {
+    const redirectUrl = '/eventos/bogota?category=arte&q=exposicion&page=2'
+    await page.goto(`/login?redirect=${encodeURIComponent(redirectUrl)}`)
+    
+    // Should be on login page
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
+    
+    // URL should contain the encoded redirect parameter
+    const url = page.url()
+    expect(url).toContain('redirect=')
+  })
+
+  test('Malicious redirect URLs are handled safely', async ({ page }) => {
+    // Try with malicious external redirect
+    await page.goto('/login?redirect=https://malicious-site.com')
+    
+    // Should still show login page normally
+    await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible()
+    
+    // Should be on our domain
+    expect(page.url()).toContain('localhost:4000')
+  })
+
+  test('Google OAuth button is properly configured', async ({ page }) => {
+    await page.goto('/login')
+    
+    // Google button should be visible and clickable
+    const googleButton = page.getByText('Google')
+    await expect(googleButton).toBeVisible()
+    await expect(googleButton).toBeEnabled()
+    
+    // Note: We don't test actual OAuth flow in UI tests
+    // That's covered in the real authentication tests
+  })
+})
+
 test.describe('Estados de carga y errores de auth', () => {
   test('Loading states se muestran correctamente', async ({ page }) => {
     await page.goto('/login')

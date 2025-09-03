@@ -50,6 +50,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [ ] Add input sanitization for event creation/editing
   - [ ] Implement CSRF protection for form submissions
   - [ ] Add audit logging for sensitive operations (event creation/deletion)
+- [ ] Configurar SMTP personalizado con SendGrid para emails de producción (reemplazar servicio built-in de Supabase con límite de 3-4 emails/hora)
 - [ ] Mejorar UX de confirmación de email en registro
 - [ ] Document API endpoints in packages/api/README.md
  - [ ] Añadir guía de roles (attendee/organizer/admin) y bootstrap de admin

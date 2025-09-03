@@ -1,7 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowserClient, translateSupabaseError } from '@/lib/supabase/client'
+import { useSession } from '@/lib/session'
+
+// Helper function to validate redirect URLs for security
+function isValidRedirectUrl(url: string): boolean {
+  try {
+    // Only allow relative URLs that start with /
+    if (!url.startsWith('/')) return false
+    
+    // Prevent protocol-relative URLs (//example.com)
+    if (url.startsWith('//')) return false
+    
+    // Don't allow javascript: or other dangerous protocols
+    if (url.includes(':')) return false
+    
+    return true
+  } catch {
+    return false
+  }
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -10,6 +30,36 @@ export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [isRegistering, setIsRegistering] = useState(false)
+  
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { isAuthenticated } = useSession()
+  
+  // Redirect function using Next.js best practices
+  const handleSuccessfulAuth = () => {
+    // 1. First priority: URL redirect parameter (from middleware)
+    const redirectParam = searchParams.get('redirect')
+    if (redirectParam && isValidRedirectUrl(redirectParam)) {
+      router.push(redirectParam)
+      return
+    }
+    
+    // 2. Fallback: Use router history if available
+    if (window.history.length > 1) {
+      router.back()
+      return
+    }
+    
+    // 3. Final fallback: Landing page
+    router.push('/')
+  }
+  
+  // Handle authentication state changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      handleSuccessfulAuth()
+    }
+  }, [isAuthenticated])
 
   async function onEmailPassword(e: React.FormEvent) {
     e.preventDefault()
@@ -40,8 +90,10 @@ export default function LoginPage() {
       }
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setMessage(translateSupabaseError(error))
-      else setMessage('Sesión iniciada')
+      if (error) {
+        setMessage(translateSupabaseError(error))
+      }
+      // No success message needed - redirect will happen automatically via useEffect
     }
     
     setLoading(false)
@@ -52,10 +104,19 @@ export default function LoginPage() {
     setMessage(null)
     
     const supabase = getSupabaseBrowserClient()
+    
+    // Get the redirect destination (same logic as handleSuccessfulAuth)
+    const redirectParam = searchParams.get('redirect')
+    let nextUrl = '/'
+    
+    if (redirectParam && isValidRedirectUrl(redirectParam)) {
+      nextUrl = redirectParam
+    }
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:4000'}/auth/callback`
+        redirectTo: `${process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:4000'}/auth/callback?next=${encodeURIComponent(nextUrl)}`
       }
     })
     
@@ -170,7 +231,7 @@ export default function LoginPage() {
 
         {message && (
           <div className={`mt-4 p-3 rounded-lg text-sm ${
-            message.includes('exitosamente') || message.includes('iniciada')
+            message.includes('exitosamente')
               ? 'bg-green-50 text-green-800 border border-green-200'
               : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
