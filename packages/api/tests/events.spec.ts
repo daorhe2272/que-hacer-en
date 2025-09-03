@@ -170,6 +170,28 @@ describe('Events API', () => {
       } 
     })
 
+    // Mock createEventDb to prevent database pollution
+    const mockEvent = {
+      id: 'mock-event-id',
+      title: 'Charla de Tecnología',
+      description: 'Charlas sobre IA y futuro',
+      date: '2024-10-10',
+      time: '18:30',
+      location: 'Auditorio Central',
+      address: 'Calle 1 # 2-34',
+      category: 'Tecnología',
+      city: 'bogota',
+      price: 10000,
+      currency: 'COP',
+      image: 'https://example.com/charla.jpg',
+      organizer: 'Tech Org',
+      capacity: 100,
+      tags: ['tech'],
+      status: 'active'
+    }
+    
+    jest.spyOn(require('../src/db/repository'), 'createEventDb').mockResolvedValueOnce(mockEvent)
+
     const body = {
       title: 'Charla de Tecnología',
       description: 'Charlas sobre IA y futuro',
