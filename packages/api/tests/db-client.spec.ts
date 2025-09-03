@@ -15,9 +15,20 @@ describe('DB client', () => {
   test('getDbPool throws when DATABASE_URL is missing', () => {
     jest.isolateModules(() => {
       jest.doMock('dotenv', () => ({ config: jest.fn() }))
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const client = require('../src/db/client')
-      expect(() => client.getDbPool()).toThrow(/DATABASE_URL/)
+      // Temporarily unset NODE_ENV to test production behavior
+      const originalNodeEnv = process.env.NODE_ENV
+      delete process.env.NODE_ENV
+      
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const client = require('../src/db/client')
+        expect(() => client.getDbPool()).toThrow(/DATABASE_URL/)
+      } finally {
+        // Restore NODE_ENV
+        if (originalNodeEnv) {
+          process.env.NODE_ENV = originalNodeEnv
+        }
+      }
     })
   })
 
@@ -41,6 +52,40 @@ describe('DB client', () => {
     const res2 = await client.query('SELECT 2')
     expect(querySpy).toHaveBeenCalledTimes(2)
     expect(res2).toEqual({ rows: [{ ok: true }] })
+  })
+
+  test('getDbPool creates mock pool when NODE_ENV is test and no DATABASE_URL', () => {
+    jest.isolateModules(() => {
+      jest.doMock('dotenv', () => ({ config: jest.fn() }))
+      process.env.NODE_ENV = 'test'
+      delete process.env.DATABASE_URL
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const client = require('../src/db/client')
+      const pool1 = client.getDbPool()
+      const pool2 = client.getDbPool()
+      
+      // Should return same mock pool (singleton)
+      expect(pool1).toBe(pool2)
+      expect(typeof pool1.query).toBe('function')
+      expect(typeof pool1.end).toBe('function')
+      expect(typeof pool1.connect).toBe('function')
+    })
+  })
+
+  test('mock pool query throws error', async () => {
+    jest.isolateModules(async () => {
+      jest.doMock('dotenv', () => ({ config: jest.fn() }))
+      process.env.NODE_ENV = 'test'
+      delete process.env.DATABASE_URL
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const client = require('../src/db/client')
+      const pool = client.getDbPool()
+      
+      await expect(pool.query()).rejects.toThrow('Database not mocked in test')
+      await expect(pool.connect()).rejects.toThrow('Database not mocked in test')
+    })
   })
 })
 

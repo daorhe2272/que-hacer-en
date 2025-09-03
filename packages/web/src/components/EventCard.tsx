@@ -3,7 +3,7 @@
 import type { Event } from '@/types/event'
 import { formatEventDate, formatEventPrice } from '@/lib/events'
 import { useSession } from '@/lib/session'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Image from 'next/image'
 
 interface EventCardProps {
@@ -15,14 +15,14 @@ export default function EventCard({ event }: EventCardProps) {
   const [isFavorited, setIsFavorited] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Check if event is favorited on mount
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      checkFavoriteStatus()
-    }
-  }, [isAuthenticated, user, event.id])
+  const getAccessToken = useCallback(async (): Promise<string> => {
+    const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
+    const supabase = getSupabaseBrowserClient()
+    const { data } = await supabase.auth.getSession()
+    return data.session?.access_token || ''
+  }, [])
 
-  async function checkFavoriteStatus() {
+  const checkFavoriteStatus = useCallback(async () => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/favorites/${event.id}/status`, {
         headers: {
@@ -37,14 +37,14 @@ export default function EventCard({ event }: EventCardProps) {
     } catch (err) {
       console.error('Error checking favorite status:', err)
     }
-  }
+  }, [event.id, getAccessToken])
 
-  async function getAccessToken(): Promise<string> {
-    const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
-    const supabase = getSupabaseBrowserClient()
-    const { data } = await supabase.auth.getSession()
-    return data.session?.access_token || ''
-  }
+  // Check if event is favorited on mount
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      checkFavoriteStatus()
+    }
+  }, [isAuthenticated, user, checkFavoriteStatus])
 
   async function toggleFavorite() {
     if (!isAuthenticated || isLoading) return

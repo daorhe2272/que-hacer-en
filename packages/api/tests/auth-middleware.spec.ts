@@ -119,6 +119,43 @@ describe('auth middleware', () => {
     expect(res.statusCode).toBe(403)
     expect(next).not.toHaveBeenCalled()
   })
+
+  test('requireRole(admin) allows admin user', () => {
+    const req: any = { user: { id: 'u5', role: 'admin' } }
+    const res = createRes()
+    const next = jest.fn()
+    requireRole('admin')(req, res as any, next)  // This should execute line 56
+    expect(next).toHaveBeenCalled()
+    expect(res.statusCode).toBeUndefined()
+  })
+
+  test('authenticate handles non-string JWT payload sub and email', async () => {
+    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
+    // Test the branches where payload.sub and payload.email are not strings
+    jwtVerify.mockResolvedValueOnce({ 
+      payload: { 
+        sub: 12345, // number, not string - should trigger line 38 false branch  
+        email: { address: 'test@example.com' }, // object, not string - should trigger line 39 false branch
+        user_role: 'attendee'
+      } 
+    })
+
+    const prevUrl = process.env.SUPABASE_URL
+    process.env.SUPABASE_URL = 'https://proj.supabase.co'
+    const req: any = { headers: { authorization: 'Bearer valid' } }
+    const res = createRes()
+    const next = jest.fn()
+    await authenticate(req, res as any, next)
+    
+    expect(next).toHaveBeenCalled()
+    expect(req.user).toEqual({ 
+      id: 'unknown', // sub was not string, so defaulted to 'unknown'
+      email: undefined, // email was not string, so became undefined
+      role: 'attendee' 
+    })
+    process.env.SUPABASE_URL = prevUrl
+  })
+
 })
 
 

@@ -243,6 +243,9 @@ export interface UpdateEventParams extends Partial<CreateEventParams> {
 }
 
 export async function createEventDb(params: CreateEventParams, _organizerId: string): Promise<EventDto> {
+  // TODO: Use organizerId for authorization when auth is implemented
+  void _organizerId
+  
   const { 
     title, description, date, time, location, address, 
     category, city, price, currency, tags = [] 
@@ -293,6 +296,9 @@ export async function createEventDb(params: CreateEventParams, _organizerId: str
 }
 
 export async function updateEventDb(params: UpdateEventParams, _organizerId: string): Promise<EventDto | null> {
+  // TODO: Use organizerId for authorization when auth is implemented
+  void _organizerId
+  
   const { id, title, description, date, time, location, address, category, city, price, currency, tags } = params
 
   const existingEvent = await getEventByIdDb(id)
@@ -383,6 +389,9 @@ export async function updateEventDb(params: UpdateEventParams, _organizerId: str
 }
 
 export async function deleteEventDb(eventId: string, _organizerId: string): Promise<boolean> {
+  // TODO: Use organizerId for authorization when auth is implemented
+  void _organizerId
+  
   const result = await query(`DELETE FROM events WHERE id = $1`, [eventId])
   return (result.rowCount ?? 0) > 0
 }
@@ -435,7 +444,10 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
   return event
 }
 
-export async function listOrganizerEventsDb(_organizerId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
+export async function listOrganizerEventsDb(organizerId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
+  // TODO: Use organizerId for authorization when auth is implemented
+  void organizerId
+  
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
   const where: string[] = []

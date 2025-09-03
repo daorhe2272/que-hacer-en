@@ -1,11 +1,54 @@
-import { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Crear Evento - Qué hacer en...',
-  description: 'Crea y publica un nuevo evento en tu ciudad'
-}
+import { useSession } from '@/lib/session'
+import { useRouter } from 'next/navigation'
+import { useEffect } from 'react'
 
 export default function CrearEventoPage() {
+  const router = useRouter()
+  const { isAuthenticated, user, loading: sessionLoading } = useSession()
+
+  useEffect(() => {
+    if (!sessionLoading) {
+      if (!isAuthenticated) {
+        router.push(`/login?redirect=${encodeURIComponent('/crear-evento')}`)
+        return
+      }
+      
+      // Check if user has organizer or admin role
+      if (user && user.role !== 'organizer' && user.role !== 'admin') {
+        router.push('/eventos/bogota?error=unauthorized')
+        return
+      }
+    }
+  }, [isAuthenticated, user, sessionLoading, router])
+
+  // Show loading while checking authentication
+  if (sessionLoading) {
+    return (
+      <div 
+        className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+        style={{
+          backgroundImage: "url('/hero-background.jpeg')"
+        }}
+      >
+        <div className="absolute inset-0 bg-hero-gradient opacity-80 min-h-full"></div>
+        <div className="container mx-auto px-4 py-12 relative z-10">
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <p className="text-gray-600 mt-4">Verificando permisos...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render anything while redirecting
+  if (!isAuthenticated || (user && user.role !== 'organizer' && user.role !== 'admin')) {
+    return null
+  }
   return (
     <div 
       className="min-h-screen bg-cover bg-center bg-no-repeat relative"

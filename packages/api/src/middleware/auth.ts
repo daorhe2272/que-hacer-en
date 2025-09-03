@@ -8,6 +8,13 @@ function getSupabaseJwksUrl(): string | null {
 }
 
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  // Skip authentication in test environment with special test user
+  if (process.env.NODE_ENV === 'test' && req.headers.authorization === 'Bearer test-token') {
+    req.user = { id: 'test-user-id', email: 'test@example.com', role: 'attendee' }
+    next()
+    return
+  }
+
   try {
     const authHeader = req.headers.authorization || ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null

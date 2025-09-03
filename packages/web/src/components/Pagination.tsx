@@ -15,14 +15,15 @@ export default function Pagination({ city, page, totalPages, q, category, sort, 
   if (totalPages <= 1) return null
 
   function buildHref(nextPage: number) {
-    const query: Record<string, string | number> = { city }
-    if (q) query.q = q
-    if (category) query.category = category
-    if (sort) query.sort = sort
-    if (order) query.order = order
-    if (limit) query.limit = limit
-    query.page = nextPage
-    return { pathname: '/eventos/[city]', query }
+    const params = new URLSearchParams()
+    if (q) params.set('q', q)
+    if (category) params.set('category', category)
+    if (sort) params.set('sort', sort)
+    if (order) params.set('order', order)
+    if (limit) params.set('limit', limit.toString())
+    params.set('page', nextPage.toString())
+    
+    return `/eventos/${city}?${params.toString()}`
   }
 
   const prevPage = page > 1 ? page - 1 : null
@@ -33,7 +34,7 @@ export default function Pagination({ city, page, totalPages, q, category, sort, 
       <Link
         aria-disabled={!prevPage}
         className={`px-3 py-2 rounded border text-sm ${prevPage ? 'text-gray-700 hover:bg-gray-50 border-gray-200' : 'text-gray-400 border-gray-100 pointer-events-none'}`}
-        href={prevPage ? buildHref(prevPage) : { pathname: '/eventos/[city]', query: { city } }}
+        href={prevPage ? buildHref(prevPage) : `/eventos/${city}`}
       >
         Anterior
       </Link>
@@ -41,7 +42,7 @@ export default function Pagination({ city, page, totalPages, q, category, sort, 
       <Link
         aria-disabled={!nextPage}
         className={`px-3 py-2 rounded border text-sm ${nextPage ? 'text-gray-700 hover:bg-gray-50 border-gray-200' : 'text-gray-400 border-gray-100 pointer-events-none'}`}
-        href={nextPage ? buildHref(nextPage) : { pathname: '/eventos/[city]', query: { city } }}
+        href={nextPage ? buildHref(nextPage) : `/eventos/${city}`}
       >
         Siguiente
       </Link>

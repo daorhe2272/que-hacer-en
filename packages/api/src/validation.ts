@@ -12,8 +12,8 @@ export const listQuerySchema = z.object({
   to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   minPrice: z.coerce.number().nonnegative().optional(),
   maxPrice: z.coerce.number().nonnegative().optional(),
-  page: z.coerce.number().int().min(1).default(DEFAULT_PAGE_NUMBER).optional(),
-  limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).default(DEFAULT_PAGE_LIMIT).optional(),
+  page: z.coerce.number().int().min(1).default(DEFAULT_PAGE_NUMBER),
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_LIMIT).default(DEFAULT_PAGE_LIMIT),
   sort: z.enum(['date', 'price']).optional(),
   order: z.enum(['asc', 'desc']).optional()
 })

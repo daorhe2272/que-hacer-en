@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession } from '@/lib/session'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import EventCard from '@/components/EventCard'
 import { Event } from '@/types/event'
 import { useRouter } from 'next/navigation'
@@ -13,17 +13,7 @@ export default function FavoritosPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!sessionLoading) {
-      if (!isAuthenticated) {
-        router.push('/login?redirect=/favoritos')
-        return
-      }
-      fetchFavorites()
-    }
-  }, [isAuthenticated, sessionLoading, router])
-
-  async function fetchFavorites() {
+  const fetchFavorites = useCallback(async () => {
     if (!isAuthenticated) return
     
     try {
@@ -56,7 +46,17 @@ export default function FavoritosPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [isAuthenticated, router])
+
+  useEffect(() => {
+    if (!sessionLoading) {
+      if (!isAuthenticated) {
+        router.push('/login?redirect=/favoritos')
+        return
+      }
+      fetchFavorites()
+    }
+  }, [isAuthenticated, sessionLoading, router, fetchFavorites])
 
   if (sessionLoading || loading) {
     return (

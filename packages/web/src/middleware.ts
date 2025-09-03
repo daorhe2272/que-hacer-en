@@ -28,6 +28,7 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone()
   const pathname = url.pathname
   
+  
   // Skip middleware for static files and API routes
   if (
     pathname.startsWith('/_next') ||
@@ -43,7 +44,7 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = protectedRoutes.some(route => 
     pathname.startsWith(route) || pathname === route
   )
-
+  
   if (!isProtectedRoute) {
     return NextResponse.next()
   }
@@ -80,7 +81,7 @@ export async function middleware(request: NextRequest) {
       redirectUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(redirectUrl)
     }
-
+    
     // Get user profile to check role
     const token = session.access_token
     const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`, {
@@ -91,7 +92,6 @@ export async function middleware(request: NextRequest) {
     })
 
     if (!profileResponse.ok) {
-      // If can't get profile, redirect to login
       const redirectUrl = new URL('/login', request.url)
       redirectUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(redirectUrl)
@@ -114,7 +114,6 @@ export async function middleware(request: NextRequest) {
         
         // Check if user has required role
         if (userRole !== requiredRole) {
-          // Redirect to unauthorized page or home
           const redirectUrl = new URL('/eventos/bogota', request.url)
           redirectUrl.searchParams.set('error', 'unauthorized')
           return NextResponse.redirect(redirectUrl)
@@ -125,7 +124,6 @@ export async function middleware(request: NextRequest) {
     return response
   } catch (error) {
     console.error('Middleware error:', error)
-    // On error, redirect to login
     const redirectUrl = new URL('/login', request.url)
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
@@ -136,10 +134,11 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!_next/static|_next/image|favicon.ico).*)'
-  ]
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 }

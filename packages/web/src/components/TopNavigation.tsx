@@ -178,8 +178,7 @@ export default function TopNavigation() {
               </>
             ) : (
               <a href="/login" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 md:px-6 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
-                <span className="hidden sm:inline">Iniciar sesión</span>
-                <span className="sm:hidden">Login</span>
+                Iniciar sesión
               </a>
             )}
           </div>

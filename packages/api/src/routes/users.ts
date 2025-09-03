@@ -1,16 +1,26 @@
-import { Router } from 'express'
+import { Router, Request } from 'express'
 import { authenticate } from '../middleware/auth'
 import { query } from '../db/client'
 import { addToFavoritesDb, removeFromFavoritesDb, getUserFavoritesDb, isEventFavoritedDb } from '../db/repository'
 import { listQuerySchema } from '../validation'
 
+// Type helper for authenticated requests where user.id is guaranteed to exist
+interface AuthenticatedRequest extends Request {
+  user: NonNullable<Request['user']> & { id: string }
+}
+
+// Type assertion helper - only use after authenticate middleware
+function assertAuthenticated(req: Request): AuthenticatedRequest {
+  return req as AuthenticatedRequest
+}
+
 export const usersRouter: Router = Router()
 
 usersRouter.get('/me', authenticate, async (req, res) => {
   try {
-    const userId = req.user?.id
-    const email = req.user?.email
-    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return }
+    const authReq = assertAuthenticated(req)
+    const userId = authReq.user.id
+    const email = authReq.user.email
     // Ensure schema pieces exist in test or fresh DBs
     await query(`DO $$ BEGIN
        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
@@ -46,13 +56,9 @@ usersRouter.get('/me', authenticate, async (req, res) => {
 // Add event to favorites
 usersRouter.post('/favorites', authenticate, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const authReq = assertAuthenticated(req)
+    const userId = authReq.user.id
     const { eventId } = req.body
-    
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
-    }
     
     if (!eventId || typeof eventId !== 'string') {
       res.status(400).json({ error: 'eventId es requerido' })
@@ -73,13 +79,9 @@ usersRouter.post('/favorites', authenticate, async (req, res) => {
 // Remove event from favorites
 usersRouter.delete('/favorites/:eventId', authenticate, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const authReq = assertAuthenticated(req)
+    const userId = authReq.user.id
     const { eventId } = req.params
-    
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
-    }
 
     const success = await removeFromFavoritesDb(userId, eventId)
     if (success) {
@@ -95,12 +97,8 @@ usersRouter.delete('/favorites/:eventId', authenticate, async (req, res) => {
 // Get user's favorite events
 usersRouter.get('/favorites', authenticate, async (req, res) => {
   try {
-    const userId = req.user?.id
-    
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
-    }
+    const authReq = assertAuthenticated(req)
+    const userId = authReq.user.id
 
     const parseResult = listQuerySchema.safeParse(req.query)
     if (!parseResult.success) {
@@ -110,7 +108,7 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
 
     const params = parseResult.data
     const { events, total } = await getUserFavoritesDb(userId, params)
-    const { page = 1, limit = 20 } = params
+    const { page, limit } = params
     const totalPages = Math.ceil(total / limit)
     
     res.json({ 
@@ -125,13 +123,9 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
 // Check if event is favorited
 usersRouter.get('/favorites/:eventId/status', authenticate, async (req, res) => {
   try {
-    const userId = req.user?.id
+    const authReq = assertAuthenticated(req)
+    const userId = authReq.user.id
     const { eventId } = req.params
-    
-    if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' })
-      return
-    }
 
     const isFavorited = await isEventFavoritedDb(userId, eventId)
     res.json({ isFavorited })

@@ -139,6 +139,7 @@ describe('Events API', () => {
     }
   })
 
+
   test('Cabeceras de rate limit presentes y coherentes', async () => {
     const res = await request(app).get('/api/events')
     expect(res.status).toBe(200)

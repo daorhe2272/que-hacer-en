@@ -58,6 +58,24 @@ describe('Router DB branches (mocked repo)', () => {
     expect(res.status).toBe(404)
     expect(repo.listEventsByCityDb).toHaveBeenCalledWith('unknown-city')
   })
+
+  test('GET /api/events/:city uses DB branch and returns events for valid city', async () => {
+    process.env.NODE_ENV = 'production'
+    repo.listEventsByCityDb.mockResolvedValue([
+      { id: 'event-1', title: 'Test Event', date: '2024-06-01', city: 'bogota' },
+      { id: 'event-2', title: 'Another Event', date: '2024-06-02', city: 'bogota' }
+    ])
+    const app = express()
+    app.use('/api/events', createEventsRouter({ enableCache: false }))
+
+    const res = await request(app).get('/api/events/bogota')
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveProperty('city', 'bogota')
+    expect(res.body).toHaveProperty('events')
+    expect(Array.isArray(res.body.events)).toBe(true)
+    expect(res.body.events).toHaveLength(2)
+    expect(repo.listEventsByCityDb).toHaveBeenCalledWith('bogota')
+  })
 })
 
 

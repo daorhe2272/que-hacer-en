@@ -10,6 +10,16 @@ export function getDbPool(): Pool {
 
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) {
+    if (process.env.NODE_ENV === 'test') {
+      // In test environment, create a mock pool that throws on use
+      const mockPool = {
+        query: async () => { throw new Error('Database not mocked in test') },
+        end: async () => {},
+        connect: async () => { throw new Error('Database not mocked in test') }
+      } as unknown as Pool
+      pool = mockPool
+      return pool
+    }
     throw new Error('DATABASE_URL no está configurada. Define DATABASE_URL en el entorno del paquete @que-hacer-en/api')
   }
 

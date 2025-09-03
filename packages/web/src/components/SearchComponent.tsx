@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 const categories = [
   { value: '', label: 'Todas las categorías' },
@@ -24,12 +25,35 @@ export default function SearchComponent({ cityId }: SearchComponentProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Initialize state from URL parameters
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || '')
+    setSelectedCategory(searchParams.get('category') || '')
+  }, [searchParams])
 
   const handleSearch = () => {
     if (cityId) {
-      const params = new URLSearchParams()
-      if (searchTerm) params.set('q', searchTerm)
-      if (selectedCategory) params.set('category', selectedCategory)
+      // Preserve existing search parameters
+      const params = new URLSearchParams(searchParams.toString())
+      
+      // Update search and category parameters
+      if (searchTerm.trim()) {
+        params.set('q', searchTerm.trim())
+      } else {
+        params.delete('q')
+      }
+      
+      if (selectedCategory) {
+        params.set('category', selectedCategory)
+      } else {
+        params.delete('category')
+      }
+      
+      // Reset page when search parameters change
+      params.delete('page')
+      
       const query = params.toString()
       router.push(`/eventos/${cityId}${query ? `?${query}` : ''}`)
       return

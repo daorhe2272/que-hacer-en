@@ -2,7 +2,7 @@ import { Router } from 'express'
 import fs from 'fs'
 import path from 'path'
 import type { Event, EventsData, CityKey } from '../types'
-import { listQuerySchema, eventSchema, createEventSchema, updateEventSchema } from '../validation'
+import { listQuerySchema, createEventSchema, updateEventSchema } from '../validation'
 import { listEventsDb, getEventByLegacyIdDb, listEventsByCityDb, createEventDb, updateEventDb, deleteEventDb, getEventByIdDb, listOrganizerEventsDb } from '../db/repository'
 import { authenticate, requireRole } from '../middleware/auth'
 
@@ -156,6 +156,97 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
     }
   })
 
+  // Create new event
+  router.post('/', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+    try {
+      const parsed = createEventSchema.safeParse(req.body)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
+        return
+      }
+
+      const event = await createEventDb(parsed.data, req.user!.id)
+      res.status(201).json({ message: 'Evento creado exitosamente', event })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al crear el evento'
+      res.status(500).json({ error: message })
+    }
+  })
+
+  // List organizer's events (must come before /:city)
+  router.get('/manage', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+    try {
+      const parseResult = listQuerySchema.safeParse(req.query)
+      if (!parseResult.success) {
+        res.status(400).json({ error: 'Parámetros inválidos', details: parseResult.error.flatten() })
+        return
+      }
+
+      const params = parseResult.data
+      const { events, total } = await listOrganizerEventsDb(req.user!.id, params)
+      const { page = 1, limit = 20 } = params
+      const totalPages = Math.ceil(total / limit)
+      
+      res.json({ 
+        events, 
+        pagination: { page, limit, total, totalPages } 
+      })
+    } catch (err) {
+      res.status(500).json({ error: 'Error al cargar los eventos' })
+    }
+  })
+
+  // Get event by ID (for editing)
+  router.get('/manage/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+    try {
+      const { id } = req.params
+      const event = await getEventByIdDb(id)
+      if (!event) {
+        res.status(404).json({ error: 'Evento no encontrado' })
+        return
+      }
+      res.json(event)
+    } catch (err) {
+      res.status(500).json({ error: 'Error al cargar el evento' })
+    }
+  })
+
+  // Update event
+  router.put('/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+    try {
+      const parsed = updateEventSchema.safeParse({ ...req.body, id: req.params.id })
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
+        return
+      }
+
+      const event = await updateEventDb(parsed.data, req.user!.id)
+      if (!event) {
+        res.status(404).json({ error: 'Evento no encontrado' })
+        return
+      }
+      res.json({ message: 'Evento actualizado exitosamente', event })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al actualizar el evento'
+      res.status(500).json({ error: message })
+    }
+  })
+
+  // Delete event
+  router.delete('/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+    try {
+      const { id } = req.params
+      const deleted = await deleteEventDb(id, req.user!.id)
+      if (!deleted) {
+        res.status(404).json({ error: 'Evento no encontrado' })
+        return
+      }
+      res.json({ message: 'Evento eliminado exitosamente' })
+    } catch (err) {
+      res.status(500).json({ error: 'Error al eliminar el evento' })
+    }
+  })
+
   router.get('/:city', async (req, res) => {
     try {
       const { city } = req.params
@@ -180,110 +271,6 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
       res.status(500).json({ error: 'Failed to load events' })
     }
   })
-
-  const enableAuth = process.env.ENABLE_AUTH === 'true'
-
-  if (enableAuth) {
-    // Create new event
-    router.post('/', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
-      try {
-        const parsed = createEventSchema.safeParse(req.body)
-        if (!parsed.success) {
-          res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
-          return
-        }
-
-        const event = await createEventDb(parsed.data, req.user!.id)
-        res.status(201).json({ message: 'Evento creado exitosamente', event })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Error al crear el evento'
-        res.status(500).json({ error: message })
-      }
-    })
-
-    // Get event by ID (for editing)
-    router.get('/manage/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
-      try {
-        const { id } = req.params
-        const event = await getEventByIdDb(id)
-        if (!event) {
-          res.status(404).json({ error: 'Evento no encontrado' })
-          return
-        }
-        res.json(event)
-      } catch (err) {
-        res.status(500).json({ error: 'Error al cargar el evento' })
-      }
-    })
-
-    // Update event
-    router.put('/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
-      try {
-        const parsed = updateEventSchema.safeParse({ ...req.body, id: req.params.id })
-        if (!parsed.success) {
-          res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
-          return
-        }
-
-        const event = await updateEventDb(parsed.data, req.user!.id)
-        if (!event) {
-          res.status(404).json({ error: 'Evento no encontrado' })
-          return
-        }
-        res.json({ message: 'Evento actualizado exitosamente', event })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Error al actualizar el evento'
-        res.status(500).json({ error: message })
-      }
-    })
-
-    // Delete event
-    router.delete('/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
-      try {
-        const { id } = req.params
-        const deleted = await deleteEventDb(id, req.user!.id)
-        if (!deleted) {
-          res.status(404).json({ error: 'Evento no encontrado' })
-          return
-        }
-        res.json({ message: 'Evento eliminado exitosamente' })
-      } catch (err) {
-        res.status(500).json({ error: 'Error al eliminar el evento' })
-      }
-    })
-
-    // List organizer's events
-    router.get('/manage', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
-      try {
-        const parseResult = listQuerySchema.safeParse(req.query)
-        if (!parseResult.success) {
-          res.status(400).json({ error: 'Parámetros inválidos', details: parseResult.error.flatten() })
-          return
-        }
-
-        const params = parseResult.data
-        const { events, total } = await listOrganizerEventsDb(req.user!.id, params)
-        const { page = 1, limit = 20 } = params
-        const totalPages = Math.ceil(total / limit)
-        
-        res.json({ 
-          events, 
-          pagination: { page, limit, total, totalPages } 
-        })
-      } catch (err) {
-        res.status(500).json({ error: 'Error al cargar los eventos' })
-      }
-    })
-  } else {
-    router.post('/', (req, res) => {
-      const parsed = eventSchema.safeParse(req.body)
-      if (!parsed.success) {
-        res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
-        return
-      }
-      res.status(201).json({ message: 'Evento recibido (mock)', event: parsed.data })
-    })
-  }
 
 
   return router

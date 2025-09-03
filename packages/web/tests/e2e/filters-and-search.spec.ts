@@ -56,7 +56,7 @@ test.describe('Búsqueda y filtros', () => {
 
   test('filtro por categoría resetea page y preserva otros parámetros', async ({ page }) => {
     // Comenzar con búsqueda y navegación a página 2
-    await page.goto('/eventos/bogota?q=evento&page=2&limit=8')
+    await page.goto('/eventos/bogota?q=evento&page=2&limit=20')
     
     // Cambiar categoría
     await page.selectOption('select[aria-label="Categoría"]', 'musica')
@@ -65,20 +65,26 @@ test.describe('Búsqueda y filtros', () => {
     // Debe resetear page pero preservar otros parámetros
     await expect(page).toHaveURL(/category=musica/)
     await expect(page).toHaveURL(/q=evento/)
-    await expect(page).toHaveURL(/limit=8/)
+    await expect(page).toHaveURL(/limit=20/)
     await expect(page).not.toHaveURL(/page=2/) // page debe resetearse
   })
 
   test('combinación de q + categoría con paginación y orden aplicado', async ({ page }) => {
     await page.goto('/eventos/medellin')
     
-    // Configurar búsqueda, categoría y orden
+    // Configurar búsqueda y categoría primero
     await page.getByRole('textbox', { name: 'Buscar', exact: true }).click()
     await page.keyboard.type('festival')
     await page.selectOption('select[aria-label="Categoría"]', 'musica')
+    await page.getByRole('button', { name: /^Buscar$/ }).click()
+    
+    // Wait for search to be applied to URL
+    await expect(page).toHaveURL(/q=festival/)
+    await expect(page).toHaveURL(/category=musica/)
+    
+    // Luego configurar orden
     await page.selectOption('select[aria-label="Orden: campo"]', { label: 'Precio' })
     await page.selectOption('select[aria-label="Orden: dirección"]', { label: 'Ascendente' })
-    await page.getByRole('button', { name: /^Buscar$/ }).click()
     
     // Verificar que todos los parámetros están en la URL
     await expect(page).toHaveURL(/q=festival/)

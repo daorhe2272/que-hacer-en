@@ -138,10 +138,10 @@ test.describe('Eventos - paginación y orden', () => {
     await expect(page).toHaveURL(/order=asc/)
 
     // Cambiar limit
-    await page.selectOption('select[aria-label="Por página"]', '8')
+    await page.selectOption('select[aria-label="Por página"]', '20')
     await expect(page).toHaveURL(/sort=price/) // Debe persistir
     await expect(page).toHaveURL(/order=asc/)  // Debe persistir
-    await expect(page).toHaveURL(/limit=8/)
+    await expect(page).toHaveURL(/limit=20/)
 
     // Cambiar de página si es posible
     const next = page.getByRole('link', { name: 'Siguiente' })
