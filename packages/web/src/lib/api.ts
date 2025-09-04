@@ -81,4 +81,91 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   }
 }
 
+export async function getUserFavorites(): Promise<{ events: Event[], pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
+  try {
+    const headers = await buildAuthHeadersClient()
+    console.log('Favorites API call - headers:', headers)
+    console.log('Favorites API call - URL:', `${BASE_URL}/api/users/favorites`)
+    
+    const res = await fetch(`${BASE_URL}/api/users/favorites`, { cache: 'no-store', headers })
+    console.log('Favorites API response status:', res.status)
+    
+    if (!res.ok) {
+      const errorText = await res.text()
+      console.log('Favorites API error response:', errorText)
+      throw new Error(`Error al cargar favoritos (${res.status}): ${errorText}`)
+    }
+    const data = await res.json()
+    return { events: data.events || [], pagination: data.pagination }
+  } catch (err) {
+    console.error('getUserFavorites error:', err)
+    throw new Error(err instanceof Error ? err.message : 'Error al cargar favoritos')
+  }
+}
+
+export type EventFormData = {
+  title: string
+  description: string
+  date: string
+  time: string
+  location: string
+  address: string
+  category: string
+  city: string
+  price: number
+  currency: string
+  image?: string
+  organizer: string
+  capacity: number
+  tags: string[]
+  status: string
+}
+
+export type CreateEventResult = {
+  success: boolean
+  event?: Event
+  error?: string
+  validationErrors?: Record<string, string[]>
+}
+
+export async function createEvent(eventData: EventFormData): Promise<CreateEventResult> {
+  try {
+    const headers = await buildAuthHeadersClient() as Record<string, string>
+    headers['Content-Type'] = 'application/json'
+    
+    const res = await fetch(`${BASE_URL}/api/events`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(eventData)
+    })
+    
+    const data = await res.json()
+    
+    if (!res.ok) {
+      if (res.status === 400 && data.details) {
+        // Handle validation errors from Zod
+        return {
+          success: false,
+          error: data.error || 'Error de validación',
+          validationErrors: data.details.fieldErrors
+        }
+      }
+      return {
+        success: false,
+        error: data.error || `Error del servidor (${res.status})`
+      }
+    }
+    
+    return {
+      success: true,
+      event: data.event
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: 'Error de conexión. Por favor intenta de nuevo.'
+    }
+  }
+}
+
 

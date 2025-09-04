@@ -4,13 +4,6 @@ import request from 'supertest'
 import app from '../src/index'
 import fs from 'fs'
 
-// Mock jose before any imports
-jest.mock('jose', () => {
-  return {
-    createRemoteJWKSet: jest.fn(() => ({} as any)),
-    jwtVerify: jest.fn()
-  }
-})
 
 describe('Events API', () => {
   let originalSupabaseUrl: string | undefined
@@ -75,19 +68,9 @@ describe('Events API', () => {
   })
 
   test('POST /api/events validation error', async () => {
-    // Mock JWT verification to return valid user
-    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
-    jwtVerify.mockResolvedValueOnce({ 
-      payload: { 
-        sub: 'user-1', 
-        email: 'organizer@example.com', 
-        user_role: 'organizer' 
-      } 
-    })
-    
     const res = await request(app)
       .post('/api/events')
-      .set('Authorization', 'Bearer valid')
+      .set('Authorization', 'Bearer test-token')
       .send({ title: 'x' })
     expect(res.status).toBe(400)
   })
@@ -160,16 +143,6 @@ describe('Events API', () => {
   })
 
   test('POST /api/events happy path', async () => {
-    // Mock JWT verification to return valid user
-    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
-    jwtVerify.mockResolvedValueOnce({ 
-      payload: { 
-        sub: 'user-1', 
-        email: 'organizer@example.com', 
-        user_role: 'organizer' 
-      } 
-    })
-
     // Mock createEventDb to prevent database pollution
     const mockEvent = {
       id: 'mock-event-id',
@@ -179,7 +152,7 @@ describe('Events API', () => {
       time: '18:30',
       location: 'Auditorio Central',
       address: 'Calle 1 # 2-34',
-      category: 'Tecnología',
+      category: 'tecnologia',
       city: 'bogota',
       price: 10000,
       currency: 'COP',
@@ -199,7 +172,7 @@ describe('Events API', () => {
       time: '18:30',
       location: 'Auditorio Central',
       address: 'Calle 1 # 2-34',
-      category: 'Tecnología',
+      category: 'tecnologia',
       city: 'bogota',
       price: 10000,
       currency: 'COP',
@@ -211,7 +184,7 @@ describe('Events API', () => {
     }
     const res = await request(app)
       .post('/api/events')
-      .set('Authorization', 'Bearer valid')
+      .set('Authorization', 'Bearer test-token')
       .send(body)
     expect(res.status).toBe(201)
     expect(res.body.event.title).toBe('Charla de Tecnología')

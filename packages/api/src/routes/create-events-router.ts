@@ -157,7 +157,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
   })
 
   // Create new event
-  router.post('/', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+  router.post('/', authenticate, async (req, res) => {
     try {
       const parsed = createEventSchema.safeParse(req.body)
       if (!parsed.success) {

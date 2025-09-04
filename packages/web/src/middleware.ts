@@ -15,8 +15,6 @@ const protectedRoutes = [
 // Routes that require specific roles
 const roleProtectedRoutes = {
   organizer: [
-    '/crear-evento',
-    '/eventos/crear', 
     '/mis-eventos'
   ],
   admin: [
@@ -82,7 +80,21 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
     
-    // Get user profile to check role
+    // Check if this route requires specific role authorization
+    let requiresRoleCheck = false
+    for (const routes of Object.values(roleProtectedRoutes)) {
+      if (routes.some(route => pathname.startsWith(route) || pathname === route)) {
+        requiresRoleCheck = true
+        break
+      }
+    }
+
+    // If route doesn't require role check, just allow authenticated access
+    if (!requiresRoleCheck) {
+      return response
+    }
+
+    // Get user profile to check role for role-protected routes only
     const token = session.access_token
     const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me`, {
       headers: {

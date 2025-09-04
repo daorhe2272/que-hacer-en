@@ -1,10 +1,16 @@
 /// <reference types="jest" />
 import { authenticate, requireRole } from '../src/middleware/auth'
 
-jest.mock('jose', () => {
+jest.mock('@supabase/supabase-js', () => {
+  const mockGetUser = jest.fn()
+  const mockClient = {
+    auth: {
+      getUser: mockGetUser
+    }
+  }
   return {
-    createRemoteJWKSet: jest.fn(() => ({} as any)),
-    jwtVerify: jest.fn()
+    createClient: jest.fn(() => mockClient),
+    __mockGetUser: mockGetUser
   }
 })
 
@@ -34,8 +40,10 @@ describe('auth middleware', () => {
   })
 
   test('authenticate returns 500 when token present but SUPABASE_URL missing', async () => {
-    const prev = process.env.SUPABASE_URL
+    const prevUrl = process.env.SUPABASE_URL
+    const prevKey = process.env.SUPABASE_ANON_KEY
     delete process.env.SUPABASE_URL
+    delete process.env.SUPABASE_ANON_KEY
     const req: any = { headers: { authorization: 'Bearer token' } }
     const res = createRes()
     const next = jest.fn()
@@ -43,15 +51,27 @@ describe('auth middleware', () => {
     expect(res.statusCode).toBe(500)
     expect((res.body as any).error).toBe('Auth misconfigured')
     expect(next).not.toHaveBeenCalled()
-    if (prev) process.env.SUPABASE_URL = prev
+    if (prevUrl) process.env.SUPABASE_URL = prevUrl
+    if (prevKey) process.env.SUPABASE_ANON_KEY = prevKey
   })
 
   test('authenticate succeeds and attaches user when token is valid', async () => {
-    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
-    jwtVerify.mockResolvedValueOnce({ payload: { sub: 'user-1', email: 'u@example.com', user_role: 'organizer' } })
+    const { __mockGetUser } = require('@supabase/supabase-js') as { __mockGetUser: jest.Mock }
+    __mockGetUser.mockResolvedValueOnce({ 
+      data: { 
+        user: { 
+          id: 'user-1', 
+          email: 'u@example.com', 
+          user_metadata: { role: 'organizer' }
+        } 
+      }, 
+      error: null 
+    })
 
     const prevUrl = process.env.SUPABASE_URL
+    const prevKey = process.env.SUPABASE_ANON_KEY
     process.env.SUPABASE_URL = 'https://proj.supabase.co'
+    process.env.SUPABASE_ANON_KEY = 'anon-key'
     const req: any = { headers: { authorization: 'Bearer valid' } }
     const res = createRes()
     const next = jest.fn()
@@ -59,13 +79,16 @@ describe('auth middleware', () => {
     expect(next).toHaveBeenCalled()
     expect(req.user).toEqual({ id: 'user-1', email: 'u@example.com', role: 'organizer' })
     process.env.SUPABASE_URL = prevUrl
+    process.env.SUPABASE_ANON_KEY = prevKey
   })
 
   test('authenticate returns 401 when jwt verification fails', async () => {
-    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
-    jwtVerify.mockRejectedValueOnce(new Error('bad token'))
+    const { __mockGetUser } = require('@supabase/supabase-js') as { __mockGetUser: jest.Mock }
+    __mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: { message: 'bad token' } })
     const prevUrl = process.env.SUPABASE_URL
+    const prevKey = process.env.SUPABASE_ANON_KEY
     process.env.SUPABASE_URL = 'https://proj.supabase.co'
+    process.env.SUPABASE_ANON_KEY = 'anon-key'
     const req: any = { headers: { authorization: 'Bearer invalid' } }
     const res = createRes()
     const next = jest.fn()
@@ -74,6 +97,7 @@ describe('auth middleware', () => {
     expect((res.body as any).error).toBe('Unauthorized')
     expect(next).not.toHaveBeenCalled()
     process.env.SUPABASE_URL = prevUrl
+    process.env.SUPABASE_ANON_KEY = prevKey
   })
 
   test('requireRole forbids when user missing', () => {
@@ -129,19 +153,23 @@ describe('auth middleware', () => {
     expect(res.statusCode).toBeUndefined()
   })
 
-  test('authenticate handles non-string JWT payload sub and email', async () => {
-    const { jwtVerify } = require('jose') as { jwtVerify: jest.Mock }
-    // Test the branches where payload.sub and payload.email are not strings
-    jwtVerify.mockResolvedValueOnce({ 
-      payload: { 
-        sub: 12345, // number, not string - should trigger line 38 false branch  
-        email: { address: 'test@example.com' }, // object, not string - should trigger line 39 false branch
-        user_role: 'attendee'
-      } 
+  test('authenticate handles missing email in user data', async () => {
+    const { __mockGetUser } = require('@supabase/supabase-js') as { __mockGetUser: jest.Mock }
+    __mockGetUser.mockResolvedValueOnce({ 
+      data: { 
+        user: { 
+          id: 'user-without-email', 
+          email: null, // null email should become undefined
+          user_metadata: { role: 'attendee' }
+        } 
+      }, 
+      error: null 
     })
 
     const prevUrl = process.env.SUPABASE_URL
+    const prevKey = process.env.SUPABASE_ANON_KEY
     process.env.SUPABASE_URL = 'https://proj.supabase.co'
+    process.env.SUPABASE_ANON_KEY = 'anon-key'
     const req: any = { headers: { authorization: 'Bearer valid' } }
     const res = createRes()
     const next = jest.fn()
@@ -149,11 +177,12 @@ describe('auth middleware', () => {
     
     expect(next).toHaveBeenCalled()
     expect(req.user).toEqual({ 
-      id: 'unknown', // sub was not string, so defaulted to 'unknown'
-      email: undefined, // email was not string, so became undefined
+      id: 'user-without-email',
+      email: undefined, // null email became undefined
       role: 'attendee' 
     })
     process.env.SUPABASE_URL = prevUrl
+    process.env.SUPABASE_ANON_KEY = prevKey
   })
 
 })

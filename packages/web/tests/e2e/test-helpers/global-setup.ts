@@ -4,7 +4,7 @@ import { FullConfig } from '@playwright/test'
  * Global setup for Playwright tests
  * This runs once before all tests
  */
-async function globalSetup(config: FullConfig) {
+async function globalSetup(_config: FullConfig) {
   console.log('🚀 Starting E2E test setup...')
   
   // Verify required environment variables

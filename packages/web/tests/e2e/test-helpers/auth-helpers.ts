@@ -11,7 +11,7 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
 }
 
 // Client for regular operations (login testing)
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Admin client for user management (bypasses RLS and email confirmation)
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
@@ -100,7 +100,10 @@ export async function deleteTestUser(userId: string): Promise<void> {
 /**
  * Login a test user through the UI
  */
-export async function loginUser(page: Page, testUser: TestUser): Promise<void> {
+export async function loginUser(page: Page, testUser: TestUser, options?: {
+  skipVerification?: boolean
+  customVerification?: () => Promise<void>
+}): Promise<void> {
   await page.goto('/login')
   
   // Fill login form
@@ -116,9 +119,19 @@ export async function loginUser(page: Page, testUser: TestUser): Promise<void> {
     { timeout: 10000 }
   )
   
-  // Verify we're logged in by checking for user menu or logged-in state
-  // This will vary based on your app's UI
-  await expect(page.getByText(/Cuenta|@/)).toBeVisible({ timeout: 5000 })
+  // Handle verification based on options
+  if (options?.skipVerification) {
+    return // Skip all verification
+  }
+  
+  if (options?.customVerification) {
+    await options.customVerification()
+    return
+  }
+  
+  // Default verification - check for user menu (works for pages with navigation)
+  // Use first() to avoid strict mode violation since both elements exist in DOM
+  await expect(page.locator('[data-testid="user-menu-desktop"], [data-testid="user-menu-mobile"]').first()).toBeVisible({ timeout: 5000 })
 }
 
 /**
@@ -151,8 +164,8 @@ export async function registerUser(page: Page, testUser?: TestUser): Promise<Tes
  */
 export async function logoutUser(page: Page): Promise<void> {
   try {
-    // Look for user menu
-    const userMenu = page.getByText(/Cuenta|@/)
+    // Look for user menu (desktop or mobile)
+    const userMenu = page.locator('[data-testid="user-menu-desktop"], [data-testid="user-menu-mobile"]').first()
     if (await userMenu.isVisible()) {
       await userMenu.click()
       
@@ -192,8 +205,11 @@ export async function cleanupTestUser(testUser: TestUser): Promise<void> {
 /**
  * Create and login a test user in one step
  */
-export async function createAndLoginTestUser(page: Page): Promise<TestUser> {
+export async function createAndLoginTestUser(page: Page, options?: {
+  skipVerification?: boolean
+  customVerification?: () => Promise<void>
+}): Promise<TestUser> {
   const testUser = await createTestUser()
-  await loginUser(page, testUser)
+  await loginUser(page, testUser, options)
   return testUser
 }

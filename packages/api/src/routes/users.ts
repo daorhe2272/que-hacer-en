@@ -116,7 +116,11 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
       pagination: { page, limit, total, totalPages } 
     })
   } catch (err) {
-    res.status(500).json({ error: 'Error al cargar favoritos' })
+    console.error('Error loading user favorites:', err)
+    res.status(500).json({ 
+      error: 'Error al cargar favoritos',
+      details: process.env.NODE_ENV === 'development' ? (err instanceof Error ? err.message : String(err)) : undefined
+    })
   }
 })
 

@@ -18,35 +18,15 @@ export default function FavoritosPage() {
     
     try {
       setLoading(true)
-      const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
-      const supabase = getSupabaseBrowserClient()
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-
-      if (!token) {
-        router.push('/login?redirect=/favoritos')
-        return
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/favorites`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'x-correlation-id': crypto.randomUUID()
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error('Error al cargar favoritos')
-      }
-
-      const data_response = await response.json()
-      setFavorites(data_response.events || [])
+      const { getUserFavorites } = await import('@/lib/api')
+      const result = await getUserFavorites()
+      setFavorites(result.events || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
     } finally {
       setLoading(false)
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated])
 
   useEffect(() => {
     if (!sessionLoading) {
@@ -60,8 +40,14 @@ export default function FavoritosPage() {
 
   if (sessionLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-700 via-purple-800 to-purple-900">
-        <div className="container mx-auto px-4 py-12">
+      <div 
+        className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+        style={{
+          backgroundImage: "url('/hero-background.jpeg')"
+        }}
+      >
+        <div className="absolute inset-0 bg-hero-gradient opacity-80"></div>
+        <div className="container mx-auto px-4 py-12 relative z-10">
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
             <p className="text-white mt-4">Cargando favoritos...</p>
@@ -73,8 +59,14 @@ export default function FavoritosPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-700 via-purple-800 to-purple-900">
-        <div className="container mx-auto px-4 py-12">
+      <div 
+        className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+        style={{
+          backgroundImage: "url('/hero-background.jpeg')"
+        }}
+      >
+        <div className="absolute inset-0 bg-hero-gradient opacity-80"></div>
+        <div className="container mx-auto px-4 py-12 relative z-10">
           <div className="text-center py-12">
             <p className="text-white text-lg mb-4">❌ {error}</p>
             <button 
@@ -90,8 +82,14 @@ export default function FavoritosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-700 via-purple-800 to-purple-900">
-      <div className="container mx-auto px-4 py-12">
+    <div 
+      className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+      style={{
+        backgroundImage: "url('/hero-background.jpeg')"
+      }}
+    >
+      <div className="absolute inset-0 bg-hero-gradient opacity-80"></div>
+      <div className="container mx-auto px-4 py-12 relative z-10">
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -120,7 +118,7 @@ export default function FavoritosPage() {
                 Explora eventos y marca tus favoritos haciendo clic en el corazón
               </p>
               <button 
-                onClick={() => router.push('/eventos/bogota')}
+                onClick={() => router.push('/')}
                 className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
               >
                 Explorar Eventos

@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
  * Global teardown for Playwright tests
  * This runs once after all tests complete
  */
-async function globalTeardown(config: FullConfig) {
+async function globalTeardown(_config: FullConfig) {
   console.log('🧹 Starting E2E test cleanup...')
   
   try {

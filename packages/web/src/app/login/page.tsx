@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowserClient, translateSupabaseError } from '@/lib/supabase/client'
 import { useSession } from '@/lib/session'
@@ -23,7 +23,7 @@ function isValidRedirectUrl(url: string): boolean {
   }
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -36,30 +36,25 @@ export default function LoginPage() {
   const { isAuthenticated } = useSession()
   
   // Redirect function using Next.js best practices
-  const handleSuccessfulAuth = () => {
+  const handleSuccessfulAuth = useCallback(() => {
     // 1. First priority: URL redirect parameter (from middleware)
     const redirectParam = searchParams.get('redirect')
     if (redirectParam && isValidRedirectUrl(redirectParam)) {
-      router.push(redirectParam)
+      // Use window.location.href for validated redirect URLs to avoid typed route conflicts
+      window.location.href = redirectParam
       return
     }
     
-    // 2. Fallback: Use router history if available
-    if (window.history.length > 1) {
-      router.back()
-      return
-    }
-    
-    // 3. Final fallback: Landing page
-    router.push('/')
-  }
+    // 2. Fallback: Go back to previous page if available
+    router.back()
+  }, [router, searchParams])
   
   // Handle authentication state changes
   useEffect(() => {
     if (isAuthenticated) {
       handleSuccessfulAuth()
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, handleSuccessfulAuth])
 
   async function onEmailPassword(e: React.FormEvent) {
     e.preventDefault()
@@ -107,16 +102,18 @@ export default function LoginPage() {
     
     // Get the redirect destination (same logic as handleSuccessfulAuth)
     const redirectParam = searchParams.get('redirect')
-    let nextUrl = '/'
+    let redirectUrl = `${process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:4000'}/auth/callback`
     
     if (redirectParam && isValidRedirectUrl(redirectParam)) {
-      nextUrl = redirectParam
+      // If we have a specific redirect destination, pass it to callback
+      redirectUrl += `?next=${encodeURIComponent(redirectParam)}`
     }
+    // If no redirect param, let the callback handle the back navigation by not passing 'next'
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:4000'}/auth/callback?next=${encodeURIComponent(nextUrl)}`
+        redirectTo: redirectUrl
       }
     })
     
@@ -243,4 +240,17 @@ export default function LoginPage() {
   )
 }
 
-
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando...</p>
+        </div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
+  )
+}

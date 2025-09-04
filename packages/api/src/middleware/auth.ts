@@ -1,11 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
-import { createRemoteJWKSet, jwtVerify } from 'jose'
-
-function getSupabaseJwksUrl(): string | null {
-  const url = process.env.SUPABASE_URL
-  if (!url) return null
-  return `${url}/auth/v1/keys`
-}
+import { createClient } from '@supabase/supabase-js'
 
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   // Skip authentication in test environment with special test user
@@ -19,29 +13,38 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     const authHeader = req.headers.authorization || ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
     if (!token) {
+      console.log('Auth middleware: No token provided')
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
 
-    const jwksUrl = getSupabaseJwksUrl()
-    if (!jwksUrl) {
+    const supabaseUrl = process.env.SUPABASE_URL
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.log('Auth middleware: Supabase configuration missing')
       res.status(500).json({ error: 'Auth misconfigured' })
       return
     }
 
-    const JWKS = createRemoteJWKSet(new URL(jwksUrl))
-    const { payload } = await jwtVerify(token, JWKS, {
-      issuer: undefined,
-      audience: undefined
-    })
+    // Use Supabase client to verify the JWT
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    const { data: { user }, error } = await supabase.auth.getUser(token)
 
-    const sub = typeof payload.sub === 'string' ? payload.sub : undefined
-    const email = typeof payload.email === 'string' ? payload.email : undefined
-    const role = (payload.user_role as string | undefined) as ('attendee' | 'organizer' | 'admin' | undefined)
+    if (error || !user) {
+      console.log('Auth middleware: Token verification failed:', error?.message || 'No user')
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
 
-    req.user = { id: sub ?? 'unknown', email, role }
+    // Get role from user metadata or default to attendee
+    const role = (user.user_metadata?.role || user.app_metadata?.role || 'attendee') as ('attendee' | 'organizer' | 'admin')
+
+    console.log('Auth middleware: Successfully verified token for user:', user.id)
+    req.user = { id: user.id, email: user.email || undefined, role }
     next()
-  } catch (_err) {
+  } catch (err) {
+    console.log('Auth middleware: Token verification failed:', err instanceof Error ? err.message : String(err))
     res.status(401).json({ error: 'Unauthorized' })
   }
 }

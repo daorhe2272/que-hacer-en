@@ -114,8 +114,8 @@ export default function TopNavigation() {
                     Crear Evento
                   </button>
                   <div className="relative group">
-                    <button className="px-3 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 hover:border-gray-400 rounded-lg transition-all duration-200 bg-white hover:bg-gray-50 min-w-[100px]">
-                      {user?.email ?? 'Cuenta'}
+                    <button data-testid="user-menu-desktop" className="px-3 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 hover:border-gray-400 rounded-lg transition-all duration-200 bg-white hover:bg-gray-50 min-w-[100px]">
+                      Cuenta
                     </button>
                     <div className="hidden group-hover:block absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                       <button 
@@ -132,6 +132,7 @@ export default function TopNavigation() {
                 {/* Mobile view */}
                 <div className="md:hidden relative">
                   <button
+                    data-testid="user-menu-mobile"
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                     className="flex items-center justify-center w-8 h-8 rounded-full bg-primary-600 text-white text-sm font-medium"
                   >
