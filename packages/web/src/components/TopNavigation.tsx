@@ -117,14 +117,16 @@ export default function TopNavigation() {
                     <button data-testid="user-menu-desktop" className="px-3 py-2 text-sm text-gray-700 hover:text-gray-900 border border-gray-300 hover:border-gray-400 rounded-lg transition-all duration-200 bg-white hover:bg-gray-50 min-w-[100px]">
                       Cuenta
                     </button>
-                    <div className="hidden group-hover:block absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
-                      <button 
-                        onClick={() => router.push('/favoritos')}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        Mis Favoritos
-                      </button>
-                      <button onClick={() => signOut()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900">Cerrar sesión</button>
+                    <div className="hidden group-hover:block absolute right-0 pt-1 w-44 z-50">
+                      <div className="bg-white border border-gray-200 rounded-lg shadow-lg">
+                        <button 
+                          onClick={() => router.push('/favoritos')}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Mis Favoritos
+                        </button>
+                        <button onClick={() => signOut()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900">Cerrar sesión</button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -142,9 +144,6 @@ export default function TopNavigation() {
                   {isUserMenuOpen && (
                     <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                       <div className="py-2">
-                        <div className="px-4 py-2 text-xs text-gray-500 border-b border-gray-100">
-                          {user?.email}
-                        </div>
                         <button 
                           onClick={() => {
                             router.push('/crear-evento')
