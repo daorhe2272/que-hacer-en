@@ -107,6 +107,10 @@ jobs:
         run: pnpm --filter @que-hacer-en/api run build
 
       - name: Build web
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4001
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: pnpm --filter @que-hacer-en/web run build
 
   e2e:
@@ -144,6 +148,8 @@ jobs:
       - name: Build web
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4001
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: pnpm --filter @que-hacer-en/web run build
 
       - name: Start API (prod build)
@@ -152,6 +158,8 @@ jobs:
       - name: Start Web (prod build)
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4001
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           CI: true
           E2E: true
         run: pnpm --filter @que-hacer-en/web exec next start -p 4000 &
@@ -164,6 +172,9 @@ jobs:
         env:
           WEB_BASE_URL: http://localhost:4000
           CI: true
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: pnpm --filter @que-hacer-en/web run e2e
 
       - name: Upload Playwright report
