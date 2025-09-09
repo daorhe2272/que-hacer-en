@@ -7,7 +7,7 @@ export interface Event {
   location: string
   address: string
   category: string
-  price: number
+  price: number | null
   currency: string
   image: string
   organizer: string

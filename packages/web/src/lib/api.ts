@@ -112,11 +112,11 @@ export type EventFormData = {
   address: string
   category: string
   city: string
-  price: number
+  price: number | null  // null means unknown/undefined, 0 means free
   currency: string
   image?: string
   organizer: string
-  capacity: number
+  capacity: number | null  // null means no capacity limit/unknown
   tags: string[]
   status: string
 }

@@ -14,11 +14,11 @@ export type EventFormData = {
   address: string
   category: string
   city: string
-  price: number
+  price: number | null  // null means unknown/undefined, 0 means free
   currency: string
   image?: string
   organizer: string
-  capacity: number
+  capacity: number | null  // null means unknown, 0 means unlimited, >0 means limited
   tags: string[]
   status: string
 }
@@ -98,11 +98,13 @@ export function validateEventForm(data: Partial<EventFormData>): ValidationResul
     errors.city = 'Ciudad no válida'
   }
 
-  // Price validation
-  if (typeof data.price !== 'number') {
-    errors.price = 'El precio debe ser un número'
-  } else if (data.price < 0) {
-    errors.price = 'El precio no puede ser negativo'
+  // Price validation (optional - can be null, 0, or positive number)
+  if (data.price !== null && data.price !== undefined) {
+    if (typeof data.price !== 'number') {
+      errors.price = 'El precio debe ser un número'
+    } else if (data.price < 0) {
+      errors.price = 'El precio no puede ser negativo'
+    }
   }
 
   // Currency validation
@@ -130,13 +132,15 @@ export function validateEventForm(data: Partial<EventFormData>): ValidationResul
     errors.organizer = 'El organizador no puede exceder 200 caracteres'
   }
 
-  // Capacity validation
-  if (typeof data.capacity !== 'number') {
-    errors.capacity = 'La capacidad debe ser un número'
-  } else if (data.capacity <= 0) {
-    errors.capacity = 'La capacidad debe ser un número positivo'
-  } else if (!Number.isInteger(data.capacity)) {
-    errors.capacity = 'La capacidad debe ser un número entero'
+  // Capacity validation (optional - can be null, 0 for unlimited, or positive number for limited)
+  if (data.capacity !== null && data.capacity !== undefined) {
+    if (typeof data.capacity !== 'number') {
+      errors.capacity = 'La capacidad debe ser un número'
+    } else if (data.capacity < 0) {
+      errors.capacity = 'La capacidad no puede ser negativa'
+    } else if (!Number.isInteger(data.capacity)) {
+      errors.capacity = 'La capacidad debe ser un número entero'
+    }
   }
 
   return {
@@ -145,7 +149,7 @@ export function validateEventForm(data: Partial<EventFormData>): ValidationResul
   }
 }
 
-export function validateField(field: keyof EventFormData, value: string | number | string[], allData?: Partial<EventFormData>): string | undefined {
+export function validateField(field: keyof EventFormData, value: string | number | string[] | null, allData?: Partial<EventFormData>): string | undefined {
   const testData = { ...allData, [field]: value }
   const result = validateEventForm(testData)
   return result.errors[field]

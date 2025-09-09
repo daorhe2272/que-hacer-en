@@ -46,7 +46,7 @@ export default function EventsJsonLd({ events, cityName, city }: EventsJsonLdPro
           },
           "offers": {
             "@type": "Offer",
-            "price": event.price.toString(),
+            "price": event.price !== null ? event.price.toString() : "0",
             "priceCurrency": event.currency,
             "availability": event.status === 'sold_out' ? "https://schema.org/SoldOut" : "https://schema.org/InStock"
           },

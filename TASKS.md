@@ -24,47 +24,19 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   The CI/CD pipeline has been successfully implemented using GitHub Actions, covering linting, testing, and building on pull requests, with integrated coverage reports. E2E tests are configured to run headlessly on Linux across multiple browsers (Chromium, Firefox, WebKit) against production builds, with artifact uploading for Playwright reports and traces on failure. The complete CI workflow utilizes pnpm and Node 22 with caching, triggered by pull requests and pushes to master, and includes concurrency and cancellation for obsolete PR executions.
 
 ## In Progress: Implement actual event creation form with category dropdown, city selection (Missing complete E2E tests)
-
-### Requirements:
-Feature Summary
-
-  Implement a functional event creation form that allows authenticated organizers to create new events through the web interface, replacing the current placeholder
-  implementation.
-
-  Functional Requirements
-
-  1. Authentication & Authorization: Previously, it was considered that only authenticated users with 'organizer' or 'admin' roles can access the form but we have decided to let regular users create events as well. Only non-authenticated users are not allowed to create events.
-
-  2. Form Fields: Support all required fields per the API schema:
-    - Title (3-200 chars)
-    - Description (10-2000 chars)
-    - Date (YYYY-MM-DD format)
-    - Time (HH:MM format)
-    - Location (2-200 chars)
-    - Address (2-200 chars)
-    - Category (from predefined categories)
-    - City (from allowed cities: bogota, medellin, cali, barranquilla, cartagena)
-    - Price (non-negative number)
-    - Currency (3-char code, defaulting to COP)
-    - Image URL (optional, must be valid URL)
-    - Organizer (2-200 chars)
-    - Capacity (positive integer)
-    - Tags (optional array)
-    - Status (defaults to 'active')
-  3. Validation: Client-side validation matching API schema requirements
-  4. Error Handling: Proper display of validation errors and API errors
-  5. Success Handling: Redirect to event management or show success message
-  6. Loading States: Show loading indicators during form submission
+  - [ ] Front-end validation doesn't allow users to select Precio desconocido in the create event formulary.
+  - [ ] Don't show events whose date already passed.
+  - [ ] On the Cuenta dropdown, show the button "Mis eventos".
+    - [ ] Create the page "Mis eventos" where events created by the user are shown.
+    - [ ] Add event edit/delete functionality in UI.
+- [ ] "Ver detalles" de un evento debería abrir una página con los detalles específicos del evento en cuestión.
+- [ ] Filtro de eventos para hoy, mañana, esta semana, fin de semana, siguiente semana, este mes, próximo mes.
 
 ## Pending tasks:
-- [ ] Fix existing event creation test (update to include `city` field in validation)
-- [ ] Add event image upload functionality
-- [ ] Add event edit/delete functionality in UI
 - [ ] Establcer rol de usuarios por defecto: `attendee`;
 - [ ] Página "Forgot Password" con reset por email
 - [ ] Agregar "Remember me" option para sesiones extendidas
 - [ ] Add progressive loading for images and search results
-- [ ] Tests E2E para preservación de parámetros al navegar atrás/adelante del navegador
 - [ ] Welcome email o onboarding flow post-registro
 - [ ] Set up backup and recovery procedures
 - [ ] Enhance search with autocomplete and suggestions

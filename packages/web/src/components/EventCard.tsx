@@ -4,7 +4,6 @@ import type { Event } from '@/types/event'
 import { formatEventDate, formatEventPrice } from '@/lib/events'
 import { useSession } from '@/lib/session'
 import { useState, useEffect, useCallback } from 'react'
-import Image from 'next/image'
 
 interface EventCardProps {
   event: Event
@@ -84,13 +83,10 @@ export default function EventCard({ event }: EventCardProps) {
             {/* Event Image */}
       <div className="relative h-48 bg-gradient-to-br from-primary-400 to-primary-600 overflow-hidden">
         {event.image ? (
-          <Image
+          <img
             src={event.image}
             alt={event.title}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-            className="object-cover"
-            priority={false}
+            className="w-full h-full object-cover"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { createEvent, type EventFormData } from '@/lib/api'
 import { validateEventForm, validateField } from '@/lib/validation'
 import { CATEGORIES } from '@que-hacer-en/shared'
+import TimePicker from '@/components/TimePicker'
 
 const CITIES = [
   { value: 'bogota', label: 'Bogotá' },
@@ -30,11 +31,11 @@ export default function CrearEventoPage() {
     address: '',
     category: '',
     city: '',
-    price: 0,
+    price: null,  // Start with unknown price
     currency: 'COP',
     image: '',
     organizer: '',
-    capacity: 50,
+    capacity: null,  // Start with unknown capacity
     tags: [],
     status: 'active'
   })
@@ -50,7 +51,7 @@ export default function CrearEventoPage() {
     }
   }, [isAuthenticated, sessionLoading, router])
   
-  const handleFieldChange = (field: keyof EventFormData, value: string | number) => {
+  const handleFieldChange = (field: keyof EventFormData, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
     // Clear existing error for this field
@@ -236,14 +237,11 @@ export default function CrearEventoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Hora *
                 </label>
-                <input 
-                  type="time" 
+                <TimePicker
                   value={formData.time}
-                  onChange={(e) => handleFieldChange('time', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                    errors.time ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  onChange={(time) => handleFieldChange('time', time)}
                   disabled={isSubmitting}
+                  error={!!errors.time}
                 />
                 {errors.time && <p className="text-red-600 text-xs mt-1">{errors.time}</p>}
               </div>
@@ -330,38 +328,139 @@ export default function CrearEventoPage() {
             {/* Price and Capacity */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Precio (COP) *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Precio
                 </label>
-                <input 
-                  type="number" 
-                  value={formData.price}
-                  onChange={(e) => handleFieldChange('price', parseFloat(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                    errors.price ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="0"
-                  min="0"
-                  disabled={isSubmitting}
-                />
+                
+                {/* Price type selection */}
+                <div className="space-y-3 mb-3">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="priceType"
+                      checked={formData.price === null}
+                      onChange={() => handleFieldChange('price', null)}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm text-gray-700">Precio desconocido</span>
+                  </label>
+                  
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="priceType"
+                      checked={formData.price === 0}
+                      onChange={() => handleFieldChange('price', 0)}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm text-gray-700">Gratuito</span>
+                  </label>
+                  
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="priceType"
+                      checked={typeof formData.price === 'number' && formData.price > 0}
+                      onChange={() => handleFieldChange('price', 1000)}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm text-gray-700">De pago</span>
+                  </label>
+                </div>
+
+                {/* Price input - only show when "De pago" is selected */}
+                {typeof formData.price === 'number' && formData.price > 0 && (
+                  <div>
+                    <input 
+                      type="number" 
+                      value={formData.price}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value) || 1000
+                        handleFieldChange('price', Math.max(1000, value))
+                      }}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                        errors.price ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                      }`}
+                      placeholder="1000"
+                      min="1000"
+                      step="1000"
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Monto en pesos colombianos (COP)</p>
+                  </div>
+                )}
+
                 {errors.price && <p className="text-red-600 text-xs mt-1">{errors.price}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Capacidad *
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Capacidad
                 </label>
-                <input 
-                  type="number" 
-                  value={formData.capacity}
-                  onChange={(e) => handleFieldChange('capacity', parseInt(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
-                    errors.capacity ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="50"
-                  min="1"
-                  disabled={isSubmitting}
-                />
+                
+                {/* Capacity type selection */}
+                <div className="space-y-3 mb-3">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="capacityType"
+                      checked={formData.capacity === null}
+                      onChange={() => handleFieldChange('capacity', null)}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm text-gray-700">Desconocido</span>
+                  </label>
+                  
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="capacityType"
+                      checked={formData.capacity === 0}
+                      onChange={() => handleFieldChange('capacity', 0)}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm text-gray-700">Sin límite</span>
+                  </label>
+                  
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="capacityType"
+                      checked={typeof formData.capacity === 'number' && formData.capacity > 0}
+                      onChange={() => handleFieldChange('capacity', 50)}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                      disabled={isSubmitting}
+                    />
+                    <span className="text-sm text-gray-700">Capacidad limitada</span>
+                  </label>
+                </div>
+
+                {/* Capacity input - only show when "Capacidad limitada" is selected */}
+                {typeof formData.capacity === 'number' && formData.capacity > 0 && (
+                  <div>
+                    <input 
+                      type="number" 
+                      value={formData.capacity}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 50
+                        handleFieldChange('capacity', Math.max(1, value))
+                      }}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                        errors.capacity ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                      }`}
+                      placeholder="50"
+                      min="1"
+                      disabled={isSubmitting}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Número máximo de asistentes</p>
+                  </div>
+                )}
+
                 {errors.capacity && <p className="text-red-600 text-xs mt-1">{errors.capacity}</p>}
               </div>
             </div>

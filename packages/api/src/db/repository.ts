@@ -24,12 +24,13 @@ export interface EventRowDto {
   description: string
   location: string | null
   address: string | null
-  price: number
+  price: number | null
   currency: string
   date: string
   time: string
   category: string
   city: string
+  image: string | null
 }
 
 export interface EventDto {
@@ -41,7 +42,7 @@ export interface EventDto {
   location: string
   address: string
   category: string
-  price: number
+  price: number | null
   currency: string
   image: string
   organizer: string
@@ -100,6 +101,7 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
             e.address,
             e.price_cents as price,
             e.currency,
+            e.image,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
             ct.label as category,
@@ -123,7 +125,7 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
     category: r.category,
     price: r.price,
     currency: r.currency,
-    image: '',
+    image: r.image ?? '',
     organizer: '',
     capacity: 0,
     tags: [],
@@ -153,7 +155,8 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
             to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
             ct.label as category,
-            c.slug as city
+            c.slug as city,
+            e.image
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -173,7 +176,7 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
     category: r.category,
     price: r.price,
     currency: r.currency,
-    image: '',
+    image: r.image ?? '',
     organizer: '',
     capacity: 0,
     tags: [],
@@ -193,6 +196,7 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
             e.address,
             e.price_cents as price,
             e.currency,
+            e.image,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
             ct.label as category
@@ -212,7 +216,7 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
     category: r.category,
     price: r.price,
     currency: r.currency,
-    image: '',
+    image: r.image ?? '',
     organizer: '',
     capacity: 0,
     tags: [],
@@ -229,7 +233,7 @@ export interface CreateEventParams {
   address: string
   category: string
   city: string
-  price: number
+  price: number | null
   currency: string
   image?: string
   organizer: string
@@ -242,13 +246,11 @@ export interface UpdateEventParams extends Partial<CreateEventParams> {
   id: string
 }
 
-export async function createEventDb(params: CreateEventParams, _organizerId: string): Promise<EventDto> {
-  // TODO: Use organizerId for authorization when auth is implemented
-  void _organizerId
+export async function createEventDb(params: CreateEventParams, organizerId: string): Promise<EventDto> {
   
   const { 
     title, description, date, time, location, address, 
-    category, city, price, currency, tags = [] 
+    category, city, price, currency, image, tags = [] 
   } = params
 
   const cityRes = await query<{ id: number }>(`SELECT id FROM cities WHERE slug = $1`, [city])
@@ -267,9 +269,9 @@ export async function createEventDb(params: CreateEventParams, _organizerId: str
   const startsAt = `${date}T${time}:00.000Z`
 
   await query(
-    `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency]
+    `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency, image, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency, image, organizerId]
   )
 
   if (tags.length > 0) {
@@ -295,15 +297,28 @@ export async function createEventDb(params: CreateEventParams, _organizerId: str
   return event
 }
 
-export async function updateEventDb(params: UpdateEventParams, _organizerId: string): Promise<EventDto | null> {
-  // TODO: Use organizerId for authorization when auth is implemented
-  void _organizerId
-  
-  const { id, title, description, date, time, location, address, category, city, price, currency, tags } = params
+export async function updateEventDb(params: UpdateEventParams, organizerId: string): Promise<EventDto | null> {
+  const { id, title, description, date, time, location, address, category, city, price, currency, image, tags } = params
 
-  const existingEvent = await getEventByIdDb(id)
-  if (!existingEvent) {
-    return null
+  // Check if event exists and verify ownership or admin role
+  const ownershipCheck = await query<{ created_by: string | null, user_role: string }>(
+    `SELECT e.created_by, u.role as user_role
+     FROM events e
+     LEFT JOIN users u ON u.id = $2
+     WHERE e.id = $1`,
+    [id, organizerId]
+  )
+  
+  if (ownershipCheck.rows.length === 0) {
+    return null // Event doesn't exist
+  }
+  
+  const { created_by, user_role } = ownershipCheck.rows[0]
+  
+  // Allow access if user owns the event OR is admin
+  const hasAccess = created_by === organizerId || user_role === 'admin'
+  if (!hasAccess) {
+    throw new Error('No tienes permiso para editar este evento')
   }
 
   const updates: string[] = []
@@ -356,6 +371,10 @@ export async function updateEventDb(params: UpdateEventParams, _organizerId: str
     updates.push(`category_id = $${paramIndex++}`)
     values.push(categoryRes.rows[0].id)
   }
+  if (image !== undefined) {
+    updates.push(`image = $${paramIndex++}`)
+    values.push(image)
+  }
 
   if (updates.length > 0) {
     values.push(id)
@@ -388,9 +407,27 @@ export async function updateEventDb(params: UpdateEventParams, _organizerId: str
   return await getEventByIdDb(id)
 }
 
-export async function deleteEventDb(eventId: string, _organizerId: string): Promise<boolean> {
-  // TODO: Use organizerId for authorization when auth is implemented
-  void _organizerId
+export async function deleteEventDb(eventId: string, organizerId: string): Promise<boolean> {
+  // Check if event exists and verify ownership or admin role
+  const ownershipCheck = await query<{ created_by: string | null, user_role: string }>(
+    `SELECT e.created_by, u.role as user_role
+     FROM events e
+     LEFT JOIN users u ON u.id = $2
+     WHERE e.id = $1`,
+    [eventId, organizerId]
+  )
+  
+  if (ownershipCheck.rows.length === 0) {
+    return false // Event doesn't exist
+  }
+  
+  const { created_by, user_role } = ownershipCheck.rows[0]
+  
+  // Allow access if user owns the event OR is admin
+  const hasAccess = created_by === organizerId || user_role === 'admin'
+  if (!hasAccess) {
+    throw new Error('No tienes permiso para eliminar este evento')
+  }
   
   const result = await query(`DELETE FROM events WHERE id = $1`, [eventId])
   return (result.rowCount ?? 0) > 0
@@ -408,7 +445,8 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
             to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
             ct.label as category,
-            c.slug as city
+            c.slug as city,
+            e.image
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -435,7 +473,7 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     category: r.category,
     price: r.price,
     currency: r.currency,
-    image: '',
+    image: r.image ?? '',
     organizer: '',
     capacity: 0,
     tags: tagsRes.rows.map(t => t.name),
@@ -445,14 +483,12 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
 }
 
 export async function listOrganizerEventsDb(organizerId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
-  // TODO: Use organizerId for authorization when auth is implemented
-  void organizerId
-  
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
-  const where: string[] = []
-  const args: unknown[] = []
-  let i = 1
+  // Filter by organizer (user's own events)
+  const where: string[] = ['e.created_by = $1']
+  const args: unknown[] = [organizerId]
+  let i = 2
 
   if (city) { where.push(`c.slug = $${i++}`); args.push(city) }
   if (category) { where.push(`ct.slug = $${i++}`); args.push(normalize(category)) }
@@ -501,7 +537,8 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
             to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
             ct.label as category,
-            c.slug as city
+            c.slug as city,
+            e.image
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -529,7 +566,7 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
       category: r.category,
       price: r.price,
       currency: r.currency,
-      image: '',
+      image: r.image ?? '',
       organizer: '',
       capacity: 0,
       tags: tagsRes.rows.map(t => t.name),
@@ -620,7 +657,8 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
             to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
             to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
             ct.label as category,
-            c.slug as city
+            c.slug as city,
+            e.image
      FROM favorites f
      JOIN events e ON e.id = f.event_id
      JOIN cities c ON c.id = e.city_id
@@ -649,7 +687,7 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
       category: r.category,
       price: r.price,
       currency: r.currency,
-      image: '',
+      image: r.image ?? '',
       organizer: '',
       capacity: 0,
       tags: tagsRes.rows.map(t => t.name),

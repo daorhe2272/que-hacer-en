@@ -5,12 +5,16 @@ export interface CategoryDefinition {
 
 export const CATEGORIES: CategoryDefinition[] = [
   { slug: 'todos', label: 'Todos' },
-  { slug: 'musica', label: 'Música' },
   { slug: 'arte', label: 'Arte' },
-  { slug: 'gastronomia', label: 'Gastronomía' },
+  { slug: 'cine', label: 'Cine' },
+  { slug: 'danza', label: 'Danza' },
   { slug: 'deportes', label: 'Deportes' },
-  { slug: 'tecnologia', label: 'Tecnología' },
-  { slug: 'networking', label: 'Networking' }
+  { slug: 'gastronomia', label: 'Gastronomía' },
+  { slug: 'musica', label: 'Música' },
+  { slug: 'negocios', label: 'Negocios' },
+  { slug: 'networking', label: 'Networking' },
+  { slug: 'teatro', label: 'Teatro' },
+  { slug: 'tecnologia', label: 'Tecnología' }
 ]
 
 export function normalizeCategorySlug(input: string): string {

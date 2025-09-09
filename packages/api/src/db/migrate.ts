@@ -24,8 +24,9 @@ function getStatements(): string[] {
       address TEXT,
       starts_at TIMESTAMPTZ NOT NULL,
       ends_at TIMESTAMPTZ,
-      price_cents INT NOT NULL,
+      price_cents INT,
       currency CHAR(3) NOT NULL DEFAULT 'COP',
+      image TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );`,
     `CREATE TABLE IF NOT EXISTS tags (
@@ -72,7 +73,81 @@ function getStatements(): string[] {
        event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
        PRIMARY KEY (user_id, event_id)
-     );`
+     );`,
+    // Add created_by column to events table for user ownership
+    `ALTER TABLE events ADD COLUMN IF NOT EXISTS created_by UUID REFERENCES users(id);`,
+    // Backfill existing events with a default created_by (first admin user)
+    // This ensures existing events remain accessible and manageable
+    `DO $$ 
+     DECLARE 
+       default_admin_id UUID;
+     BEGIN
+       SELECT id INTO default_admin_id FROM users WHERE role = 'admin' LIMIT 1;
+       IF default_admin_id IS NOT NULL THEN
+         UPDATE events SET created_by = default_admin_id WHERE created_by IS NULL;
+       END IF;
+     END $$;`,
+    // Create index for created_by queries
+    `CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by);`,
+    
+    // Add image column for event images
+    `ALTER TABLE events ADD COLUMN IF NOT EXISTS image TEXT;`,
+    
+    // Allow NULL price_cents for "Precio desconocido" events
+    `ALTER TABLE events ALTER COLUMN price_cents DROP NOT NULL;`,
+    
+    // Enable Row Level Security on events table
+    `ALTER TABLE events ENABLE ROW LEVEL SECURITY;`,
+    
+    // Service Role Bypass Policy (Critical: Allows API to function)
+    `DROP POLICY IF EXISTS "Service role full access events" ON events;`,
+    `CREATE POLICY "Service role full access events" ON events FOR ALL USING (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role');`,
+    
+    // RLS Policies for events (public read, owner/admin write)
+    `DROP POLICY IF EXISTS "Events are publicly readable" ON events;`,
+    `CREATE POLICY "Events are publicly readable" ON events FOR SELECT USING (true);`,
+    `DROP POLICY IF EXISTS "Authenticated users can create events" ON events;`,
+    `CREATE POLICY "Authenticated users can create events" ON events FOR INSERT WITH CHECK (auth.role() = 'authenticated');`,
+    `DROP POLICY IF EXISTS "Users can update their own events or admins can update any" ON events;`,
+    `CREATE POLICY "Users can update their own events or admins can update any" ON events FOR UPDATE USING (
+      auth.uid() = created_by OR 
+      EXISTS(SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+    );`,
+    `DROP POLICY IF EXISTS "Users can delete their own events or admins can delete any" ON events;`,
+    `CREATE POLICY "Users can delete their own events or admins can delete any" ON events FOR DELETE USING (
+      auth.uid() = created_by OR 
+      EXISTS(SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+    );`,
+    
+    // Insert standard cities
+    `INSERT INTO cities (slug, name) VALUES ('bogota', 'Bogotá') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO cities (slug, name) VALUES ('medellin', 'Medellín') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO cities (slug, name) VALUES ('cali', 'Cali') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO cities (slug, name) VALUES ('barranquilla', 'Barranquilla') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO cities (slug, name) VALUES ('cartagena', 'Cartagena') ON CONFLICT (slug) DO NOTHING;`,
+    
+    // Insert standard categories (from shared package)
+    `INSERT INTO categories (slug, label) VALUES ('musica', 'Música') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('arte', 'Arte') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('gastronomia', 'Gastronomía') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('deportes', 'Deportes') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('tecnologia', 'Tecnología') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('networking', 'Networking') ON CONFLICT (slug) DO NOTHING;`,
+    
+    // Enable Row Level Security on cities table
+    `ALTER TABLE cities ENABLE ROW LEVEL SECURITY;`,
+    
+    // Service Role Bypass Policy for cities (Critical: Allows API to function)
+    `DROP POLICY IF EXISTS "Service role full access cities" ON cities;`,
+    `CREATE POLICY "Service role full access cities" ON cities FOR ALL USING (current_setting('request.jwt.claims', true)::json->>'role' = 'service_role');`,
+    
+    // RLS Policies for cities (public read, admin-only write)
+    `DROP POLICY IF EXISTS "Cities are publicly readable" ON cities;`,
+    `CREATE POLICY "Cities are publicly readable" ON cities FOR SELECT USING (true);`,
+    `DROP POLICY IF EXISTS "Only admins can modify cities" ON cities;`,
+    `CREATE POLICY "Only admins can modify cities" ON cities FOR ALL USING (
+      EXISTS(SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'admin')
+    );`
   ]
 }
 

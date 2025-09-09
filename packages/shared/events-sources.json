@@ -1,0 +1,28 @@
+{
+  "Cali": {
+    "chequeo_permanente": [
+      { "URL": "https://www.cali.gov.co/calendario/" },
+      { "URL": "https://museolatertulia.com/cinemateca/#programacion" },
+      { "URL": "https://teatrocalima.com.co/inicio/entretenimiento" },
+      { "URL": "https://www.comfandi.com.co/personas/cultura/agenda-cultural" },
+      { "URL": "https://www.eventbrite.co/d/colombia--cali/events--next-week" }
+    ],
+    "agosto": [
+      { "URL": "https://ajazzgofestival.com/programacion/" }
+    ],
+    "septiembre": [
+      { "URL": "https://ajazzgofestival.com/programacion/" },
+      { "URL": "https://bellasartes.edu.co/eventos/agenda-artistica-sept-2025-bellas-artes-cali/" }
+    ],
+    "noviembre": [
+      { "URL": "URL_programacion_feria_de_Cali" }
+    ],
+    "diciembre": [
+      { "URL": "URL_programacion_feria_de_Cali" }
+    ]
+  },
+  "Bogotá": {},
+  "Medellín": {},
+  "Barranquilla": {},
+  "Cartagena": {}
+}   

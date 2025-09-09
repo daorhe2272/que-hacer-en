@@ -39,25 +39,53 @@ test.describe('Eventos - paginación y orden', () => {
   })
 
   test('botones "Anterior" y "Siguiente" se deshabilitan correctamente', async ({ page }) => {
-    await page.goto('/eventos/bogota?limit=5') // Usar limit pequeño para garantizar múltiples páginas
+    // Use a small limit to ensure multiple pages regardless of total event count
+    const testLimit = 2
     
-    // En página 1, "Anterior" debe estar deshabilitado
-    const prev = page.getByRole('link', { name: 'Anterior' })
-    if (await prev.count()) {
-      await expect(prev).toHaveClass(/opacity-50|cursor-not-allowed|pointer-events-none/)
+    // Go to page 1 with small limit - should always have "Anterior" disabled
+    await page.goto(`/eventos/bogota?limit=${testLimit}&page=1`)
+    
+    // Wait for content to load
+    await expect(page.getByRole('heading', { name: 'Eventos populares cerca de ti' })).toBeVisible()
+    
+    // Test page 1: "Anterior" should always be disabled
+    const prev1 = page.getByRole('link', { name: 'Anterior' })
+    if (await prev1.count()) {
+      await expect(prev1).toHaveClass(/text-gray-400.*pointer-events-none|pointer-events-none.*text-gray-400/)
+      await expect(prev1).toHaveAttribute('aria-disabled', 'true')
     }
     
-    // Ir a última página
-    const lastPageLink = page.locator('a[href*="page="]').last()
-    if (await lastPageLink.count()) {
-      await lastPageLink.click()
+    // Check if there are multiple pages by looking for "Siguiente" button
+    const next1 = page.getByRole('link', { name: 'Siguiente' })
+    const hasMultiplePages = await next1.count() > 0
+    
+    if (hasMultiplePages) {
+      // If there are multiple pages, test the last page
+      // Extract total pages from the pagination info
+      const paginationText = await page.locator('text=/Página \\d+ de \\d+/').textContent()
+      const totalPagesMatch = paginationText?.match(/Página \d+ de (\d+)/)
+      const totalPages = totalPagesMatch ? parseInt(totalPagesMatch[1]) : 1
       
-      // En última página, "Siguiente" debe estar deshabilitado  
-      const next = page.getByRole('link', { name: 'Siguiente' })
-      if (await next.count()) {
-        await expect(next).toHaveClass(/opacity-50|cursor-not-allowed|pointer-events-none/)
+      if (totalPages > 1) {
+        // Go to the last page
+        await page.goto(`/eventos/bogota?limit=${testLimit}&page=${totalPages}`)
+        await expect(page.getByRole('heading', { name: 'Eventos populares cerca de ti' })).toBeVisible()
+        
+        // On last page: "Siguiente" should be disabled, "Anterior" should be enabled
+        const prevLast = page.getByRole('link', { name: 'Anterior' })
+        if (await prevLast.count()) {
+          await expect(prevLast).toHaveClass(/text-gray-700.*hover:bg-gray-50/)
+          await expect(prevLast).toHaveAttribute('aria-disabled', 'false')
+        }
+        
+        const nextLast = page.getByRole('link', { name: 'Siguiente' })
+        if (await nextLast.count()) {
+          await expect(nextLast).toHaveClass(/text-gray-400.*pointer-events-none|pointer-events-none.*text-gray-400/)
+          await expect(nextLast).toHaveAttribute('aria-disabled', 'true')
+        }
       }
     }
+    // If there's only one page, pagination might not render at all, which is also correct
   })
 
   test('deep link fuera de rango maneja estado esperado', async ({ page }) => {

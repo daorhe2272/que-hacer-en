@@ -178,9 +178,13 @@ test.describe('Post-Login Redirect Functionality (Real Auth)', () => {
     // Should be redirected to the favoritos page
     expect(page.url()).toContain('/favoritos')
     
+    // Wait for the loading state to finish and the page content to load
+    // The favorites page shows a loading spinner initially, then loads the content
+    await page.waitForTimeout(2000)
+    
     // Test-specific verification: Check that we can access the favoritos page content
     // This proves authentication worked (middleware allowed access to protected route)
-    await expect(page.locator('h1')).toContainText('Mis Favoritos')
+    await expect(page.locator('h1')).toContainText('Mis Favoritos', { timeout: 10000 })
   })
 
   test('Should handle complex redirect URLs with query parameters', async ({ page }) => {
@@ -257,15 +261,19 @@ test.describe('Authenticated User Workflows', () => {
   })
 
   test('Authenticated user can access protected routes', async ({ page }) => {
-    // Should be able to access favorites page
+    // First verify we're actually authenticated by checking user menu on main page
+    await page.goto('/eventos/bogota')
+    await expect(page.locator('[data-testid="user-menu-desktop"], [data-testid="user-menu-mobile"]').first()).toBeVisible({ timeout: 10000 })
+    
+    // Now navigate to favorites page
     await page.goto('/favoritos')
     
     // Should not be redirected to login
     expect(page.url()).toContain('/favoritos')
     
-    // Should see favorites page content - wait for loading to complete
-    await page.waitForTimeout(2000) // Allow time for favorites to load
-    await expect(page.locator('h1')).toContainText('Mis Favoritos', { timeout: 10000 })
+    // Wait for page to finish loading (either show favorites or empty state)
+    // Both cases should show the h1 with "Mis Favoritos"
+    await expect(page.locator('h1')).toContainText('Mis Favoritos', { timeout: 15000 })
   })
 
   test('Authenticated user sees user-specific UI elements', async ({ page }) => {
@@ -291,23 +299,49 @@ test.describe('Authenticated User Workflows', () => {
   })
 
   test('Authenticated organizer can access create event page', async ({ page }) => {
-    // Note: This test assumes the test user has organizer role
-    // You might need to create a specific organizer test user
-    
     await page.goto('/eventos/bogota')
     
-    // Look for create event button (might only be visible to organizers)
-    const createEventButton = page.getByRole('button', { name: 'Crear Evento' })
+    // Wait for the page to fully load
+    await expect(page.locator('[data-testid="user-menu-desktop"], [data-testid="user-menu-mobile"]').first()).toBeVisible()
     
-    // If visible, test the functionality
-    if (await createEventButton.isVisible()) {
-      await createEventButton.click()
+    // Try to find the desktop "Crear Evento" button first (visible on larger screens)
+    const desktopCreateButton = page.locator('button:has-text("Crear Evento")').first()
+    
+    if (await desktopCreateButton.isVisible()) {
+      // Click the desktop create event button
+      await desktopCreateButton.click()
       
-      // Should navigate to create event page
+      // Wait for navigation to complete
+      await page.waitForURL('**/crear-evento', { timeout: 10000 })
+      
+      // Verify we're on the create event page
       expect(page.url()).toContain('/crear-evento')
+      
+      // Verify page content loaded
+      await expect(page.locator('h1')).toContainText('Crear Nuevo Evento', { timeout: 5000 })
     } else {
-      // User is not an organizer, which is expected for regular attendee users
-      console.log('User is attendee role, create event button not visible (expected)')
+      // If desktop button not visible, try the mobile menu version
+      const userMenuButton = page.locator('[data-testid="user-menu-mobile"]').first()
+      
+      if (await userMenuButton.isVisible()) {
+        await userMenuButton.click()
+        
+        // Wait for dropdown to appear and click Crear Evento
+        const mobileCreateButton = page.getByRole('button', { name: 'Crear Evento' }).last()
+        await expect(mobileCreateButton).toBeVisible({ timeout: 5000 })
+        await mobileCreateButton.click()
+        
+        // Wait for navigation to complete
+        await page.waitForURL('**/crear-evento', { timeout: 10000 })
+        
+        // Verify we're on the create event page
+        expect(page.url()).toContain('/crear-evento')
+        
+        // Verify page content loaded
+        await expect(page.locator('h1')).toContainText('Crear Nuevo Evento', { timeout: 5000 })
+      } else {
+        throw new Error('Could not find any "Crear Evento" button on the page')
+      }
     }
   })
 

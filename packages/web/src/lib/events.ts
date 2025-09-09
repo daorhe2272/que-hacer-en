@@ -9,7 +9,11 @@ export function formatEventDate(dateString: string): string {
   })
 }
 
-export function formatEventPrice(price: number, currency: string): string {
+export function formatEventPrice(price: number | null, currency: string): string {
+  if (price === null) {
+    return 'Precio desconocido'
+  }
+  
   if (price === 0) {
     return 'Gratis'
   }

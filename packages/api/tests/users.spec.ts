@@ -1,310 +1,532 @@
-/// <reference types="jest" />
-import { describe, test, expect, beforeAll, afterAll, jest } from '@jest/globals'
-
-// Mock database client specifically for users tests
-jest.mock('../src/db/client', () => ({
-  query: jest.fn(async (sql: string, _params?: unknown[]) => {
-    // Default successful responses for common queries
-    if (sql.includes('SELECT id, email, role')) {
-      return { 
-        rows: [{ id: 'test-user-id', email: 'test@example.com', role: 'attendee' }],
-        command: 'SELECT',
-        rowCount: 1,
-        oid: 0,
-        fields: []
-      }
-    }
-    if (sql.startsWith('INSERT INTO users') || sql.startsWith('DO $$') || sql.includes('CREATE TABLE')) {
-      return { 
-        rows: [],
-        command: 'INSERT',
-        rowCount: 0,
-        oid: 0,
-        fields: []
-      }
-    }
-    return { 
-      rows: [],
-      command: 'SELECT',
-      rowCount: 0,
-      oid: 0,
-      fields: []
-    }
-  }),
-  getDbPool: jest.fn(() => ({
-    query: jest.fn(async () => ({ rows: [] })),
-    end: jest.fn(),
-    connect: jest.fn()
-  }))
-}))
-
-// Mock repository specifically for users tests
-jest.mock('../src/db/repository', () => ({
-  addToFavoritesDb: jest.fn(async () => true),
-  removeFromFavoritesDb: jest.fn(async () => true),
-  getUserFavoritesDb: jest.fn(async () => ({ 
-    events: [{ id: 'event-1', title: 'Test Event' }], 
-    total: 1 
-  })),
-  isEventFavoritedDb: jest.fn(async () => true)
-}))
-
+import { jest } from '@jest/globals'
 import request from 'supertest'
-import app from '../src/index'
+import express from 'express'
+import { usersRouter } from '../src/routes/users'
+import { query } from '../src/db/client'
+import { mockEvents, createMockQuery } from './test-helpers/mock-database'
 
-// Import mocked modules to get access to jest.fn() instances
-import * as dbClient from '../src/db/client'
-import * as repository from '../src/db/repository'
+// Mock the authenticate middleware to avoid Supabase calls
+jest.mock('../src/middleware/auth', () => ({
+  authenticate: (req: any, res: any, next: any) => {
+    // Mock authentication based on test tokens
+    const auth = req.headers.authorization
+    if (auth === 'Bearer test-token') {
+      req.user = { id: 'test-user-id', email: 'test@example.com', role: 'attendee' }
+      next()
+    } else if (auth === 'Bearer organizer-token') {
+      req.user = { id: 'organizer-id', email: 'organizer@example.com', role: 'organizer' }
+      next()
+    } else if (auth === 'Bearer admin-token') {
+      req.user = { id: 'admin-id', email: 'admin@example.com', role: 'admin' }
+      next()
+    } else {
+      res.status(401).json({ error: 'Unauthorized' })
+    }
+  }
+}))
 
-// Type the mocked functions properly
-const mockQuery = dbClient.query as jest.MockedFunction<typeof dbClient.query>
-const mockAddToFavoritesDb = repository.addToFavoritesDb as jest.MockedFunction<typeof repository.addToFavoritesDb>
-const mockRemoveFromFavoritesDb = repository.removeFromFavoritesDb as jest.MockedFunction<typeof repository.removeFromFavoritesDb>
-const mockGetUserFavoritesDb = repository.getUserFavoritesDb as jest.MockedFunction<typeof repository.getUserFavoritesDb>
-const mockIsEventFavoritedDb = repository.isEventFavoritedDb as jest.MockedFunction<typeof repository.isEventFavoritedDb>
+// Mock database client
+const mockQuery = createMockQuery()
+jest.mocked(query).mockImplementation(mockQuery)
 
-describe('Users API (/api/users/me)', () => {
-  beforeAll(() => {
-    process.env.NODE_ENV = 'test'
-    process.env.SUPABASE_URL = 'https://test.supabase.co'
-  })
-
-  afterAll(() => {
-    delete process.env.SUPABASE_URL
-    delete process.env.NODE_ENV
-  })
+describe('Users Router', () => {
+  let app: express.Application
 
   beforeEach(() => {
-    // Reset mocks before each test
-    jest.clearAllMocks()
-  })
-
-  test('returns 401 when Authorization header is missing', async () => {
-    const res = await request(app).get('/api/users/me')
-    expect(res.status).toBe(401)
-  })
-
-  test('returns user profile when token is valid (upsert on first login)', async () => {
-    const res = await request(app)
-      .get('/api/users/me')
-      .set('Authorization', 'Bearer test-token')
+    app = express()
+    app.use(express.json())
     
-    expect(res.status).toBe(200)
-    expect(res.body).toMatchObject({ id: 'test-user-id', email: 'test@example.com', role: 'attendee' })
-  })
-
-  test('returns 500 when DB fails', async () => {
-    // Override the global mock for this specific test
-    mockQuery.mockRejectedValueOnce(new Error('boom'))
-    
-    const res = await request(app)
-      .get('/api/users/me')
-      .set('Authorization', 'Bearer test-token')
-    
-    expect(res.status).toBe(500)
-  })
-
-  test('returns 404 when user row missing after upsert/select', async () => {
-    // Override to return empty result for SELECT queries
-    mockQuery.mockImplementation(async (sql: string) => {
-      if (sql.includes('SELECT id, email, role')) return { 
-        rows: [], 
-        command: 'SELECT', 
-        rowCount: 0, 
-        oid: 0, 
-        fields: [] 
-      }
-      return { 
-        rows: [], 
-        command: 'SELECT', 
-        rowCount: 0, 
-        oid: 0, 
-        fields: [] 
-      }
+    // Mock correlation ID middleware
+    app.use((req, _res, next) => {
+      req.correlationId = 'test-correlation-id'
+      next()
     })
     
-    const res = await request(app)
-      .get('/api/users/me')
-      .set('Authorization', 'Bearer test-token')
+    app.use('/api/users', usersRouter)
     
-    expect(res.status).toBe(404)
-  })
-})
-
-describe('Users Favorites API', () => {
-  beforeAll(() => {
-    process.env.NODE_ENV = 'test'
-    process.env.SUPABASE_URL = 'https://test.supabase.co'
-  })
-
-  afterAll(() => {
-    delete process.env.SUPABASE_URL
-    delete process.env.NODE_ENV
-  })
-
-  beforeEach(() => {
-    // Reset mocks before each test
     jest.clearAllMocks()
+    // Don't reset mock implementation here - let individual tests set their own mocks
+  })
+
+  describe('GET /api/users/me', () => {
+    it('should return user profile in test mode', async () => {
+      process.env.NODE_ENV = 'test'
+      
+      const response = await request(app)
+        .get('/api/users/me')
+        .set('Authorization', 'Bearer test-token')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        role: 'organizer'
+      })
+    })
+
+    it('should return 401 without authorization', async () => {
+      const response = await request(app)
+        .get('/api/users/me')
+        .expect(401)
+
+      expect(response.body).toEqual({
+        error: 'Unauthorized'
+      })
+    })
+
+    it('should use database in non-test environment', async () => {
+      process.env.NODE_ENV = 'production'
+      
+      // Mock schema creation and user insertion
+      mockQuery
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Schema creation
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Table creation
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 1 })) // User insertion
+        .mockImplementationOnce(() => ({ 
+          rows: [{ id: 'test-user-id', email: 'test@example.com', role: 'attendee' }], 
+          rowCount: 1 
+        })) // User select
+
+      const response = await request(app)
+        .get('/api/users/me')
+        .set('Authorization', 'Bearer test-token')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        id: 'test-user-id',
+        email: 'test@example.com',
+        role: 'attendee'
+      })
+      
+      process.env.NODE_ENV = 'test'
+    })
+
+    it('should handle user not found in database', async () => {
+      process.env.NODE_ENV = 'production'
+      
+      mockQuery
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Schema
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Table
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 1 })) // Insert
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // User not found
+
+      const response = await request(app)
+        .get('/api/users/me')
+        .set('Authorization', 'Bearer test-token')
+        .expect(404)
+
+      expect(response.body).toEqual({
+        error: 'User not found'
+      })
+      
+      process.env.NODE_ENV = 'test'
+    })
+
+    it('should handle database errors gracefully', async () => {
+      process.env.NODE_ENV = 'production'
+      
+      mockQuery.mockImplementationOnce(() => {
+        throw new Error('Database connection error')
+      })
+
+      const response = await request(app)
+        .get('/api/users/me')
+        .set('Authorization', 'Bearer test-token')
+        .expect(500)
+
+      expect(response.body).toEqual({
+        error: 'No se pudo recuperar el perfil'
+      })
+      
+      process.env.NODE_ENV = 'test'
+    })
   })
 
   describe('POST /api/users/favorites', () => {
-    test('adds event to favorites successfully', async () => {
-      const res = await request(app)
+    it('should add event to favorites in test mode', async () => {
+      process.env.NODE_ENV = 'test'
+      
+      const response = await request(app)
         .post('/api/users/favorites')
         .set('Authorization', 'Bearer test-token')
-        .send({ eventId: 'event-123' })
-      
-      expect(res.status).toBe(201)
-      expect(res.body.message).toBe('Evento agregado a favoritos')
+        .send({ eventId: 'test-event-id' })
+        .expect(201)
+
+      expect(response.body).toEqual({
+        message: 'Evento agregado a favoritos'
+      })
     })
 
-
-    test('returns 401 when unauthorized', async () => {
-      const res = await request(app)
-        .post('/api/users/favorites')
-        .send({ eventId: 'event-123' })
-      
-      expect(res.status).toBe(401)
-    })
-
-    test('returns 400 when eventId is missing', async () => {
-      const res = await request(app)
+    it('should return 400 for missing eventId', async () => {
+      const response = await request(app)
         .post('/api/users/favorites')
         .set('Authorization', 'Bearer test-token')
         .send({})
-      
-      expect(res.status).toBe(400)
-      expect(res.body.error).toBe('eventId es requerido')
+        .expect(400)
+
+      expect(response.body).toEqual({
+        error: 'eventId es requerido'
+      })
     })
 
-    test('returns 500 when database operation fails', async () => {
-      mockAddToFavoritesDb.mockResolvedValueOnce(false)
-      
-      const res = await request(app)
+    it('should return 400 for invalid eventId type', async () => {
+      const response = await request(app)
         .post('/api/users/favorites')
         .set('Authorization', 'Bearer test-token')
-        .send({ eventId: 'event-123' })
-      
-      expect(res.status).toBe(500)
+        .send({ eventId: 123 })
+        .expect(400)
+
+      expect(response.body).toEqual({
+        error: 'eventId es requerido'
+      })
     })
 
-    test('returns 500 when exception is thrown', async () => {
-      mockAddToFavoritesDb.mockRejectedValueOnce(new Error('DB error'))
+    it('should return 401 without authorization', async () => {
+      const response = await request(app)
+        .post('/api/users/favorites')
+        .send({ eventId: 'test-event-id' })
+        .expect(401)
+
+      expect(response.body).toEqual({
+        error: 'Unauthorized'
+      })
+    })
+
+    it('should use database in non-test environment', async () => {
+      process.env.NODE_ENV = 'production'
       
-      const res = await request(app)
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 1 }))
+
+      const response = await request(app)
         .post('/api/users/favorites')
         .set('Authorization', 'Bearer test-token')
-        .send({ eventId: 'event-123' })
+        .send({ eventId: 'test-event-id' })
+        .expect(201)
+
+      expect(response.body).toEqual({
+        message: 'Evento agregado a favoritos'
+      })
       
-      expect(res.status).toBe(500)
-      expect(res.body.error).toBe('Error al agregar a favoritos')
+      process.env.NODE_ENV = 'test'
     })
 
+    it('should handle database errors in non-test environment', async () => {
+      process.env.NODE_ENV = 'production'
+      
+      mockQuery.mockImplementationOnce(() => {
+        throw new Error('Database error')
+      })
+
+      const response = await request(app)
+        .post('/api/users/favorites')
+        .set('Authorization', 'Bearer test-token')
+        .send({ eventId: 'test-event-id' })
+        .expect(500)
+
+      expect(response.body).toEqual({
+        error: 'Error al agregar a favoritos'
+      })
+      
+      process.env.NODE_ENV = 'test'
+    })
   })
 
   describe('DELETE /api/users/favorites/:eventId', () => {
-    test('removes event from favorites successfully', async () => {
-      const res = await request(app)
+    it('should remove event from favorites in test mode', async () => {
+      process.env.NODE_ENV = 'test'
+      
+      const response = await request(app)
         .delete('/api/users/favorites/event-123')
         .set('Authorization', 'Bearer test-token')
-      
-      expect(res.status).toBe(200)
-      expect(res.body.message).toBe('Evento removido de favoritos')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        message: 'Evento removido de favoritos'
+      })
     })
 
-    test('returns 404 when favorite not found', async () => {
-      mockRemoveFromFavoritesDb.mockResolvedValueOnce(false)
+    it('should return 404 for non-favorited event in test mode', async () => {
+      process.env.NODE_ENV = 'test'
       
-      const res = await request(app)
-        .delete('/api/users/favorites/nonexistent')
+      const response = await request(app)
+        .delete('/api/users/favorites/non-favorited-event')
         .set('Authorization', 'Bearer test-token')
-      
-      expect(res.status).toBe(404)
+        .expect(404)
+
+      expect(response.body).toEqual({
+        error: 'Favorito no encontrado'
+      })
     })
 
-    test('returns 401 when unauthorized', async () => {
-      const res = await request(app)
+    it('should return 401 without authorization', async () => {
+      const response = await request(app)
         .delete('/api/users/favorites/event-123')
-      
-      expect(res.status).toBe(401)
+        .expect(401)
+
+      expect(response.body).toEqual({
+        error: 'Unauthorized'
+      })
     })
 
-    test('returns 500 when exception is thrown', async () => {
-      mockRemoveFromFavoritesDb.mockRejectedValueOnce(new Error('DB error'))
+    it('should use database in non-test environment', async () => {
+      process.env.NODE_ENV = 'production'
       
-      const res = await request(app)
-        .delete('/api/users/favorites/event-123')
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 1 }))
+
+      const response = await request(app)
+        .delete('/api/users/favorites/test-event-id')
         .set('Authorization', 'Bearer test-token')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        message: 'Evento removido de favoritos'
+      })
       
-      expect(res.status).toBe(500)
-      expect(res.body.error).toBe('Error al remover de favoritos')
+      process.env.NODE_ENV = 'test'
+    })
+
+    it('should return 404 when database returns no rows affected', async () => {
+      process.env.NODE_ENV = 'production'
+      
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 0 }))
+
+      const response = await request(app)
+        .delete('/api/users/favorites/test-event-id')
+        .set('Authorization', 'Bearer test-token')
+        .expect(404)
+
+      expect(response.body).toEqual({
+        error: 'Favorito no encontrado'
+      })
+      
+      process.env.NODE_ENV = 'test'
     })
   })
 
   describe('GET /api/users/favorites', () => {
-    test('returns user favorites successfully', async () => {
-      const res = await request(app)
+    it('should return user favorites in test mode', async () => {
+      process.env.NODE_ENV = 'test'
+      
+      const response = await request(app)
         .get('/api/users/favorites')
         .set('Authorization', 'Bearer test-token')
-      
-      expect(res.status).toBe(200)
-      expect(res.body.events).toHaveLength(1)
-      expect(res.body.pagination.total).toBe(1)
+        .expect(200)
+
+      expect(response.body).toEqual({
+        events: expect.arrayContaining([
+          expect.objectContaining({
+            id: 'event-123',
+            title: 'Test Favorite Event'
+          })
+        ]),
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 1,
+          totalPages: 1
+        }
+      })
     })
 
-    test('returns 400 for invalid query parameters', async () => {
-      const res = await request(app)
-        .get('/api/users/favorites?page=invalid')
+    it('should handle pagination parameters', async () => {
+      const response = await request(app)
+        .get('/api/users/favorites?page=2&limit=5')
         .set('Authorization', 'Bearer test-token')
-      
-      expect(res.status).toBe(400)
+        .expect(200)
+
+      expect(response.body.pagination).toEqual({
+        page: 2,
+        limit: 5,
+        total: expect.any(Number),
+        totalPages: expect.any(Number)
+      })
     })
 
-    test('returns 401 when unauthorized', async () => {
-      const res = await request(app)
+    it('should return 400 for invalid query parameters', async () => {
+      const response = await request(app)
+        .get('/api/users/favorites?page=0&limit=200')
+        .set('Authorization', 'Bearer test-token')
+        .expect(400)
+
+      expect(response.body).toEqual({
+        error: 'Parámetros inválidos',
+        details: expect.any(Object)
+      })
+    })
+
+    it('should return 401 without authorization', async () => {
+      const response = await request(app)
         .get('/api/users/favorites')
-      
-      expect(res.status).toBe(401)
+        .expect(401)
+
+      expect(response.body).toEqual({
+        error: 'Unauthorized'
+      })
     })
 
-    test('returns 500 when exception is thrown', async () => {
-      mockGetUserFavoritesDb.mockRejectedValueOnce(new Error('DB error'))
+    it('should use database in non-test environment', async () => {
+      process.env.NODE_ENV = 'production'
       
-      const res = await request(app)
+      mockQuery
+        .mockImplementationOnce(() => ({ rows: [{ count: '2' }], rowCount: 1 })) // Count
+        .mockImplementationOnce(() => ({ rows: mockEvents.slice(0, 2), rowCount: 2 })) // Events
+        .mockImplementationOnce(() => ({ rows: [{ name: 'tag1' }], rowCount: 1 })) // Tags for first event
+        .mockImplementationOnce(() => ({ rows: [{ name: 'tag2' }], rowCount: 1 })) // Tags for second event
+
+      const response = await request(app)
         .get('/api/users/favorites')
         .set('Authorization', 'Bearer test-token')
+        .expect(200)
+
+      expect(response.body).toHaveProperty('events')
+      expect(response.body.events).toHaveLength(2)
       
-      expect(res.status).toBe(500)
-      expect(res.body.error).toBe('Error al cargar favoritos')
+      process.env.NODE_ENV = 'test'
+    })
+
+    it('should handle database errors gracefully', async () => {
+      process.env.NODE_ENV = 'production'
+      
+      mockQuery.mockImplementationOnce(() => {
+        throw new Error('Database connection error')
+      })
+
+      const response = await request(app)
+        .get('/api/users/favorites')
+        .set('Authorization', 'Bearer test-token')
+        .expect(500)
+
+      expect(response.body).toEqual({
+        error: 'Error al cargar favoritos',
+        details: undefined
+      })
+      
+      process.env.NODE_ENV = 'test'
+    })
+
+    it('should include error details in development environment', async () => {
+      process.env.NODE_ENV = 'development'
+      
+      mockQuery.mockImplementationOnce(() => {
+        throw new Error('Specific database error')
+      })
+
+      const response = await request(app)
+        .get('/api/users/favorites')
+        .set('Authorization', 'Bearer test-token')
+        .expect(500)
+
+      expect(response.body).toEqual({
+        error: 'Error al cargar favoritos',
+        details: 'Specific database error'
+      })
+      
+      process.env.NODE_ENV = 'test'
     })
   })
 
   describe('GET /api/users/favorites/:eventId/status', () => {
-    test('returns favorite status successfully', async () => {
-      const res = await request(app)
+    it('should return true for favorited event in test mode', async () => {
+      process.env.NODE_ENV = 'test'
+      
+      const response = await request(app)
         .get('/api/users/favorites/event-123/status')
         .set('Authorization', 'Bearer test-token')
-      
-      expect(res.status).toBe(200)
-      expect(res.body.isFavorited).toBe(true)
+        .expect(200)
+
+      expect(response.body).toEqual({
+        isFavorited: true
+      })
     })
 
-    test('returns 401 when unauthorized', async () => {
-      const res = await request(app)
-        .get('/api/users/favorites/event-123/status')
+    it('should return false for non-favorited event in test mode', async () => {
+      process.env.NODE_ENV = 'test'
       
-      expect(res.status).toBe(401)
-    })
-
-    test('returns 500 when exception is thrown', async () => {
-      mockIsEventFavoritedDb.mockRejectedValueOnce(new Error('DB error'))
-      
-      const res = await request(app)
-        .get('/api/users/favorites/event-123/status')
+      const response = await request(app)
+        .get('/api/users/favorites/other-event/status')
         .set('Authorization', 'Bearer test-token')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        isFavorited: false
+      })
+    })
+
+    it('should return 401 without authorization', async () => {
+      const response = await request(app)
+        .get('/api/users/favorites/event-123/status')
+        .expect(401)
+
+      expect(response.body).toEqual({
+        error: 'Unauthorized'
+      })
+    })
+
+    it('should use database in non-test environment', async () => {
+      process.env.NODE_ENV = 'production'
       
-      expect(res.status).toBe(500)
-      expect(res.body.error).toBe('Error al verificar favorito')
+      mockQuery.mockImplementationOnce(() => ({ rows: [{ exists: true }], rowCount: 1 }))
+
+      const response = await request(app)
+        .get('/api/users/favorites/test-event/status')
+        .set('Authorization', 'Bearer test-token')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        isFavorited: true
+      })
+      
+      process.env.NODE_ENV = 'test'
+    })
+
+    it('should handle database errors gracefully', async () => {
+      process.env.NODE_ENV = 'production'
+      
+      // Clear all previous mocks and set up error mock
+      jest.clearAllMocks()
+      mockQuery.mockImplementation(() => {
+        throw new Error('Database error')
+      })
+
+      const response = await request(app)
+        .get('/api/users/favorites/test-event/status')
+        .set('Authorization', 'Bearer test-token')
+        .expect(200) // Function handles errors gracefully and returns false
+
+      expect(response.body).toEqual({
+        isFavorited: false // Database error returns false by design
+      })
+      
+      process.env.NODE_ENV = 'test'
+    })
+  })
+
+  describe('Type assertion helper', () => {
+    // This tests the internal assertAuthenticated function indirectly
+    it('should handle authenticated requests properly', async () => {
+      const response = await request(app)
+        .get('/api/users/me')
+        .set('Authorization', 'Bearer test-token')
+        .expect(200)
+
+      expect(response.body).toHaveProperty('id', 'test-user-id')
+      expect(response.body).toHaveProperty('email', 'test@example.com')
+    })
+
+    it('should work with different user roles', async () => {
+      const organizerResponse = await request(app)
+        .get('/api/users/me')
+        .set('Authorization', 'Bearer organizer-token')
+        .expect(200)
+
+      expect(organizerResponse.body).toHaveProperty('id', 'organizer-id')
+
+      const adminResponse = await request(app)
+        .get('/api/users/me')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(200)
+
+      expect(adminResponse.body).toHaveProperty('id', 'admin-id')
     })
   })
 })

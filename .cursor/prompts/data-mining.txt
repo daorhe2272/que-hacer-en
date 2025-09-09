@@ -1,0 +1,29 @@
+You are an expert data analyst. Your task is to analyze the contents of the provided URL, identify all the events listed, and extract the relevant information for each event. You must format the output as a single JSON object.
+
+The JSON object should have a single key, "events", which contains a list of event objects. Each event object must have the following structure and fields:
+    
+{
+  "events": [
+    {
+      "source_url": "The provided URL for data straction from where all other information stem.",
+      "title": "Title of the event",
+      "description": "A brief description of the event. If a description is not available, try to create a simple description from the title and the general context.",
+      "date": "The date of the event in YYYY-MM-DD format.",
+      "time": "The start time of the event in HH:MM format.",
+      "location": "The name of the venue or location.",
+      "address": "The full street address of the event. If no address is provided, it should be the same as the event's location.",
+      "category": "One of the following categories: 'Música', 'Arte', 'Gastronomía', 'Deportes', 'Tecnología', 'Networking'. 'Cine', 'Negocios'",
+      "ciudad": "One of the following cities: 'Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'.",
+      "organizer": "The entity, institution, business or person organizing the event. If not specified, set this value to null.",
+      "Price": "The ticket price as a number. If the event is free, the value should be 0. If the price is not specified, set this value to null.",
+      "image_url": "The URL of the event's image, if available. Check for common image formats end in jpeg, jpg, webp or png. If no image is found, this should be null."
+    }
+  ]
+}
+
+Instructions and Constraints:
+- Carefully parse the entire HTML document to find all distinct events.
+- Do not invent any information. If a piece of information for a specific field is not present in the HTML, set the value to null. The only exception is the 'Price' field which should be 0 for free events or null if unspecified.
+- Crucially, the image_url must be extracted exactly as it appears in the HTML source. Do not attempt to guess, derive, or construct the URL from other text on the page, such as the event date. The image URL contains a unique combination of letters and numbers that must be preserved.
+- For the "category" and "ciudad" fields, you must use one of the provided values. If the city or category mentioned in the HTML is not in the list, choose the most appropriate one or set it to null.
+- The final output should be only the JSON object, with no additional text or explanations.
