@@ -7,9 +7,14 @@ RUN npm install -g pnpm@8.15.0
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-*.yaml ./
-COPY packages/*/package.json ./packages/*/
+# Copy root package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy package.json files for each package
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/api/package.json ./packages/api/
+COPY packages/web/package.json ./packages/web/
+COPY packages/app/package.json ./packages/app/
 
 # Install all dependencies
 RUN pnpm install --frozen-lockfile
@@ -34,8 +39,11 @@ RUN npm install -g pnpm@8.15.0 pm2
 WORKDIR /app
 
 # Copy package files for production install
-COPY package.json pnpm-*.yaml ./
-COPY packages/*/package.json ./packages/*/
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/api/package.json ./packages/api/
+COPY packages/web/package.json ./packages/web/
+COPY packages/app/package.json ./packages/app/
 
 # Install only production dependencies
 RUN pnpm install --frozen-lockfile --prod
