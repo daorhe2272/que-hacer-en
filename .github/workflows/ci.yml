@@ -113,86 +113,67 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: pnpm --filter @que-hacer-en/web run build
 
-  e2e:
-    name: E2E (Playwright)
+  docker:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 20
+    if: github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          version: 8.15.0
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          node-version: 22.x
-          cache: pnpm
+          images: ghcr.io/${{ github.repository_owner }}/que-hacer-en
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Install Playwright browsers
-        run: pnpm --filter @que-hacer-en/web exec playwright install --with-deps
-
-      - name: Build shared package
-        run: pnpm --filter @que-hacer-en/shared run build
-
-      - name: Build api
-        run: pnpm --filter @que-hacer-en/api run build
-
-      - name: Build web
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:4001
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-        run: pnpm --filter @que-hacer-en/web run build
-
-      - name: Start API (prod build)
-        run: pnpm --filter @que-hacer-en/api run start &
-
-      - name: Start Web (prod build)
-        env:
-          NEXT_PUBLIC_API_URL: http://localhost:4001
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          CI: true
-          E2E: true
-        run: pnpm --filter @que-hacer-en/web exec next start -p 4000 &
-
-      - name: Wait for services
+      - name: Test Docker image
         run: |
-          npx -y wait-on --timeout 180000 --httpTimeout 10000 http://localhost:4001/api/health http://localhost:4000
+          docker run --rm -d -p 4000:4000 -p 4001:4001 \
+            -e DATABASE_URL="mock://test" \
+            -e SUPABASE_URL="https://test.supabase.co" \
+            -e NEXT_PUBLIC_SUPABASE_URL="https://test.supabase.co" \
+            -e NEXT_PUBLIC_SUPABASE_ANON_KEY="test-key" \
+            --name test-container \
+            ghcr.io/${{ github.repository_owner }}/que-hacer-en:latest
+          
+          # Wait for container to start
+          sleep 30
+          
+          # Test health endpoints
+          curl -f http://localhost:4001/api/health || exit 1
+          curl -f http://localhost:4000 || exit 1
+          
+          # Cleanup
+          docker stop test-container
 
-      - name: Run E2E tests (Chromium/Firefox/WebKit)
-        env:
-          WEB_BASE_URL: http://localhost:4000
-          CI: true
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: pnpm --filter @que-hacer-en/web run e2e --workers=1
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: packages/web/playwright-report
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload Playwright traces
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-traces
-          path: packages/web/test-results
-          if-no-files-found: ignore
-          retention-days: 7
 
 

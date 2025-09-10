@@ -1,0 +1,48 @@
+# Dependencies
+node_modules
+*/node_modules
+.pnpm-store
+
+# Development files
+.env
+.env.local
+.env.*.local
+*.log
+npm-debug.log*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Build outputs (will be copied from builder stage)
+dist
+.next
+coverage
+build
+
+# Test files
+test-results
+playwright-report
+*.test.ts
+*.test.js
+__tests__
+
+# Documentation
+*.md
+docs
+
+# CI/CD
+.github
+
+# Expo
+packages/app/.expo
