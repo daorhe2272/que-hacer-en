@@ -90,6 +90,9 @@ DATABASE_URL=your-supabase-database-url-here
 SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+OAUTH_CLIENT_ID=your-google-oauth-client-id
+OAUTH_CLIENT_SECRET=your-google-oauth-client-secret
 ENABLE_AUTH=false
 ```
 
@@ -99,7 +102,7 @@ You'll need to update these after getting your Azure URL:
 ```
 NEXT_PUBLIC_API_URL=https://your-app-name.region.azurecontainerapps.io
 NEXT_PUBLIC_WEB_URL=https://your-app-name.region.azurecontainerapps.io
-CORS_ORIGINS=https://your-app-name.region.azurecontainerapps.io
+CORS_ORIGINS       =https://your-app-name.region.azurecontainerapps.io
 ```
 
 **Where to find your Supabase values:**
@@ -108,7 +111,17 @@ CORS_ORIGINS=https://your-app-name.region.azurecontainerapps.io
 - Go to **Settings** → **API**
 - **URL**: Copy the "URL" field
 - **anon key**: Copy the "anon public" key
+- **service_role key**: Copy the "service_role" key (keep this secret!)
 - **Database URL**: Go to **Settings** → **Database** → Copy "Connection string" → Use "Session Pooler" version (port 6543)
+
+**Where to find your Google OAuth values:**
+- Go to [Google Cloud Console](https://console.cloud.google.com)
+- Select your project (or create one)
+- Go to **APIs & Services** → **Credentials**
+- Click **"Create Credentials"** → **"OAuth 2.0 Client IDs"** (if not created yet)
+- **Application type**: Web application
+- **Authorized redirect URIs**: Add your Azure app URL + `/auth/callback`
+- Copy the **Client ID** and **Client Secret**
 
 4. After adding all variables, click **"Save"**
 5. Click **"Create new revision"** to apply changes
