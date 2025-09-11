@@ -204,13 +204,19 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: |
+            # Set registry credentials first
+            az containerapp registry set \
+              --name que-hacer-en-app \
+              --resource-group background-removal \
+              --server ghcr.io \
+              --username ${{ github.actor }} \
+              --password ${{ secrets.GITHUB_TOKEN }}
+            
+            # Then update the image  
             az containerapp update \
               --name que-hacer-en-app \
               --resource-group background-removal \
-              --image ghcr.io/${{ github.repository_owner }}/que-hacer-en:${{ github.sha }} \
-              --registry-server ghcr.io \
-              --registry-username ${{ github.actor }} \
-              --registry-password ${{ secrets.GITHUB_TOKEN }}
+              --image ghcr.io/${{ github.repository_owner }}/que-hacer-en:${{ github.sha }}
 
 
 
