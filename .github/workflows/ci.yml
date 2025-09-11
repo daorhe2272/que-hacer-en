@@ -207,7 +207,10 @@ jobs:
             az containerapp update \
               --name que-hacer-en-app \
               --resource-group background-removal \
-              --image ghcr.io/${{ github.repository_owner }}/que-hacer-en:${{ github.sha }}
+              --image ghcr.io/${{ github.repository_owner }}/que-hacer-en:${{ github.sha }} \
+              --registry-server ghcr.io \
+              --registry-username ${{ github.actor }} \
+              --registry-password ${{ secrets.GITHUB_TOKEN }}
 
 
 
