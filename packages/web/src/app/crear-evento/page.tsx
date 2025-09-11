@@ -65,6 +65,7 @@ export default function CrearEventoPage() {
       setErrors(prev => ({ ...prev, [field]: error }))
     }
   }
+
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

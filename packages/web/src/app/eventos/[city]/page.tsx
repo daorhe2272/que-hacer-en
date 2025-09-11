@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { fetchAllEvents } from '@/lib/api'
+import { fetchAllEventsServer } from '@/lib/api-server'
 import TopNavigation from '@/components/TopNavigation'
 import HeroSection from '@/components/HeroSection'
 import Image from 'next/image'
@@ -99,7 +99,7 @@ export default async function CityEventsPage({ params, searchParams }: { params:
   const sort = searchParams?.sort
   const order = searchParams?.order
   const limit = searchParams?.limit ? Number(searchParams.limit) : undefined
-  const { events, pagination, error } = await fetchAllEvents({ city, category: category || undefined, q: q || undefined, page, limit, sort, order })
+  const { events, pagination, error } = await fetchAllEventsServer({ city, category: category || undefined, q: q || undefined, page, limit, sort, order })
 
   return (
     <>

@@ -46,7 +46,7 @@ export interface EventDto {
   currency: string
   image: string
   organizer: string
-  capacity: number
+  capacity: number | null
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
 }
@@ -237,7 +237,7 @@ export interface CreateEventParams {
   currency: string
   image?: string
   organizer: string
-  capacity: number
+  capacity: number | null
   tags?: string[]
   status?: 'active' | 'cancelled' | 'postponed' | 'sold_out'
 }

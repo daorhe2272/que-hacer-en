@@ -1,6 +1,7 @@
 import type { Event } from '@/types/event'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
+// Client-side API base URL (goes through Next.js API routes)
+const CLIENT_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
 
 export type UserProfile = { id: string, email: string | null, role: 'attendee' | 'organizer' | 'admin' }
 
@@ -18,10 +19,14 @@ async function buildAuthHeadersClient(): Promise<HeadersInit> {
   return headers
 }
 
+/**
+ * Client-side function to fetch events by city
+ * Goes through Next.js API routes (proxy)
+ */
 export async function fetchEventsByCity(city: string): Promise<Event[]> {
   try {
     const headers = await buildAuthHeadersClient()
-    const res = await fetch(`${BASE_URL}/api/events/${city}`, { cache: 'no-store', headers })
+    const res = await fetch(`${CLIENT_API_URL}/api/events/${city}`, { cache: 'no-store', headers })
     if (!res.ok) return []
     const data = await res.json()
     return data.events as Event[]
@@ -32,6 +37,10 @@ export async function fetchEventsByCity(city: string): Promise<Event[]> {
 
 export type ApiEventsResult = { events: Event[]; pagination?: { page: number; limit: number; total: number; totalPages: number }; error?: string }
 
+/**
+ * Client-side function to fetch all events with filters
+ * Goes through Next.js API routes (proxy)
+ */
 export async function fetchAllEvents(params?: { city?: string; category?: string; q?: string; from?: string; to?: string; minPrice?: number; maxPrice?: number; page?: number; limit?: number; sort?: 'date' | 'price'; order?: 'asc' | 'desc' }): Promise<ApiEventsResult> {
   try {
     const usp = new URLSearchParams()
@@ -47,7 +56,7 @@ export async function fetchAllEvents(params?: { city?: string; category?: string
     if (params?.sort) usp.set('sort', params.sort)
     if (params?.order) usp.set('order', params.order)
     const query = usp.toString()
-    const url = `${BASE_URL}/api/events${query ? `?${query}` : ''}`
+    const url = `${CLIENT_API_URL}/api/events${query ? `?${query}` : ''}`
     const headers = await buildAuthHeadersClient()
     const res = await fetch(url, { cache: 'no-store', headers })
     if (!res.ok) return { events: [], error: 'Error al cargar eventos' }
@@ -58,10 +67,14 @@ export async function fetchAllEvents(params?: { city?: string; category?: string
   }
 }
 
+/**
+ * Client-side function to fetch event by ID
+ * Goes through Next.js API routes (proxy)
+ */
 export async function fetchEventById(id: string): Promise<Event | null> {
   try {
     const headers = await buildAuthHeadersClient()
-    const res = await fetch(`${BASE_URL}/api/events/id/${id}`, { cache: 'no-store', headers })
+    const res = await fetch(`${CLIENT_API_URL}/api/events/id/${id}`, { cache: 'no-store', headers })
     if (!res.ok) return null
     return res.json()
   } catch {
@@ -69,10 +82,14 @@ export async function fetchEventById(id: string): Promise<Event | null> {
   }
 }
 
+/**
+ * Client-side function to get user profile
+ * Goes through Next.js API routes (proxy)
+ */
 export async function getUserProfile(): Promise<UserProfile | null> {
   try {
     const headers = await buildAuthHeadersClient()
-    const res = await fetch(`${BASE_URL}/api/users/me`, { cache: 'no-store', headers })
+    const res = await fetch(`${CLIENT_API_URL}/api/users/me`, { cache: 'no-store', headers })
     if (!res.ok) return null
     const data = await res.json()
     return data as UserProfile
@@ -85,9 +102,9 @@ export async function getUserFavorites(): Promise<{ events: Event[], pagination?
   try {
     const headers = await buildAuthHeadersClient()
     console.log('Favorites API call - headers:', headers)
-    console.log('Favorites API call - URL:', `${BASE_URL}/api/users/favorites`)
+    console.log('Favorites API call - URL:', `${CLIENT_API_URL}/api/users/favorites`)
     
-    const res = await fetch(`${BASE_URL}/api/users/favorites`, { cache: 'no-store', headers })
+    const res = await fetch(`${CLIENT_API_URL}/api/users/favorites`, { cache: 'no-store', headers })
     console.log('Favorites API response status:', res.status)
     
     if (!res.ok) {
@@ -133,7 +150,7 @@ export async function createEvent(eventData: EventFormData): Promise<CreateEvent
     const headers = await buildAuthHeadersClient() as Record<string, string>
     headers['Content-Type'] = 'application/json'
     
-    const res = await fetch(`${BASE_URL}/api/events`, {
+    const res = await fetch(`${CLIENT_API_URL}/api/events`, {
       method: 'POST',
       headers,
       body: JSON.stringify(eventData)

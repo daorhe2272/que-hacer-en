@@ -50,11 +50,6 @@ export default function TimePicker({ value, onChange, disabled, error }: TimePic
     onChange(timeString)
   }, [selectedHour, selectedMinute, isPM, onChange])
 
-  // Update time automatically whenever values change
-  useEffect(() => {
-    updateTime()
-  }, [updateTime])
-
   const formatDisplayTime = () => {
     if (!value) return '--:--'
     const [hours, minutes] = value.split(':').map(Number)
@@ -64,19 +59,39 @@ export default function TimePicker({ value, onChange, disabled, error }: TimePic
   }
 
   const incrementHour = () => {
-    setSelectedHour(prev => prev === 12 ? 1 : prev + 1)
+    setSelectedHour(prev => {
+      const newHour = prev === 12 ? 1 : prev + 1
+      // Update time after state change
+      setTimeout(() => updateTime(), 0)
+      return newHour
+    })
   }
 
   const decrementHour = () => {
-    setSelectedHour(prev => prev === 1 ? 12 : prev - 1)
+    setSelectedHour(prev => {
+      const newHour = prev === 1 ? 12 : prev - 1
+      // Update time after state change
+      setTimeout(() => updateTime(), 0)
+      return newHour
+    })
   }
 
   const incrementMinute = () => {
-    setSelectedMinute(prev => prev === 59 ? 0 : prev + 1)
+    setSelectedMinute(prev => {
+      const newMinute = prev === 59 ? 0 : prev + 1
+      // Update time after state change
+      setTimeout(() => updateTime(), 0)
+      return newMinute
+    })
   }
 
   const decrementMinute = () => {
-    setSelectedMinute(prev => prev === 0 ? 59 : prev - 1)
+    setSelectedMinute(prev => {
+      const newMinute = prev === 0 ? 59 : prev - 1
+      // Update time after state change
+      setTimeout(() => updateTime(), 0)
+      return newMinute
+    })
   }
 
   const handleHourClick = (hour: number) => {
@@ -84,10 +99,12 @@ export default function TimePicker({ value, onChange, disabled, error }: TimePic
       // First click: select hour and switch to minute selection mode
       setSelectedHour(hour)
       setIsSelectingMinutes(true)
+      setTimeout(() => updateTime(), 0)
     } else {
       // Second click: set minutes based on hour position (each hour = 5 minutes)
       const minutes = (hour === 12 ? 0 : hour) * 5
       setSelectedMinute(minutes)
+      setTimeout(() => updateTime(), 0)
     }
   }
 
@@ -316,7 +333,13 @@ export default function TimePicker({ value, onChange, disabled, error }: TimePic
             <div className="flex rounded-lg bg-gray-100 p-1 w-32">
               <button
                 type="button"
-                onClick={() => setIsPM(false)}
+                onClick={() => {
+                  setIsPM(false)
+                  // Calculate and update time with new AM value
+                  const hour24 = selectedHour === 12 ? 0 : selectedHour
+                  const timeString = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`
+                  onChange(timeString)
+                }}
                 className={`flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                   !isPM ? 'bg-white text-purple-600 shadow' : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -325,7 +348,13 @@ export default function TimePicker({ value, onChange, disabled, error }: TimePic
               </button>
               <button
                 type="button"
-                onClick={() => setIsPM(true)}
+                onClick={() => {
+                  setIsPM(true)
+                  // Calculate and update time with new PM value
+                  const hour24 = selectedHour === 12 ? 12 : selectedHour + 12
+                  const timeString = `${hour24.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`
+                  onChange(timeString)
+                }}
                 className={`flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                   isPM ? 'bg-white text-purple-600 shadow' : 'text-gray-600 hover:text-gray-900'
                 }`}

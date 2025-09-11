@@ -28,11 +28,11 @@ export const eventSchema = z.object({
   address: z.string().min(2).max(200),
   category: z.string().min(2).max(100),
   city: cityEnum,
-  price: z.number().nonnegative(),
+  price: z.number().nonnegative().nullable(),
   currency: z.string().min(3).max(3),
   image: z.string().url().optional(),
   organizer: z.string().min(2).max(200),
-  capacity: z.number().int().positive(),
+  capacity: z.number().int().positive().nullable(),
   tags: z.array(z.string()).default([]),
   status: z.enum(['active', 'cancelled', 'postponed', 'sold_out']).default('active')
 })
