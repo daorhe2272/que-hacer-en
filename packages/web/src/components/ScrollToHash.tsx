@@ -20,6 +20,8 @@ export default function ScrollToHash() {
 
       return () => clearTimeout(timer)
     }
+    // Return undefined cleanup function when no hash
+    return undefined
   }, [])
 
   return null // This component doesn't render anything
