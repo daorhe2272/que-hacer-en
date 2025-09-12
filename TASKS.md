@@ -24,9 +24,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   The CI/CD pipeline has been successfully implemented using GitHub Actions, covering linting, testing, and building on pull requests, with integrated coverage reports. E2E tests are configured to run headlessly on Linux across multiple browsers (Chromium, Firefox, WebKit) against production builds, with artifact uploading for Playwright reports and traces on failure. The complete CI workflow utilizes pnpm and Node 22 with caching, triggered by pull requests and pushes to master, and includes concurrency and cancellation for obsolete PR executions.
 
 ## Tasks for immediate implementation:
-- [ ] Fix: Test Concert Event in Bogotá created everytime the tests run (and delete those fake events).
-- [ ] Double check if the E2E tests cleanup removes all e2e test email addresses, or if it only removes the specific email addresses created for the tests (in which case, if a test run was interrupted before the cleanup, test email addresses would start to accumulate). 
-- [ ] Fix: Events filter not responsive for narrow screens.
+- [ ] Fix: Events filter does not have responsive design and breaks for narrow screens.
 - [ ] Successfull sign up with custom e-mail should redirect to previous visited page (or fallback to landing page)
 - [ ] Don't show events whose date already passed.
 - [ ] On the Cuenta dropdown, show the button "Mis eventos".

@@ -71,6 +71,7 @@ export default function SearchComponent({ cityId }: SearchComponentProps) {
           aria-label="Buscar"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           className="w-full px-4 py-3 text-base placeholder-gray-400 border-0 focus:outline-none focus:ring-0 bg-transparent"
         />
       </div>

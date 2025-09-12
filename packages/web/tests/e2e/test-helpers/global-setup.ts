@@ -112,6 +112,7 @@ async function cleanupTestEvents() {
            OR title ILIKE '%Tie Breaking Test Event%'
            OR title ILIKE '%Price Tie Breaking Test Event%'
            OR title = 'Test Concert Event'
+           OR title = 'Evento de Precio Desconocido'
       `)
       
       console.log(`✅ Pre-test cleanup: deleted ${result.rowCount || 0} test events`)

@@ -1,7 +1,7 @@
 'use client'
 
 import { MapPin, ChevronDown } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useSession } from '@/lib/session'
@@ -17,9 +17,12 @@ const cities = [
 
 export default function TopNavigation() {
   const router = useRouter()
+  const pathname = usePathname()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [desktopSearchTerm, setDesktopSearchTerm] = useState('')
+  const [mobileSearchTerm, setMobileSearchTerm] = useState('')
   const { isAuthenticated, user, signOut } = useSession()
 
   useEffect(() => {
@@ -33,6 +36,32 @@ export default function TopNavigation() {
   function handleCitySelect(cityId: string) {
     setIsDropdownOpen(false)
     router.push(`/eventos/${cityId}#events`)
+  }
+
+  function handleSearch(searchTerm: string, isMobile = false) {
+    const trimmedTerm = searchTerm.trim()
+    if (!trimmedTerm) return
+
+    // Extract city from current path
+    const cityMatch = pathname.match(/\/eventos\/([^/?]+)/)
+    const currentCity = cityMatch ? cityMatch[1] : null
+
+    if (currentCity && cities.find(c => c.id === currentCity)) {
+      // If we're on a city page, search within that city
+      router.push(`/eventos/${currentCity}?q=${encodeURIComponent(trimmedTerm)}#events`)
+    } else {
+      // If we're on home or other pages, search across all cities (no city filter)
+      // This will create a general search page showing results from all cities
+      router.push(`/?q=${encodeURIComponent(trimmedTerm)}#events`)
+    }
+
+    // Close mobile search if it was opened
+    if (isMobile) {
+      setIsMobileSearchOpen(false)
+      setMobileSearchTerm('')
+    } else {
+      setDesktopSearchTerm('')
+    }
   }
 
   return (
@@ -68,6 +97,9 @@ export default function TopNavigation() {
                 <input
                   type="text"
                   placeholder="Buscar eventos..."
+                  value={desktopSearchTerm}
+                  onChange={(e) => setDesktopSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(desktopSearchTerm)}
                   className="bg-transparent border-none outline-none text-gray-900 placeholder-gray-500 text-sm flex-1"
                 />
               </div>
@@ -195,6 +227,9 @@ export default function TopNavigation() {
             <input
               type="text"
               placeholder="Buscar eventos, artistas, lugares..."
+              value={mobileSearchTerm}
+              onChange={(e) => setMobileSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch(mobileSearchTerm, true)}
               className="bg-transparent border-none outline-none text-gray-900 placeholder-gray-500 text-sm flex-1"
               autoFocus
             />

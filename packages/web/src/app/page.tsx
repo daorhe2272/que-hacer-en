@@ -36,9 +36,38 @@ export const metadata: Metadata = {
   },
 }
 
-export default function HomePage() {
+import { fetchAllEventsServer } from '@/lib/api-server'
+import EventCard from '@/components/EventCard'
+import SearchComponent from '@/components/SearchComponent'
+import ScrollToHash from '@/components/ScrollToHash'
+
+export default async function HomePage({ 
+  searchParams 
+}: { 
+  searchParams?: { q?: string; category?: string; page?: string; limit?: string }
+}) {
+  const searchQuery = searchParams?.q
+  
+  // If there's a search query, fetch search results
+  let searchResults = null
+  if (searchQuery) {
+    const category = searchParams?.category || ''
+    const page = searchParams?.page ? Number(searchParams.page) : 1
+    const limit = searchParams?.limit ? Number(searchParams.limit) : undefined
+    
+    searchResults = await fetchAllEventsServer({ 
+      category: category || undefined, 
+      q: searchQuery, 
+      page, 
+      limit 
+    })
+  }
+  
   return (
     <>
+      {/* Scroll to hash handler */}
+      <ScrollToHash />
+      
       {/* Top Navigation */}
       <TopNavigation />
       
@@ -58,28 +87,81 @@ export default function HomePage() {
                 Descubre qué hacer en{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-orange-300">Colombia</span>
               </h1>
-              <p className="text-xl sm:text-2xl text-white/90 mb-12 max-w-3xl mx-auto animate-fadeIn">
-                Los mejores eventos, conciertos, talleres y experiencias en Colombia
-              </p>
+              
+              {searchQuery ? (
+                <p className="text-xl sm:text-2xl text-white/90 mb-12 max-w-3xl mx-auto animate-fadeIn">
+                  Resultados para: <span className="text-orange-300 font-semibold">"{searchQuery}"</span>
+                </p>
+              ) : (
+                <p className="text-xl sm:text-2xl text-white/90 mb-12 max-w-3xl mx-auto animate-fadeIn">
+                  Los mejores eventos, conciertos, talleres y experiencias en Colombia
+                </p>
+              )}
 
-              {/* City Selection */}
+              {/* Always show City Selector */}
               <CitySelector />
 
-              {/* Organizer CTA Section - Inside Hero */}
-              <div className="mt-16">
-                <h3 className="text-xl font-bold text-white mb-2">
-                  ¿Organizas eventos?
-                </h3>
-                <p className="text-white/90 mb-6">
-                  Publica tu evento gratis
-                </p>
-                <button className="bg-accent-400 hover:bg-accent-500 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2">
-                  Publicar evento gratuito
-                </button>
-              </div>
+              {/* Organizer CTA Section - Only show on home */}
+              {!searchQuery && (
+                <div className="mt-16">
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    ¿Organizas eventos?
+                  </h3>
+                  <p className="text-white/90 mb-6">
+                    Publica tu evento gratis
+                  </p>
+                  <a href="/crear-evento" className="inline-block bg-accent-400 hover:bg-accent-500 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2">
+                    Publicar evento gratuito
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </section>
+
+        {/* Search Results Section */}
+        {searchQuery && searchResults && (
+          <section id="events" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 scroll-mt-20">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                {searchResults.pagination?.total ? `${searchResults.pagination.total} eventos encontrados` : 'Eventos encontrados'}
+              </h2>
+              <p className="text-gray-600">
+                Resultados de tu búsqueda en toda Colombia
+              </p>
+            </div>
+
+            {searchResults.events.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {searchResults.events.map((event) => (
+                  <EventCard key={event.id} event={event} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  No encontramos eventos
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Intenta con otros términos de búsqueda o explora eventos por ciudad
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <a href="/" className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                    Volver al inicio
+                  </a>
+                  <a href="/eventos/bogota" className="bg-gray-200 hover:bg-gray-300 text-gray-900 px-6 py-3 rounded-lg font-medium transition-colors">
+                    Ver eventos en Bogotá
+                  </a>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Why Choose Section */}
         <section className="bg-gray-50 py-16">

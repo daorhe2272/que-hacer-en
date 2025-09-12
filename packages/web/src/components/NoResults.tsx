@@ -77,7 +77,7 @@ export default function NoResults({ cityId, cityName, query, category }: Props) 
         {suggestedCategories.map(s => (
           <button
             key={s.key}
-            onClick={() => navigateWith({ category: s.key })}
+            onClick={() => navigateWith({ category: s.key, q: null })}
             className="px-3 py-1.5 rounded-full text-sm border border-gray-200 text-gray-700 hover:bg-gray-50"
           >
             {s.label}
