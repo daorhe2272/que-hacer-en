@@ -14,6 +14,7 @@ import SortControls from '@/components/SortControls'
 import PageSizeSelector from '@/components/PageSizeSelector'
 import Pagination from '@/components/Pagination'
 import EventsJsonLd from '@/components/EventsJsonLd'
+import ScrollToHash from '@/components/ScrollToHash'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,6 +107,9 @@ export default async function CityEventsPage({ params, searchParams }: { params:
       {/* JSON-LD Structured Data */}
       <EventsJsonLd events={events} cityName={cityName} city={city} />
       
+      {/* Scroll to hash handler */}
+      <ScrollToHash />
+      
       {/* Top Navigation */}
       <TopNavigation />
       
@@ -114,7 +118,7 @@ export default async function CityEventsPage({ params, searchParams }: { params:
         <HeroSection cityName={cityName} cityId={city} />
         
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <main id="events" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 scroll-mt-20">
           {/* Section Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
             <div>

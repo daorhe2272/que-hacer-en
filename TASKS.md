@@ -24,7 +24,6 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   The CI/CD pipeline has been successfully implemented using GitHub Actions, covering linting, testing, and building on pull requests, with integrated coverage reports. E2E tests are configured to run headlessly on Linux across multiple browsers (Chromium, Firefox, WebKit) against production builds, with artifact uploading for Playwright reports and traces on failure. The complete CI workflow utilizes pnpm and Node 22 with caching, triggered by pull requests and pushes to master, and includes concurrency and cancellation for obsolete PR executions.
 
 ## Tasks for immediate implementation:
-- [ ] For narrow screens: remove city selection from the top navbar.
 - [ ] After selecting a city, automatically scroll down pass the hero section, just before the events gallery begins.
 - [ ] Fix: Test Concert Event in Bogotá created everytime the tests run (and delete those fake events).
 - [ ] Successfull sign up with custom e-mail should redirect to previous visited page (or fallback to landing page)

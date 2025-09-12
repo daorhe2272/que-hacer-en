@@ -9,9 +9,9 @@ export default function CitySelector() {
   const handleCityChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const city = event.target.value
     
-    // Auto-redirect when city is selected
+    // Auto-redirect when city is selected with scroll to events section
     if (city) {
-      router.push(`/eventos/${city}`)
+      router.push(`/eventos/${city}#events`)
     }
   }
 

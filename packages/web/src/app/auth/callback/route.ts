@@ -22,10 +22,12 @@ export async function GET(request: NextRequest) {
       }
       // Otherwise, redirect to a page that can handle back navigation
       // Using a special callback page that can run client-side router.back()
-      return NextResponse.redirect(`${origin}/auth/success`)
+      const webUrl = process.env.NEXT_PUBLIC_WEB_URL || origin
+      return NextResponse.redirect(`${webUrl}/auth/success`)
     }
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  const webUrl = process.env.NEXT_PUBLIC_WEB_URL || origin
+  return NextResponse.redirect(`${webUrl}/auth/auth-code-error`)
 }

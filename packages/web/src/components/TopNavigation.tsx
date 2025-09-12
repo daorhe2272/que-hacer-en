@@ -32,7 +32,7 @@ export default function TopNavigation() {
 
   function handleCitySelect(cityId: string) {
     setIsDropdownOpen(false)
-    router.push(`/eventos/${cityId}`)
+    router.push(`/eventos/${cityId}#events`)
   }
 
   return (
@@ -73,8 +73,8 @@ export default function TopNavigation() {
               </div>
             </div>
             
-            {/* City Selector */}
-            <div className="relative">
+            {/* City Selector - Hidden on narrow screens */}
+            <div className="hidden md:block relative">
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-gray-900 rounded-lg transition-colors duration-200"
