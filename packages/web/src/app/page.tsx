@@ -38,7 +38,6 @@ export const metadata: Metadata = {
 
 import { fetchAllEventsServer } from '@/lib/api-server'
 import EventCard from '@/components/EventCard'
-import SearchComponent from '@/components/SearchComponent'
 import ScrollToHash from '@/components/ScrollToHash'
 
 export default async function HomePage({ 
@@ -90,7 +89,7 @@ export default async function HomePage({
               
               {searchQuery ? (
                 <p className="text-xl sm:text-2xl text-white/90 mb-12 max-w-3xl mx-auto animate-fadeIn">
-                  Resultados para: <span className="text-orange-300 font-semibold">"{searchQuery}"</span>
+                  Resultados para: <span className="text-orange-300 font-semibold">&ldquo;{searchQuery}&rdquo;</span>
                 </p>
               ) : (
                 <p className="text-xl sm:text-2xl text-white/90 mb-12 max-w-3xl mx-auto animate-fadeIn">
