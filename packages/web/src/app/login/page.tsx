@@ -74,7 +74,7 @@ function LoginPageContent() {
         email,
         password,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:4000'}/auth/callback`
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       })
       
@@ -102,7 +102,7 @@ function LoginPageContent() {
     
     // Get the redirect destination (same logic as handleSuccessfulAuth)
     const redirectParam = searchParams.get('redirect')
-    let redirectUrl = `${process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:4000'}/auth/callback`
+    let redirectUrl = `${window.location.origin}/auth/callback`
     
     if (redirectParam && isValidRedirectUrl(redirectParam)) {
       // If we have a specific redirect destination, pass it to callback
