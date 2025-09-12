@@ -80,7 +80,8 @@ The project will be developed in phases:
   - `CORS_ORIGINS` (CSV; empty = allow all)
   - `DATABASE_URL` (PostgreSQL connection string; uses Session Pooler 6543 on Supabase)
   - `HOST` (optional)
-  - `SUPABASE_URL`
+  - `NEXT_PUBLIC_SUPABASE_URL` (shared with web)
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (shared with web)
   - `ENABLE_AUTH` (`true` to require auth for protected routes)
 
 - App (`packages/app`)

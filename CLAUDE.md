@@ -120,7 +120,7 @@ pnpm --filter @que-hacer-en/api add joi
 - `DATABASE_URL`: PostgreSQL connection (Session Pooler 6543)
 - `CORS_ORIGINS`: CSV of allowed origins (empty = allow all)
 - `ENABLE_AUTH`: Set to 'true' to require auth for protected routes
-- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`: For JWT verification
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`: For JWT verification
 
 **Web (packages/web)**:
 - `NEXT_PUBLIC_API_URL`: API base URL (e.g., http://localhost:4001)

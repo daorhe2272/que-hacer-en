@@ -67,8 +67,8 @@ describe('Authentication Middleware', () => {
     it('should return error when Supabase config is missing', async () => {
       process.env.NODE_ENV = 'production'
       req.headers = { authorization: 'Bearer valid-token' }
-      delete process.env.SUPABASE_URL
-      delete process.env.SUPABASE_ANON_KEY
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL
+      delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
       await authenticate(req, res, next)
 
@@ -79,8 +79,8 @@ describe('Authentication Middleware', () => {
 
     it('should authenticate valid token successfully', async () => {
       process.env.NODE_ENV = 'production'
-      process.env.SUPABASE_URL = 'https://test.supabase.co'
-      process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       
       req.headers = { authorization: 'Bearer valid-token' }
 
@@ -108,8 +108,8 @@ describe('Authentication Middleware', () => {
 
     it('should use default role when user has no role metadata', async () => {
       process.env.NODE_ENV = 'production'
-      process.env.SUPABASE_URL = 'https://test.supabase.co'
-      process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       
       req.headers = { authorization: 'Bearer valid-token' }
 
@@ -137,8 +137,8 @@ describe('Authentication Middleware', () => {
 
     it('should use app_metadata role when user_metadata role is not available', async () => {
       process.env.NODE_ENV = 'production'
-      process.env.SUPABASE_URL = 'https://test.supabase.co'
-      process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       
       req.headers = { authorization: 'Bearer valid-token' }
 
@@ -166,8 +166,8 @@ describe('Authentication Middleware', () => {
 
     it('should reject request when Supabase returns error', async () => {
       process.env.NODE_ENV = 'production'
-      process.env.SUPABASE_URL = 'https://test.supabase.co'
-      process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       
       req.headers = { authorization: 'Bearer invalid-token' }
 
@@ -185,8 +185,8 @@ describe('Authentication Middleware', () => {
 
     it('should reject request when Supabase returns no user', async () => {
       process.env.NODE_ENV = 'production'
-      process.env.SUPABASE_URL = 'https://test.supabase.co'
-      process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       
       req.headers = { authorization: 'Bearer expired-token' }
 
@@ -204,8 +204,8 @@ describe('Authentication Middleware', () => {
 
     it('should handle Supabase client throwing exception', async () => {
       process.env.NODE_ENV = 'production'
-      process.env.SUPABASE_URL = 'https://test.supabase.co'
-      process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       
       req.headers = { authorization: 'Bearer valid-token' }
 
@@ -220,8 +220,8 @@ describe('Authentication Middleware', () => {
 
     it('should handle user without email', async () => {
       process.env.NODE_ENV = 'production'
-      process.env.SUPABASE_URL = 'https://test.supabase.co'
-      process.env.SUPABASE_ANON_KEY = 'test-anon-key'
+      process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
       
       req.headers = { authorization: 'Bearer valid-token' }
 

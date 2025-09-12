@@ -164,7 +164,6 @@ jobs:
         run: |
           docker run --rm -d -p 4000:4000 -p 4001:4001 \
             -e DATABASE_URL="mock://test" \
-            -e SUPABASE_URL="https://test.supabase.co" \
             -e NEXT_PUBLIC_SUPABASE_URL="https://test.supabase.co" \
             -e NEXT_PUBLIC_SUPABASE_ANON_KEY="test-key" \
             --name test-container \
