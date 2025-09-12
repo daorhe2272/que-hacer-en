@@ -157,7 +157,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
             NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-            NEXT_PUBLIC_API_URL=http://localhost:4001
+            NEXT_PUBLIC_API_URL=https://que-hacer-en-app.agreeableriver-98584950.westus2.azurecontainerapps.io
             NEXT_PUBLIC_WEB_URL=https://que-hacer-en-app.agreeableriver-98584950.westus2.azurecontainerapps.io
 
       - name: Test Docker image
