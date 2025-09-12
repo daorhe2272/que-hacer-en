@@ -3,6 +3,8 @@ import {
   createAndLoginTestUser, 
   ensureLoggedOut, 
   cleanupTestUser, 
+  cleanupTestEvent,
+  cleanupTestEventsByTitle,
   TestUser 
 } from './test-helpers/auth-helpers'
 
@@ -338,13 +340,27 @@ test.describe('Event Creation E2E Tests', () => {
 
   test.describe('Form Submission', () => {
     let testUser: TestUser
+    const createdEventIds: string[] = []
 
     test.beforeEach(async ({ page }) => {
       // Create and login test user for authenticated tests
       testUser = await createAndLoginTestUser(page, { skipVerification: true })
+      
+      // Clean up any existing test events before running tests
+      if (testUser.accessToken) {
+        await cleanupTestEventsByTitle('Test Concert Event', testUser.accessToken)
+      }
     })
 
     test.afterEach(async () => {
+      // Clean up created events
+      if (testUser.accessToken && createdEventIds.length > 0) {
+        for (const eventId of createdEventIds) {
+          await cleanupTestEvent(eventId, testUser.accessToken)
+        }
+        createdEventIds.length = 0 // Clear the array
+      }
+      
       // Clean up test user after each test
       if (testUser) {
         await cleanupTestUser(testUser)
@@ -356,6 +372,32 @@ test.describe('Event Creation E2E Tests', () => {
       
       // Fill all required fields with valid data
       await fillCompleteValidEventData(page)
+      
+      // Capture the API response to get event ID
+      let eventId: string | null = null
+      await page.route('**/api/events', async (route) => {
+        if (route.request().method() === 'POST') {
+          const response = await route.fetch()
+          const responseBody = await response.text()
+          
+          try {
+            const json = JSON.parse(responseBody)
+            if (json.event && json.event.id) {
+              eventId = json.event.id
+              createdEventIds.push(eventId) // Store for cleanup
+            }
+          } catch (e) {
+            console.warn('Failed to parse event creation response:', e)
+          }
+          
+          route.fulfill({
+            response,
+            body: responseBody
+          })
+        } else {
+          route.continue()
+        }
+      })
       
       // Submit form
       await page.getByRole('button', { name: 'Crear Evento' }).click()
@@ -374,6 +416,9 @@ test.describe('Event Creation E2E Tests', () => {
       
       // Should eventually redirect to home page
       await page.waitForURL('/', { timeout: 10000 })
+      
+      // Verify we captured the event ID for cleanup
+      expect(eventId).not.toBeNull()
     })
 
     test('Should handle server validation errors', async ({ page }) => {

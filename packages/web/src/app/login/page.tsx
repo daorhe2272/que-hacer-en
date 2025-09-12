@@ -100,11 +100,6 @@ function LoginPageContent() {
     
     const supabase = getSupabaseBrowserClient()
     
-    // DEBUG: Log the values we're using
-    console.log('DEBUG OAuth Redirect:')
-    console.log('window.location.origin:', window.location.origin)
-    console.log('process.env.NEXT_PUBLIC_WEB_URL:', process.env.NEXT_PUBLIC_WEB_URL)
-    
     // Get the redirect destination (same logic as handleSuccessfulAuth)
     const redirectParam = searchParams.get('redirect')
     let redirectUrl = `${window.location.origin}/auth/callback`
@@ -114,8 +109,6 @@ function LoginPageContent() {
       redirectUrl += `?next=${encodeURIComponent(redirectParam)}`
     }
     // If no redirect param, let the callback handle the back navigation by not passing 'next'
-    
-    console.log('Final redirectUrl:', redirectUrl)
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

@@ -1,5 +1,6 @@
 import { FullConfig } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
+import { Pool } from 'pg'
 
 /**
  * Global teardown for Playwright tests
@@ -28,6 +29,9 @@ async function globalTeardown(_config: FullConfig) {
     
     // Clean up test users (emails ending with @e2e-test.com)
     await cleanupTestUsers(supabaseAdmin)
+    
+    // Clean up test events
+    await cleanupTestEvents()
     
     console.log('✅ E2E test cleanup complete')
   } catch (error) {
@@ -105,6 +109,53 @@ async function cleanupTestUsers(supabaseAdmin: any) {
     
   } catch (error) {
     console.error('Error during test user cleanup:', error)
+  }
+}
+
+/**
+ * Clean up test events from the database
+ */
+async function cleanupTestEvents() {
+  try {
+    console.log('📅 Final cleanup: Removing test events...')
+    
+    const databaseUrl = process.env.DATABASE_URL
+    if (!databaseUrl) {
+      console.warn('⚠️  DATABASE_URL not available for event cleanup')
+      return
+    }
+    
+    const pool = new Pool({ connectionString: databaseUrl })
+    
+    try {
+      // Delete test events by title patterns
+      const result = await pool.query(`
+        DELETE FROM events 
+        WHERE title ILIKE '%test%' 
+           OR title ILIKE '%Test Concert Event%'
+           OR title ILIKE '%Test Event%'
+           OR title ILIKE '%Tie Breaking Test Event%'
+           OR title ILIKE '%Price Tie Breaking Test Event%'
+           OR title = 'Test Concert Event'
+      `)
+      
+      console.log(`✅ Final cleanup: deleted ${result.rowCount || 0} test events`)
+      
+      // Clean up orphaned event_tags
+      const tagsResult = await pool.query(`
+        DELETE FROM event_tags 
+        WHERE event_id NOT IN (SELECT id FROM events)
+      `)
+      
+      if (tagsResult.rowCount && tagsResult.rowCount > 0) {
+        console.log(`🏷️  Final cleanup: deleted ${tagsResult.rowCount} orphaned event tags`)
+      }
+      
+    } finally {
+      await pool.end()
+    }
+  } catch (error) {
+    console.warn('Warning: Final test event cleanup failed:', error)
   }
 }
 

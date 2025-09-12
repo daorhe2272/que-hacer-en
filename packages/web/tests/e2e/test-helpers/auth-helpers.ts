@@ -25,6 +25,7 @@ export interface TestUser {
   email: string
   password: string
   id?: string
+  accessToken?: string
 }
 
 /**
@@ -211,5 +212,77 @@ export async function createAndLoginTestUser(page: Page, options?: {
 }): Promise<TestUser> {
   const testUser = await createTestUser()
   await loginUser(page, testUser, options)
+  
+  // Get the access token from browser local storage after login
+  const accessToken = await page.evaluate(() => {
+    const supabaseData = localStorage.getItem('sb-' + new URL(window.location.href).hostname.replace(/\./g, '-') + '-auth-token')
+    if (supabaseData) {
+      try {
+        const parsed = JSON.parse(supabaseData)
+        return parsed.access_token
+      } catch {
+        return null
+      }
+    }
+    return null
+  })
+  
+  if (accessToken) {
+    testUser.accessToken = accessToken
+  }
+  
   return testUser
+}
+
+/**
+ * Delete a test event via API call
+ */
+export async function cleanupTestEvent(eventId: string, accessToken: string): Promise<void> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
+    const response = await fetch(`${apiUrl}/api/events/${eventId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      console.warn(`Failed to cleanup test event ${eventId}: ${response.status}`)
+    }
+  } catch (error) {
+    console.warn(`Error cleaning up test event ${eventId}:`, error)
+  }
+}
+
+/**
+ * Clean up multiple test events by title pattern
+ */
+export async function cleanupTestEventsByTitle(title: string, accessToken: string): Promise<void> {
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4001'
+    
+    // First, get all events that match the title pattern
+    const response = await fetch(`${apiUrl}/api/events/manage?limit=100`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      const testEvents = data.events?.filter((event: any) => 
+        event.title === title || event.title.includes('Test Concert Event')
+      ) || []
+      
+      // Delete each matching event
+      for (const event of testEvents) {
+        await cleanupTestEvent(event.id, accessToken)
+      }
+    }
+  } catch (error) {
+    console.warn('Error cleaning up test events by title:', error)
+  }
 }

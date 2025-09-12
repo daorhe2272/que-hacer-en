@@ -26,6 +26,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 ## Tasks for immediate implementation:
 - [ ] Fix: Test Concert Event in Bogotá created everytime the tests run (and delete those fake events).
 - [ ] Double check if the E2E tests cleanup removes all e2e test email addresses, or if it only removes the specific email addresses created for the tests (in which case, if a test run was interrupted before the cleanup, test email addresses would start to accumulate). 
+- [ ] Fix: Events filter not responsive for narrow screens.
 - [ ] Successfull sign up with custom e-mail should redirect to previous visited page (or fallback to landing page)
 - [ ] Don't show events whose date already passed.
 - [ ] On the Cuenta dropdown, show the button "Mis eventos".
