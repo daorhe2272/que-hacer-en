@@ -80,20 +80,42 @@ export async function deleteTestUser(userId: string): Promise<void> {
     const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
     
     if (error) {
-      console.warn(`Failed to delete test user ${userId}: ${error.message}`)
+      console.error(`Failed to delete test user ${userId}: ${error.message}`)
+      throw new Error(`Failed to delete test user ${userId}: ${error.message}`)
     }
+    
+    console.log(`✅ Successfully deleted test user: ${userId}`)
   } catch (error) {
-    console.warn(`Failed to delete test user ${userId}:`, error)
+    console.error(`Failed to delete test user ${userId}:`, error)
+    throw error // Re-throw to make individual cleanup failures visible
   }
   
   // Also clean up from users table if it exists (using admin client)
   try {
-    await supabaseAdmin
+    // Try to delete by auth user ID first
+    const { error } = await supabaseAdmin
       .from('users')
       .delete()
       .eq('id', userId)
+    
+    if (error) {
+      console.warn(`Could not clean up user from users table by ID: ${error.message}`)
+    }
+    
+    // Also try to delete by email pattern in case there's a mismatch between auth and public user IDs
+    const authUser = await supabaseAdmin.auth.admin.getUserById(userId)
+    if (authUser.data?.user?.email?.endsWith('@e2e-test.com')) {
+      const { error: emailDeleteError } = await supabaseAdmin
+        .from('users')
+        .delete()
+        .eq('email', authUser.data.user.email)
+        
+      if (emailDeleteError && !emailDeleteError.message.includes('No rows')) {
+        console.warn(`Could not clean up user from users table by email: ${emailDeleteError.message}`)
+      }
+    }
   } catch (error) {
-    // Users table might not exist or user might not be in it
+    // Users table might not exist or user might not be in it - this is non-critical
     console.warn('Could not clean up user from users table:', error)
   }
 }
@@ -199,7 +221,14 @@ export async function ensureLoggedOut(page: Page): Promise<void> {
  */
 export async function cleanupTestUser(testUser: TestUser): Promise<void> {
   if (testUser.id) {
-    await deleteTestUser(testUser.id)
+    try {
+      await deleteTestUser(testUser.id)
+    } catch (error) {
+      console.error(`Failed to cleanup test user ${testUser.email} (${testUser.id}):`, error)
+      throw error // Re-throw to make test cleanup failures visible
+    }
+  } else {
+    console.warn(`Cannot cleanup test user ${testUser.email}: no user ID available`)
   }
 }
 

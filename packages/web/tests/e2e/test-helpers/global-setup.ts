@@ -27,6 +27,7 @@ async function globalSetup(_config: FullConfig) {
   // Clean up existing test data before running tests
   try {
     await cleanupTestUsers()
+    await cleanupPublicUsers()
     await cleanupTestEvents()
     console.log('✅ Pre-test cleanup completed')
   } catch (error) {
@@ -89,6 +90,61 @@ async function cleanupTestUsers() {
     console.log(`✅ Pre-test cleanup: removed ${testUsers.length} test users`)
   } catch (error) {
     console.warn('Warning: Pre-test user cleanup failed:', error)
+  }
+}
+
+/**
+ * Clean up test users from public.users table before tests start
+ */
+async function cleanupPublicUsers() {
+  try {
+    console.log('👤 Pre-test cleanup: Removing test users from public.users table...')
+    
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+    
+    // Find test users in public.users table by email pattern
+    const { data: publicUsers, error: queryError } = await supabaseAdmin
+      .from('users')
+      .select('id, email')
+      .like('email', '%@e2e-test.com')
+    
+    if (queryError) {
+      console.warn('Warning: Could not query public.users for pre-test cleanup:', queryError.message)
+      return
+    }
+    
+    if (!publicUsers || publicUsers.length === 0) {
+      console.log('✅ No test users found in public.users table')
+      return
+    }
+    
+    console.log(`📊 Found ${publicUsers.length} test users in public.users table to clean up`)
+    
+    for (const user of publicUsers) {
+      try {
+        const { error: deleteError } = await supabaseAdmin
+          .from('users')
+          .delete()
+          .eq('id', user.id)
+        if (deleteError) {
+          console.warn(`Could not delete public user ${user.email}:`, deleteError.message)
+        }
+      } catch (error) {
+        console.warn(`Error deleting public user ${user.email}:`, error)
+      }
+    }
+    
+    console.log(`✅ Pre-test cleanup: removed ${publicUsers.length} test users from public.users`)
+  } catch (error) {
+    console.warn('Warning: Pre-test public user cleanup failed:', error)
   }
 }
 

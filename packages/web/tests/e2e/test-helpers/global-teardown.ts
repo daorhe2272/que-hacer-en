@@ -30,6 +30,9 @@ async function globalTeardown(_config: FullConfig) {
     // Clean up test users (emails ending with @e2e-test.com)
     await cleanupTestUsers(supabaseAdmin)
     
+    // Clean up test users from public.users table
+    await cleanupPublicUsers(supabaseAdmin)
+    
     // Clean up test events
     await cleanupTestEvents()
     
@@ -107,8 +110,108 @@ async function cleanupTestUsers(supabaseAdmin: any) {
     
     console.log(`✅ Cleanup complete: ${cleanedCount} users deleted, ${errorCount} errors`)
     
+    // If there were errors, throw to make the cleanup failure visible
+    if (errorCount > 0) {
+      throw new Error(`Failed to clean up ${errorCount} test users. Check logs above for details.`)
+    }
+    
+    // Verify cleanup succeeded by checking if any test users remain
+    const { data: remainingUsers, error: verifyError } = await supabaseAdmin.auth.admin.listUsers()
+    
+    if (!verifyError && remainingUsers?.users) {
+      const remainingTestUsers = remainingUsers.users.filter((user: any) => 
+        user.email && user.email.endsWith('@e2e-test.com')
+      )
+      
+      if (remainingTestUsers.length > 0) {
+        console.error(`⚠️  Cleanup verification failed: ${remainingTestUsers.length} test users still remain:`)
+        remainingTestUsers.forEach((user: any) => console.error(`  - ${user.email} (${user.id})`))
+        throw new Error(`Cleanup verification failed: ${remainingTestUsers.length} test users still remain`)
+      } else {
+        console.log('✅ Cleanup verification passed: no test users remain')
+      }
+    }
+    
   } catch (error) {
     console.error('Error during test user cleanup:', error)
+    throw error // Re-throw to make cleanup failures visible
+  }
+}
+
+/**
+ * Clean up test users from public.users table
+ */
+async function cleanupPublicUsers(supabaseAdmin: any) {
+  try {
+    console.log('👤 Cleaning up test users from public.users table...')
+    
+    // First, find test users in public.users table by email pattern
+    const { data: publicUsers, error: queryError } = await supabaseAdmin
+      .from('users')
+      .select('id, email')
+      .like('email', '%@e2e-test.com')
+    
+    if (queryError) {
+      console.warn(`Could not query public.users table: ${queryError.message}`)
+      return
+    }
+    
+    if (!publicUsers || publicUsers.length === 0) {
+      console.log('✅ No test users found in public.users table')
+      return
+    }
+    
+    console.log(`📊 Found ${publicUsers.length} test users in public.users table to clean up`)
+    
+    // Delete test users from public.users table
+    let cleanedCount = 0
+    let errorCount = 0
+    
+    for (const user of publicUsers) {
+      try {
+        console.log(`🗑️  Deleting public test user: ${user.email}`)
+        
+        const { error: deleteError } = await supabaseAdmin
+          .from('users')
+          .delete()
+          .eq('id', user.id)
+        
+        if (deleteError) {
+          console.warn(`Failed to delete public user ${user.email}:`, deleteError.message)
+          errorCount++
+          continue
+        }
+        
+        cleanedCount++
+      } catch (error) {
+        console.warn(`Failed to delete public user ${user.email}:`, error)
+        errorCount++
+      }
+    }
+    
+    console.log(`✅ Public user cleanup complete: ${cleanedCount} users deleted, ${errorCount} errors`)
+    
+    // If there were errors, throw to make the cleanup failure visible
+    if (errorCount > 0) {
+      throw new Error(`Failed to clean up ${errorCount} test users from public.users table. Check logs above for details.`)
+    }
+    
+    // Verify cleanup succeeded
+    const { data: remainingPublicUsers, error: verifyError } = await supabaseAdmin
+      .from('users')
+      .select('id, email')
+      .like('email', '%@e2e-test.com')
+    
+    if (!verifyError && remainingPublicUsers && remainingPublicUsers.length > 0) {
+      console.error(`⚠️  Public user cleanup verification failed: ${remainingPublicUsers.length} test users still remain`)
+      throw new Error(`Public user cleanup verification failed: ${remainingPublicUsers.length} test users still remain`)
+    } else if (!verifyError) {
+      console.log('✅ Public user cleanup verification passed: no test users remain in public.users')
+    }
+    
+  } catch (error) {
+    console.error('Error during public test user cleanup:', error)
+    throw error
   }
 }
 
