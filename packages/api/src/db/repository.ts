@@ -26,8 +26,7 @@ export interface EventRowDto {
   address: string | null
   price: number | null
   currency: string
-  date: string
-  time: string
+  utc_timestamp: string
   category: string
   city: string
   image: string | null
@@ -37,8 +36,7 @@ export interface EventDto {
   id: string
   title: string
   description: string
-  date: string
-  time: string
+  utcTimestamp: string
   location: string
   address: string
   category: string
@@ -54,7 +52,7 @@ export interface EventDto {
 export async function listEventsDb(params: ListParams): Promise<{ events: EventDto[], total: number }>{
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
-  const where: string[] = []
+  const where: string[] = ['(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date']
   const args: unknown[] = []
   let i = 1
   if (city) { where.push(`c.slug = $${i++}`); args.push(city) }
@@ -102,8 +100,7 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
             e.price_cents as price,
             e.currency,
             e.image,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city
      FROM events e
@@ -118,8 +115,7 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
     id: r.id,
     title: r.title,
     description: r.description,
-    date: r.date,
-    time: r.time,
+    utcTimestamp: r.utc_timestamp,
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
@@ -152,8 +148,7 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
             e.address,
             e.price_cents as price,
             e.currency,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
             e.image
@@ -169,8 +164,7 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
     id: r.id,
     title: r.title,
     description: r.description,
-    date: r.date,
-    time: r.time,
+    utcTimestamp: r.utc_timestamp,
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
@@ -197,20 +191,18 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
             e.price_cents as price,
             e.currency,
             e.image,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            e.starts_at as utc_timestamp,
             ct.label as category
      FROM events e
      JOIN categories ct ON ct.id = e.category_id
-     WHERE e.city_id = $1
+     WHERE e.city_id = $1 AND (e.starts_at AT TIME ZONE 'America/Bogota')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date
      ORDER BY e.starts_at ASC, e.id ASC`, [cityRes.rows[0].id]
   )
   return rows.rows.map(r => ({
     id: r.id,
     title: r.title,
     description: r.description,
-    date: r.date,
-    time: r.time,
+    utcTimestamp: r.utc_timestamp,
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
@@ -244,6 +236,7 @@ export interface CreateEventParams {
 
 export interface UpdateEventParams extends Partial<CreateEventParams> {
   id: string
+  utcTimestamp?: string
 }
 
 export async function createEventDb(params: CreateEventParams, organizerId: string): Promise<EventDto> {
@@ -266,7 +259,8 @@ export async function createEventDb(params: CreateEventParams, organizerId: stri
   const categoryId = categoryRes.rows[0].id
 
   const eventId = crypto.randomUUID()
-  const startsAt = `${date}T${time}:00.000Z`
+  // Convert Colombian time to UTC for storage
+  const startsAt = `${date}T${time}:00-05:00`
 
   await query(
     `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency, image, created_by)
@@ -298,7 +292,7 @@ export async function createEventDb(params: CreateEventParams, organizerId: stri
 }
 
 export async function updateEventDb(params: UpdateEventParams, organizerId: string): Promise<EventDto | null> {
-  const { id, title, description, date, time, location, address, category, city, price, currency, image, tags } = params
+  const { id, title, description, date, time, location, address, category, city, price, currency, image, tags, utcTimestamp } = params
 
   // Check if event exists and verify ownership or admin role
   const ownershipCheck = await query<{ created_by: string | null, user_role: string }>(
@@ -351,7 +345,11 @@ export async function updateEventDb(params: UpdateEventParams, organizerId: stri
   }
   if (date !== undefined && time !== undefined) {
     updates.push(`starts_at = $${paramIndex++}`)
-    values.push(`${date}T${time}:00.000Z`)
+    // Convert Colombian time to UTC for storage
+    values.push(`${date}T${time}:00-05:00`)
+  } else if (utcTimestamp !== undefined) {
+    updates.push(`starts_at = $${paramIndex++}`)
+    values.push(utcTimestamp)
   }
   
   if (city !== undefined) {
@@ -442,8 +440,7 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
             e.address,
             e.price_cents as price,
             e.currency,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
             e.image
@@ -466,8 +463,7 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     id: r.id,
     title: r.title,
     description: r.description,
-    date: r.date,
-    time: r.time,
+    utcTimestamp: r.utc_timestamp,
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
@@ -485,8 +481,8 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
 export async function listOrganizerEventsDb(organizerId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
-  // Filter by organizer (user's own events)
-  const where: string[] = ['e.created_by = $1']
+  // Filter by organizer (user's own events) and exclude past events
+  const where: string[] = ['e.created_by = $1', '(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date']
   const args: unknown[] = [organizerId]
   let i = 2
 
@@ -534,8 +530,7 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
             e.address,
             e.price_cents as price,
             e.currency,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
             e.image
@@ -559,8 +554,7 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
       id: r.id,
       title: r.title,
       description: r.description,
-      date: r.date,
-      time: r.time,
+      utcTimestamp: r.utc_timestamp,
       location: r.location ?? '',
       address: r.address ?? '',
       category: r.category,
@@ -604,7 +598,7 @@ export async function removeFromFavoritesDb(userId: string, eventId: string): Pr
 export async function getUserFavoritesDb(userId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
-  const where: string[] = ['f.user_id = $1']
+  const where: string[] = ['f.user_id = $1', '(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date']
   const args: unknown[] = [userId]
   let i = 2
 
@@ -654,8 +648,7 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
             e.address,
             e.price_cents as price,
             e.currency,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') as date,
-            to_char(e.starts_at AT TIME ZONE 'UTC', 'HH24:MI') as time,
+            e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
             e.image
@@ -680,8 +673,7 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
       id: r.id,
       title: r.title,
       description: r.description,
-      date: r.date,
-      time: r.time,
+      utcTimestamp: r.utc_timestamp,
       location: r.location ?? '',
       address: r.address ?? '',
       category: r.category,

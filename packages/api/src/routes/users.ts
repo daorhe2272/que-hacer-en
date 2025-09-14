@@ -151,8 +151,7 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
         id: 'event-123',
         title: 'Test Favorite Event',
         description: 'A test favorite event',
-        date: '2024-12-01',
-        time: '20:00',
+        utcTimestamp: '2024-12-02T01:00:00.000Z',
         location: 'Test Venue',
         address: 'Test Address',
         category: 'musica',
@@ -160,7 +159,7 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
         currency: 'COP',
         image: 'test-image.jpg',
         organizer: 'Test Organizer',
-        capacity: 100,
+        capacity: null,
         tags: ['test'],
         status: 'active'
       }

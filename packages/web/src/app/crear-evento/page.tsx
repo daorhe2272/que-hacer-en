@@ -364,7 +364,7 @@ export default function CrearEventoPage() {
                       type="radio"
                       name="priceType"
                       checked={typeof formData.price === 'number' && formData.price > 0}
-                      onChange={() => handleFieldChange('price', 1000)}
+                      onChange={() => handleFieldChange('price', 1)}
                       className="mr-2 text-purple-600 focus:ring-purple-500"
                       disabled={isSubmitting}
                     />
@@ -375,22 +375,29 @@ export default function CrearEventoPage() {
                 {/* Price input - only show when "De pago" is selected */}
                 {typeof formData.price === 'number' && formData.price > 0 && (
                   <div>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       value={formData.price}
                       onChange={(e) => {
-                        const value = parseFloat(e.target.value) || 1000
-                        handleFieldChange('price', Math.max(1000, value))
+                        const value = parseFloat(e.target.value) || 0
+                        handleFieldChange('price', Math.max(0, value))
                       }}
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
                         errors.price ? 'border-red-300 bg-red-50' : 'border-gray-300'
                       }`}
-                      placeholder="1000"
-                      min="1000"
+                      placeholder="0"
+                      min="0"
                       step="1000"
                       disabled={isSubmitting}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Monto en pesos colombianos (COP)</p>
+                    {formData.price && formData.price > 0 && (
+                      <p className="text-sm font-medium text-purple-600 mt-1 ml-4">
+                        ${formData.price.toLocaleString('es-CO', {
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
+                        })} COP
+                      </p>
+                    )}
                   </div>
                 )}
 

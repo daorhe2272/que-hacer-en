@@ -183,8 +183,7 @@ describe('Repository Functions', () => {
         address: 'Test Address',
         price: 50000,
         currency: 'COP',
-        date: '2024-12-01',
-        time: '20:00',
+        utc_timestamp: '2024-12-02T01:00:00.000Z',
         category: 'Música',
         city: 'bogota',
         image: 'test.jpg'
@@ -198,8 +197,7 @@ describe('Repository Functions', () => {
         id: 'some-uuid',
         title: 'Test Event',
         description: 'Test Description',
-        date: '2024-12-01',
-        time: '20:00',
+        utcTimestamp: '2024-12-02T01:00:00.000Z',
         location: 'Test Location',
         address: 'Test Address',
         category: 'Música',
@@ -226,8 +224,7 @@ describe('Repository Functions', () => {
         id: 'some-uuid',
         title: 'Test Event',
         description: 'Test Description',
-        date: '2024-12-01',
-        time: '20:00',
+        utc_timestamp: '2024-12-02T01:00:00.000Z',
         location: null,  // This triggers line 174: location: r.location ?? ''
         address: null,   // This triggers line 175: address: r.address ?? ''
         category: 'Música',
@@ -244,8 +241,7 @@ describe('Repository Functions', () => {
         id: 'some-uuid',
         title: 'Test Event',
         description: 'Test Description',
-        date: '2024-12-01',
-        time: '20:00',
+        utcTimestamp: '2024-12-02T01:00:00.000Z',
         location: '',  // Should be empty string due to null coalescing
         address: '',   // Should be empty string due to null coalescing
         category: 'Música',
@@ -288,8 +284,7 @@ describe('Repository Functions', () => {
         id: 'some-uuid',
         title: 'Test Event',
         description: 'Test Description',
-        date: '2024-12-01',
-        time: '20:00',
+        utc_timestamp: '2024-12-02T01:00:00.000Z',
         location: null,  // This triggers line 214: location: r.location ?? ''
         address: null,   // This triggers line 215: address: r.address ?? ''
         category: 'Música',
@@ -309,8 +304,7 @@ describe('Repository Functions', () => {
         id: 'some-uuid',
         title: 'Test Event',
         description: 'Test Description',
-        date: '2024-12-01',
-        time: '20:00',
+        utcTimestamp: '2024-12-02T01:00:00.000Z',
         location: '',  // Should be empty string due to null coalescing
         address: '',   // Should be empty string due to null coalescing
         category: 'Música',
@@ -592,11 +586,10 @@ describe('Repository Functions', () => {
       )
     })
 
-    it('should update event date and time fields', async () => {
+    it('should update event utcTimestamp field', async () => {
       const updateDataWithDateTime = {
         id: 'test-event-id',
-        date: '2024-12-25',
-        time: '18:30'
+        utcTimestamp: '2024-12-25T23:30:00.000Z'
       }
 
       // Mock ownership check
@@ -615,7 +608,7 @@ describe('Repository Functions', () => {
       expect(result).not.toBeNull()
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('starts_at = $1'),
-        expect.arrayContaining(['2024-12-25T18:30:00.000Z', 'test-event-id'])
+        expect.arrayContaining(['2024-12-25T23:30:00.000Z', 'test-event-id'])
       )
     })
 
@@ -889,8 +882,7 @@ describe('Repository Functions', () => {
         id: 'some-uuid',
         title: 'Test Event',
         description: 'Test Description',
-        date: '2024-12-01',
-        time: '20:00',
+        utc_timestamp: '2024-12-02T01:00:00.000Z',
         location: null,  // This triggers line 471: location: r.location ?? ''
         address: null,   // This triggers line 472: address: r.address ?? ''
         category: 'Música',
@@ -909,8 +901,7 @@ describe('Repository Functions', () => {
         id: 'some-uuid',
         title: 'Test Event',
         description: 'Test Description',
-        date: '2024-12-01',
-        time: '20:00',
+        utcTimestamp: '2024-12-02T01:00:00.000Z',
         location: '',  // Should be empty string due to null coalescing
         address: '',   // Should be empty string due to null coalescing
         category: 'Música',

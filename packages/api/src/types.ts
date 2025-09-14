@@ -2,8 +2,7 @@ export interface Event {
   id: string
   title: string
   description: string
-  date: string
-  time: string
+  utcTimestamp: string
   location: string
   address: string
   category: string
@@ -11,7 +10,7 @@ export interface Event {
   currency: string
   image: string
   organizer: string
-  capacity: number
+  capacity: number | null
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
 }

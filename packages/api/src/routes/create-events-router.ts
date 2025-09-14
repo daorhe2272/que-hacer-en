@@ -72,7 +72,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
       if (useDb) {
         const { events, total } = await listEventsDb({ city, category, q, from, to, minPrice, maxPrice, page, limit, sort, order })
         const totalPages = Math.ceil(total / limit)
-        payload = { events: events as Event[], pagination: { page, limit, total, totalPages } }
+        payload = { events, pagination: { page, limit, total, totalPages } }
       } else {
         const data = readEvents()
         let events: Event[] = [
@@ -93,17 +93,22 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             e.tags.some(t => normalize(t).includes(term))
           )
         }
-        if (from) events = events.filter(e => `${e.date}` >= from)
-        if (to) events = events.filter(e => `${e.date}` <= to)
+        // Filter out past events (always apply this filter)
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) // YYYY-MM-DD format in Colombian timezone
+        events = events.filter(e => e.utcTimestamp && e.utcTimestamp.split('T')[0] >= today)
+
+        if (from) events = events.filter(e => e.utcTimestamp && e.utcTimestamp.split('T')[0] >= from)
+        if (to) events = events.filter(e => e.utcTimestamp && e.utcTimestamp.split('T')[0] <= to)
         if (typeof minPrice === 'number') events = events.filter(e => e.price !== null && e.price >= minPrice)
         if (typeof maxPrice === 'number') events = events.filter(e => e.price !== null && e.price <= maxPrice)
         if (sort) {
           const dir = order === 'desc' ? -1 : 1
           if (sort === 'date') {
             events = events.sort((a, b) => {
-              const aKey = `${a.date}T${a.time}`
-              const bKey = `${b.date}T${b.time}`
-              const cmp = aKey.localeCompare(bKey)
+              if (!a.utcTimestamp && !b.utcTimestamp) return a.id.localeCompare(b.id)
+              if (!a.utcTimestamp) return 1
+              if (!b.utcTimestamp) return -1
+              const cmp = a.utcTimestamp.localeCompare(b.utcTimestamp)
               if (cmp !== 0) return cmp * dir
               return a.id.localeCompare(b.id)
             })
@@ -180,8 +185,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           id: '550e8400-e29b-41d4-a716-446655440000',
           title: parsed.data.title!,
           description: parsed.data.description!,
-          date: parsed.data.date!,
-          time: parsed.data.time!,
+          utcTimestamp: `${parsed.data.date!}T${parsed.data.time!}:00-05:00`,
           location: parsed.data.location!,
           address: parsed.data.address || 'Test Address',
           category: parsed.data.category!,
@@ -189,7 +193,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           currency: parsed.data.currency || 'COP',
           image: parsed.data.image || 'test-image.jpg',
           organizer: 'Test Organizer',
-          capacity: parsed.data.capacity || 100,
+          capacity: parsed.data.capacity || null,
           tags: parsed.data.tags || [],
           status: 'active'
         }
@@ -227,8 +231,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           id: '550e8400-e29b-41d4-a716-446655440000',
           title: 'Test Organizer Event',
           description: 'A test event for organizer',
-          date: '2024-12-01',
-          time: '20:00',
+          utcTimestamp: '2024-12-02T01:00:00.000Z',
           location: 'Test Venue',
           address: 'Test Address',
           category: 'musica',
@@ -236,7 +239,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           currency: 'COP',
           image: 'test-image.jpg',
           organizer: 'Test Organizer',
-          capacity: 100,
+          capacity: null,
           tags: ['test'],
           status: 'active'
         }
@@ -272,8 +275,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             id: '550e8400-e29b-41d4-a716-446655440000',
             title: 'Test Event',
             description: 'A test event description',
-            date: '2024-12-01',
-            time: '20:00',
+            utcTimestamp: '2024-12-02T01:00:00.000Z',
             location: 'Test Venue',
             address: 'Test Address',
             category: 'musica',
@@ -281,7 +283,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             currency: 'COP',
             image: 'test-image.jpg',
             organizer: 'Test Organizer',
-            capacity: 100,
+            capacity: null,
             tags: ['test'],
             status: 'active'
           }
@@ -321,8 +323,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             id: req.params.id,
             title: parsed.data.title!,
             description: parsed.data.description!,
-            date: parsed.data.date!,
-            time: parsed.data.time!,
+            utcTimestamp: `${parsed.data.date!}T${parsed.data.time!}:00-05:00`,
             location: parsed.data.location!,
             address: parsed.data.address || 'Test Address',
             category: parsed.data.category!,
@@ -330,7 +331,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             currency: parsed.data.currency || 'COP',
             image: parsed.data.image || 'test-image.jpg',
             organizer: 'Test Organizer',
-            capacity: parsed.data.capacity || 100,
+            capacity: parsed.data.capacity || null,
             tags: parsed.data.tags || [],
             status: 'active'
           }
@@ -389,11 +390,14 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
         return
       }
       const data = readEvents()
-      const events = data[city as CityKey]
+      let events = data[city as CityKey]
       if (!events) {
         res.status(404).json({ error: 'City not found' })
         return
       }
+      // Filter out past events
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) // YYYY-MM-DD format in Colombian timezone
+      events = events.filter(e => new Date(e.utcTimestamp).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) >= today)
       res.json({ city, events })
     } catch (err) {
       res.status(500).json({ error: 'Failed to load events' })

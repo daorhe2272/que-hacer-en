@@ -1,0 +1,1 @@
+Please read the files OVERVIEW.md (at root folder) and rules.mdc (at .cursor/rules)

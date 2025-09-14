@@ -28,8 +28,8 @@ export default function EventsJsonLd({ events, cityName, city }: EventsJsonLdPro
           "@type": "Event",
           "name": event.title,
           "description": event.description,
-          "startDate": `${event.date}T${event.time}`,
-          "endDate": `${event.date}T${event.time}`,
+          "startDate": new Date(event.utcTimestamp).toISOString(),
+          "endDate": new Date(event.utcTimestamp).toISOString(),
           "location": {
             "@type": "Place",
             "name": event.location,

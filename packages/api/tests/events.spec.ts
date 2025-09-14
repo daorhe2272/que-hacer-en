@@ -48,8 +48,7 @@ jest.mock('fs', () => ({
         id: 'bg-001',
         title: 'Test Event Bogotá',
         description: 'Test event in Bogotá',
-        date: '2024-07-15',
-        time: '14:00',
+        utcTimestamp: '2025-12-15T19:00:00.000Z',
         location: 'Test Location',
         address: 'Test Address',
         category: 'Música',
@@ -65,8 +64,7 @@ jest.mock('fs', () => ({
         id: 'bg-002',
         title: 'Expensive Event',
         description: 'High price event',
-        date: '2024-08-01',
-        time: '20:00',
+        utcTimestamp: '2025-12-01T23:00:00.000Z',
         location: 'Premium Location',
         address: 'Premium Address',
         category: 'Teatro',
@@ -82,8 +80,7 @@ jest.mock('fs', () => ({
         id: 'bg-003',
         title: 'Free Event',
         description: 'Free event for everyone',
-        date: '2024-09-01',
-        time: '15:00',
+        utcTimestamp: '2025-12-20T20:00:00.000Z',
         location: 'Park',
         address: 'Park Address',
         category: 'Cultural',
@@ -467,8 +464,22 @@ describe('Events Router', () => {
 
     it('should use database in non-test environment', async () => {
       process.env.NODE_ENV = 'production'
-      
-      mockQuery.mockImplementationOnce(() => ({ rows: [mockEvents[0]], rowCount: 1 }))
+
+      // Mock database row format (EventRowDto), not the final EventDto format
+      const mockDbRow = {
+        id: mockEvents[0].id,
+        title: mockEvents[0].title,
+        description: mockEvents[0].description,
+        location: mockEvents[0].location,
+        address: mockEvents[0].address,
+        price: mockEvents[0].price,
+        currency: mockEvents[0].currency,
+        utc_timestamp: mockEvents[0].utcTimestamp, // Note: database uses utc_timestamp, not utcTimestamp
+        category: mockEvents[0].category,
+        city: 'bogota', // Database returns city slug
+        image: mockEvents[0].image
+      }
+      mockQuery.mockImplementationOnce(() => ({ rows: [mockDbRow], rowCount: 1 }))
 
       const response = await request(app)
         .get('/api/events/id/bg-001')
@@ -650,8 +661,57 @@ describe('Events Router', () => {
         .expect(201)
 
       expect(response.body).toHaveProperty('message', 'Evento creado exitosamente')
-      
+
       process.env.NODE_ENV = 'test'
+    })
+
+    it('should create event with default values for optional fields (lines 190-193,196-197)', async () => {
+      // This test targets lines 190-193 and 196-197 in mock event creation
+      // Lines 190,192-193,196-197 are fallback values when optional fields are missing
+      process.env.NODE_ENV = 'test'
+
+      // Event data that omits optional fields - these should trigger fallback values in mock
+      const minimalEventData = {
+        title: 'Minimal Test Event',
+        description: 'This is a minimal event to test default values for optional fields.',
+        date: '2024-12-15',
+        time: '18:30',
+        location: 'Test Venue',
+        address: 'Valid Address',  // Required by validation
+        category: 'musica',
+        city: 'bogota',
+        currency: 'COP',  // Required by validation
+        organizer: 'Valid Organizer', // Required by validation
+        price: null,     // Explicitly null to pass validation
+        capacity: null,  // Explicitly null to pass validation
+        // Optional fields omitted: image, tags - should trigger defaults
+      }
+
+      const response = await request(app)
+        .post('/api/events')
+        .set('Authorization', 'Bearer test-token')
+        .send(minimalEventData)
+
+      if (response.status !== 201) {
+        console.log('Validation error:', response.body)
+        expect(response.status).toBe(201)
+        return
+      }
+
+      expect(response.body).toEqual({
+        message: 'Evento creado exitosamente',
+        event: expect.objectContaining({
+          id: expect.any(String),
+          title: 'Minimal Test Event',
+          description: 'This is a minimal event to test default values for optional fields.',
+          address: 'Valid Address',   // We provided this value
+          price: null,                // We explicitly provided null
+          currency: 'COP',           // We provided this value
+          capacity: null,            // We explicitly provided null
+          image: 'test-image.jpg',   // Line 194: should be default since image not provided
+          tags: []                   // Line 197: should be default since tags not provided
+        })
+      })
     })
   })
 
@@ -1157,8 +1217,7 @@ describe('Events Router', () => {
             id: 'bg-tie-1',
             title: 'Tie Breaking Test Event A',
             description: 'Event with identical date/time as another event to test tie-breaking logic.',
-            date: '2024-12-31',
-            time: '23:59',
+            utcTimestamp: '2025-12-31T04:59:00.000Z',
             location: 'Test Location A',
             address: 'Test Address A',
             category: 'Música',
@@ -1172,10 +1231,9 @@ describe('Events Router', () => {
           },
           {
             id: 'bg-tie-2',
-            title: 'Tie Breaking Test Event B', 
+            title: 'Tie Breaking Test Event B',
             description: 'Event with identical date/time as another event to test tie-breaking logic.',
-            date: '2024-12-31',
-            time: '23:59',
+            utcTimestamp: '2025-12-31T04:59:00.000Z',
             location: 'Test Location B',
             address: 'Test Address B',
             category: 'Música',
@@ -1219,9 +1277,9 @@ describe('Events Router', () => {
         expect(response.body).toHaveProperty('events')
         const events = response.body.events
 
-        // Find events with identical date/time (our tie-breaking test events)  
-        const tieBreakerEvents = events.filter((e: any) => 
-          e.date === '2024-12-31' && e.time === '23:59'
+        // Find events with identical utcTimestamp (our tie-breaking test events)
+        const tieBreakerEvents = events.filter((e: any) =>
+          e.utcTimestamp === '2025-12-31T04:59:00.000Z'
         )
 
         // Should have exactly 2 tie-breaking events
@@ -1243,7 +1301,7 @@ describe('Events Router', () => {
     it('should trigger price sorting tie-breaking logic (line 119)', async () => {
       // This test targets line 119: return a.id.localeCompare(b.id) in price sorting
       // We need events with identical price values to trigger tie-breaking
-      
+
       // Mock events with identical prices
       const mockEventsData = {
         bogota: [
@@ -1251,8 +1309,7 @@ describe('Events Router', () => {
             id: 'bg-price-tie-1',
             title: 'Price Tie Breaking Test Event A',
             description: 'Event with identical price as another event to test tie-breaking logic.',
-            date: '2024-12-30',
-            time: '18:00',
+            utcTimestamp: '2025-12-30T23:00:00.000Z',
             location: 'Test Location A',
             address: 'Test Address A',
             category: 'Música',
@@ -1266,10 +1323,9 @@ describe('Events Router', () => {
           },
           {
             id: 'bg-price-tie-2',
-            title: 'Price Tie Breaking Test Event B', 
+            title: 'Price Tie Breaking Test Event B',
             description: 'Event with identical price as another event to test tie-breaking logic.',
-            date: '2024-12-30',
-            time: '19:00',
+            utcTimestamp: '2025-12-31T00:00:00.000Z',
             location: 'Test Location B',
             address: 'Test Address B',
             category: 'Música',
@@ -1287,19 +1343,19 @@ describe('Events Router', () => {
         barranquilla: [],
         cartagena: []
       }
-      
+
       // Mock fs.readFileSync to return our test data
       const fs = require('fs')
       const originalReadFileSync = fs.readFileSync
       fs.readFileSync = jest.fn().mockReturnValue(JSON.stringify(mockEventsData))
-      
+
       try {
         // Create a fresh router with our mocked data
         const { createEventsRouter } = require('../src/routes/create-events-router')
         const mockApp = express()
         mockApp.use(express.json())
         mockApp.use('/api/events', createEventsRouter())
-        
+
         const response = await request(mockApp)
           .get('/api/events')
           .query({
@@ -1313,23 +1369,146 @@ describe('Events Router', () => {
         expect(response.body).toHaveProperty('events')
         const events = response.body.events
 
-        // Find events with identical prices (our tie-breaking test events)  
-        const priceTieBreakerEvents = events.filter((e: any) => 
+        // Find events with identical prices (our tie-breaking test events)
+        const priceTieBreakerEvents = events.filter((e: any) =>
           e.price === 75000
         )
 
         // Should have exactly 2 price tie-breaking events
         expect(priceTieBreakerEvents.length).toBe(2)
-        
+
         // Verify they are sorted by ID when prices are identical (tie-breaking logic)
         expect(priceTieBreakerEvents[0].id).toBe('bg-price-tie-1')  // Should come first alphabetically
         expect(priceTieBreakerEvents[1].id).toBe('bg-price-tie-2')  // Should come second alphabetically
-        
+
         // This test should cover line 119: return a.id.localeCompare(b.id) in price sorting
         console.log('Successfully triggered price sorting tie-breaking logic!')
-        
+
       } finally {
         // Restore original fs.readFileSync
+        fs.readFileSync = originalReadFileSync
+      }
+    })
+
+    it('should return all events when no city filter is provided (line 67)', async () => {
+      // This test targets line 67: if (city) events = data[city as CityKey]
+      // When no city is provided, this branch should NOT execute, covering the false path
+
+      process.env.NODE_ENV = 'test'
+
+      const response = await request(app)
+        .get('/api/events')  // No city parameter
+        .expect(200)
+
+      expect(response.body).toHaveProperty('events')
+      const events = response.body.events
+
+      // Should return events from all cities since no city filter was applied
+      expect(Array.isArray(events)).toBe(true)
+      // The events should be from all cities (not filtered by line 67)
+      expect(events.length).toBeGreaterThan(0)
+    })
+
+    it('should handle price sorting with null prices (lines 119,121)', async () => {
+      // This test targets lines 119 and 121 in price sorting:
+      // Line 119: if (a.price === null && b.price === null) return a.id.localeCompare(b.id)
+      // Line 121: if (b.price === null) return -1
+
+      const mockEventsData = {
+        bogota: [
+          {
+            id: 'bg-null-price-1',
+            title: 'Event with null price A',
+            description: 'Event with null price to test null handling in price sorting.',
+            utcTimestamp: '2025-12-30T23:00:00.000Z',
+            location: 'Test Location A',
+            address: 'Test Address A',
+            category: 'Música',
+            price: null,  // Null price
+            currency: 'COP',
+            image: 'test-a.jpg',
+            organizer: 'Test Organizer A',
+            capacity: 100,
+            tags: ['null-price-test'],
+            status: 'active'
+          },
+          {
+            id: 'bg-null-price-2',
+            title: 'Event with null price B',
+            description: 'Event with null price to test null handling in price sorting.',
+            utcTimestamp: '2025-12-31T00:00:00.000Z',
+            location: 'Test Location B',
+            address: 'Test Address B',
+            category: 'Música',
+            price: null,  // Null price
+            currency: 'COP',
+            image: 'test-b.jpg',
+            organizer: 'Test Organizer B',
+            capacity: 150,
+            tags: ['null-price-test'],
+            status: 'active'
+          },
+          {
+            id: 'bg-numeric-price',
+            title: 'Event with numeric price',
+            description: 'Event with numeric price for comparison.',
+            utcTimestamp: '2025-12-29T22:00:00.000Z',
+            location: 'Test Location C',
+            address: 'Test Address C',
+            category: 'Música',
+            price: 50000,  // Numeric price
+            currency: 'COP',
+            image: 'test-c.jpg',
+            organizer: 'Test Organizer C',
+            capacity: 200,
+            tags: ['numeric-price-test'],
+            status: 'active'
+          }
+        ],
+        medellin: [],
+        cali: [],
+        barranquilla: [],
+        cartagena: []
+      }
+
+      const fs = require('fs')
+      const originalReadFileSync = fs.readFileSync
+      fs.readFileSync = jest.fn().mockReturnValue(JSON.stringify(mockEventsData))
+
+      try {
+        const { createEventsRouter } = require('../src/routes/create-events-router')
+        const mockApp = express()
+        mockApp.use(express.json())
+        mockApp.use('/api/events', createEventsRouter())
+
+        const response = await request(mockApp)
+          .get('/api/events')
+          .query({
+            sort: 'price',
+            order: 'asc',
+            city: 'bogota',
+            limit: 50
+          })
+          .expect(200)
+
+        expect(response.body).toHaveProperty('events')
+        const events = response.body.events
+
+        expect(events.length).toBe(3)
+
+        // In ascending price sort, numeric price should come first, then null prices at end
+        // The first event should be the numeric one
+        expect(events[0].price).toBe(50000)
+        expect(events[0].id).toBe('bg-numeric-price')
+
+        // The last two should be null price events, sorted by ID (line 119)
+        const nullPriceEvents = events.slice(1)
+        expect(nullPriceEvents[0].price).toBe(null)
+        expect(nullPriceEvents[1].price).toBe(null)
+        expect(nullPriceEvents[0].id).toBe('bg-null-price-1')  // Should come first alphabetically
+        expect(nullPriceEvents[1].id).toBe('bg-null-price-2')  // Should come second alphabetically
+
+      } finally {
         fs.readFileSync = originalReadFileSync
       }
     })

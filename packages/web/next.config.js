@@ -16,6 +16,21 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'pahacer.com',
+          },
+        ],
+        destination: 'https://www.pahacer.com/:path*',
+        permanent: true,
+      },
+    ]
+  },
   async headers() {
     return [
       {

@@ -53,6 +53,56 @@ function getStatements(): string[] {
     `ALTER TABLE tags
       ADD COLUMN IF NOT EXISTS name_norm TEXT;`,
     `CREATE INDEX IF NOT EXISTS idx_tags_name_trgm ON tags USING gin (name_norm gin_trgm_ops);`,
+    
+    // Create function to normalize text for search
+    // WARNING: This function may fail if UNACCENT extension is not available
+    // If migration fails, manually create function in Supabase SQL Editor
+    `CREATE OR REPLACE FUNCTION normalize_text(input_text TEXT)
+     RETURNS TEXT AS $$
+     BEGIN
+       IF input_text IS NULL THEN
+         RETURN NULL;
+       END IF;
+       RETURN LOWER(UNACCENT(input_text));
+     END;
+     $$ LANGUAGE plpgsql IMMUTABLE;`,
+     
+    // Create trigger function for events table
+    // WARNING: Trigger depends on normalize_text function above
+    `CREATE OR REPLACE FUNCTION update_event_search_columns()
+     RETURNS TRIGGER AS $$
+     BEGIN
+       NEW.title_norm = normalize_text(NEW.title);
+       NEW.description_norm = normalize_text(NEW.description);
+       NEW.venue_norm = normalize_text(NEW.venue);
+       RETURN NEW;
+     END;
+     $$ LANGUAGE plpgsql;`,
+     
+    // Create trigger for events
+    // WARNING: Test this trigger after migration! Create a test event and verify 
+    // normalized columns are populated. If not, manually recreate in Supabase.
+    `DROP TRIGGER IF EXISTS event_search_trigger ON events;`,
+    `CREATE TRIGGER event_search_trigger
+       BEFORE INSERT OR UPDATE ON events
+       FOR EACH ROW
+       EXECUTE FUNCTION update_event_search_columns();`,
+       
+    // Create trigger function for tags table
+    `CREATE OR REPLACE FUNCTION update_tag_search_columns()
+     RETURNS TRIGGER AS $$
+     BEGIN
+       NEW.name_norm = normalize_text(NEW.name);
+       RETURN NEW;
+     END;
+     $$ LANGUAGE plpgsql;`,
+     
+    // Create trigger for tags
+    `DROP TRIGGER IF EXISTS tag_search_trigger ON tags;`,
+    `CREATE TRIGGER tag_search_trigger
+       BEFORE INSERT OR UPDATE ON tags
+       FOR EACH ROW
+       EXECUTE FUNCTION update_tag_search_columns();`,
     // users and roles
     `DO $$ BEGIN
        IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
@@ -95,6 +145,19 @@ function getStatements(): string[] {
     
     // Allow NULL price_cents for "Precio desconocido" events
     `ALTER TABLE events ALTER COLUMN price_cents DROP NOT NULL;`,
+    
+    // Backfill existing events with normalized text (BEFORE RLS is enabled)
+    // WARNING: This backfill may fail silently if normalize_text function failed to create.
+    // If search doesn't work after migration, run manual backfill:
+    // UPDATE events SET title_norm = LOWER(UNACCENT(title)), description_norm = LOWER(UNACCENT(description)), venue_norm = LOWER(UNACCENT(venue));
+    `UPDATE events SET 
+       title_norm = normalize_text(title),
+       description_norm = normalize_text(description),
+       venue_norm = normalize_text(venue)
+     WHERE title_norm IS NULL OR description_norm IS NULL OR venue_norm IS NULL;`,
+     
+    // Backfill existing tags with normalized text  
+    `UPDATE tags SET name_norm = normalize_text(name) WHERE name_norm IS NULL;`,
     
     // Enable Row Level Security on events table
     `ALTER TABLE events ENABLE ROW LEVEL SECURITY;`,

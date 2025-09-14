@@ -124,4 +124,4 @@ alwaysApply: true
 - Always confirm file paths and module names exist before referencing.
 - Never delete or overwrite existing code unless explicitly instructed or if part of a task from `TASKS.md`.
 - Always test changes in the appropriate environment before marking tasks complete.
-- Prioritize simplicity and maintainability over complex solutions. 
+- Follow industry standards. Prioritize best practices and maintainability over complex solutions.
