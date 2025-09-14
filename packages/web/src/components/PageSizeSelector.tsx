@@ -23,10 +23,10 @@ export default function PageSizeSelector({ city, limit }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm text-gray-600">Por página</label>
+      <label className="text-sm text-gray-600">Eventos por página</label>
       <select
         className="text-sm border border-gray-200 rounded px-2 py-1 bg-white"
-        aria-label="Por página"
+        aria-label="Eventos por página"
         value={limit || DEFAULT_PAGE_LIMIT}
         onChange={e => update(Number(e.target.value))}
       >

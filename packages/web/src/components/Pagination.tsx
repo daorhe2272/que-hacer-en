@@ -7,23 +7,19 @@ type Props = {
   totalPages: number
   q?: string
   category?: string
-  sort?: 'date' | 'price'
-  order?: 'asc' | 'desc'
   limit?: number
 }
 
-export default function Pagination({ city, page, totalPages, q, category, sort, order, limit }: Props) {
+export default function Pagination({ city, page, totalPages, q, category, limit }: Props) {
   if (totalPages <= 1) return null
 
   function buildHref(nextPage: number): Route {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (category) params.set('category', category)
-    if (sort) params.set('sort', sort)
-    if (order) params.set('order', order)
     if (limit) params.set('limit', limit.toString())
     params.set('page', nextPage.toString())
-    
+
     return `/eventos/${city}?${params.toString()}` as Route
   }
 

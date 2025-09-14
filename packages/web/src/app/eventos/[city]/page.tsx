@@ -10,7 +10,6 @@ import EventCard from '@/components/EventCard'
 import ClientFilters from '@/components/ClientFilters'
 import ErrorBannerClient from '@/components/ErrorBannerClient'
 import NoResults from '@/components/NoResults'
-import SortControls from '@/components/SortControls'
 import PageSizeSelector from '@/components/PageSizeSelector'
 import Pagination from '@/components/Pagination'
 import EventsJsonLd from '@/components/EventsJsonLd'
@@ -131,7 +130,6 @@ export default async function CityEventsPage({ params, searchParams }: { params:
             </div>
             
             <div className="flex items-center gap-4 mt-4 sm:mt-0">
-              <SortControls city={city} sort={sort} order={order} />
               <PageSizeSelector city={city} limit={limit} />
             </div>
           </div>
@@ -158,7 +156,7 @@ export default async function CityEventsPage({ params, searchParams }: { params:
           {/* Pagination */}
           {pagination && pagination.total > 0 && (
             <div className="mt-6">
-              <Pagination city={city} page={pagination.page} totalPages={pagination.totalPages} q={q} category={category} sort={sort} order={order} limit={limit} />
+              <Pagination city={city} page={pagination.page} totalPages={pagination.totalPages} q={q} category={category} limit={limit} />
             </div>
           )}
         </main>

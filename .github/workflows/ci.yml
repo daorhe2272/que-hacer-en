@@ -205,8 +205,8 @@ jobs:
           inlineScript: |
             # Set registry credentials first
             az containerapp registry set \
-              --name que-hacer-en-app \
-              --resource-group background-removal \
+              --name eventos-app \
+              --resource-group que-hacer-en-rg \
               --server ghcr.io \
               --username ${{ github.actor }} \
               --password ${{ secrets.GITHUB_TOKEN }}
@@ -214,8 +214,8 @@ jobs:
             # Then update the image (using short SHA to match Docker tag format)
             SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
             az containerapp update \
-              --name que-hacer-en-app \
-              --resource-group background-removal \
+              --name eventos-app \
+              --resource-group que-hacer-en-rg \
               --image ghcr.io/${{ github.repository_owner }}/que-hacer-en:master-${SHORT_SHA}
 
 
