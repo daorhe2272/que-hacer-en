@@ -15,7 +15,7 @@ const protectedRoutes = [
 // Routes that require specific roles
 const roleProtectedRoutes = {
   organizer: [
-    '/mis-eventos'
+    // '/mis-eventos' - removed, any authenticated user can view their own events
   ],
   admin: [
     '/admin'

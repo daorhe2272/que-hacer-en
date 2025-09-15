@@ -103,10 +103,10 @@ export async function getUserFavorites(): Promise<{ events: Event[], pagination?
     const headers = await buildAuthHeadersClient()
     console.log('Favorites API call - headers:', headers)
     console.log('Favorites API call - URL:', `${CLIENT_API_URL}/api/users/favorites`)
-    
+
     const res = await fetch(`${CLIENT_API_URL}/api/users/favorites`, { cache: 'no-store', headers })
     console.log('Favorites API response status:', res.status)
-    
+
     if (!res.ok) {
       const errorText = await res.text()
       console.log('Favorites API error response:', errorText)
@@ -117,6 +117,23 @@ export async function getUserFavorites(): Promise<{ events: Event[], pagination?
   } catch (err) {
     console.error('getUserFavorites error:', err)
     throw new Error(err instanceof Error ? err.message : 'Error al cargar favoritos')
+  }
+}
+
+export async function getUserEvents(): Promise<{ events: Event[], pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
+  try {
+    const headers = await buildAuthHeadersClient()
+    const res = await fetch(`${CLIENT_API_URL}/api/events/manage`, { cache: 'no-store', headers })
+
+    if (!res.ok) {
+      const errorText = await res.text()
+      throw new Error(`Error al cargar mis eventos (${res.status}): ${errorText}`)
+    }
+    const data = await res.json()
+    return { events: data.events || [], pagination: data.pagination }
+  } catch (err) {
+    console.error('getUserEvents error:', err)
+    throw new Error(err instanceof Error ? err.message : 'Error al cargar mis eventos')
   }
 }
 

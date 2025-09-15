@@ -6,6 +6,7 @@ The JSON object should have a single key, "events", which contains a list of eve
   "events": [
     {
       "source_url": "The provided URL for data straction from where all other information stem.",
+      "event_url": "The URL for the particular event. Usually takes the form of an anchor tag with an URL source reference. Defaults to source_url.",
       "title": "Title of the event",
       "description": "A brief description of the event. If a description is not available, try to create a simple description from the title and the general context.",
       "date": "The date of the event in YYYY-MM-DD format.",
@@ -16,7 +17,7 @@ The JSON object should have a single key, "events", which contains a list of eve
       "ciudad": "One of the following cities: 'Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'.",
       "organizer": "The entity, institution, business or person organizing the event. If not specified, set this value to null.",
       "Price": "The ticket price as a number. If the event is free, the value should be 0. If the price is not specified, set this value to null.",
-      "image_url": "The URL of the event's image, if available. Check for common image formats end in jpeg, jpg, webp or png. If no image is found, this should be null."
+      "image_url": "The URL of the event's image. Check for image tags associated to the event and a URL source. If no image URL is found, this should be null."
     }
   ]
 }
@@ -24,6 +25,6 @@ The JSON object should have a single key, "events", which contains a list of eve
 Instructions and Constraints:
 - Carefully parse the entire HTML document to find all distinct events.
 - Do not invent any information. If a piece of information for a specific field is not present in the HTML, set the value to null. The only exception is the 'Price' field which should be 0 for free events or null if unspecified.
-- Crucially, the image_url must be extracted exactly as it appears in the HTML source. Do not attempt to guess, derive, or construct the URL from other text on the page, such as the event date. The image URL contains a unique combination of letters and numbers that must be preserved.
+- Crucially, the image_url must be extracted exactly as it appears in the HTML source. Do not attempt to guess, derive, or construct the URL from other text on the page.
 - For the "category" and "ciudad" fields, you must use one of the provided values. If the city or category mentioned in the HTML is not in the list, choose the most appropriate one or set it to null.
 - The final output should be only the JSON object, with no additional text or explanations.

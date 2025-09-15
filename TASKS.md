@@ -24,13 +24,10 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   The CI/CD pipeline has been successfully implemented using GitHub Actions, covering linting, testing, and building on pull requests, with integrated coverage reports. E2E tests are configured to run headlessly on Linux across multiple browsers (Chromium, Firefox, WebKit) against production builds, with artifact uploading for Playwright reports and traces on failure. The complete CI workflow utilizes pnpm and Node 22 with caching, triggered by pull requests and pushes to master, and includes concurrency and cancellation for obsolete PR executions.
 
 ## Tasks for immediate implementation:
-- [ ] "Ver detalles" de un evento debería abrir una página con los detalles específicos del evento en cuestión.
-- [ ] Successfull sign up with custom e-mail should redirect to previous visited page (or fallback to landing page)
-- [ ] On the Cuenta dropdown, show the button "Mis eventos".
-  - [ ] Create the page "Mis eventos" where events created by the user are shown.
-  - [ ] Add event edit/delete functionality in UI.
-- [ ] Filtro de eventos para hoy, mañana, esta semana, fin de semana, siguiente semana, este mes, próximo mes.
+- [ ] When looking at an event details, if the user is the owner of the event, he/she should be able to either edit it or deleted. For the time being, just create the edit/delete buttons. Analyze where would it be best to place these options, and what form should they take (buttons, dropdown, icons?).
 - [ ] Hacer el inicio de sesión y el registro más intuitivo para los usuarios.
+- [ ] Successfull sign up with custom e-mail should redirect to previous visited page (or fallback to landing page)
+- [ ] Filtro de eventos para hoy, mañana, esta semana, fin de semana, siguiente semana, este mes, próximo mes.
 
 ## Pending tasks:
 - [ ] Establcer rol de usuarios por defecto: `attendee`;

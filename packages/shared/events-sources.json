@@ -2,10 +2,11 @@
   "Cali": {
     "chequeo_permanente": [
       { "URL": "https://www.cali.gov.co/calendario/" },
-      { "URL": "https://museolatertulia.com/cinemateca/#programacion" },
+      { "URL": "https://museolatertulia.com/cinemateca" },
       { "URL": "https://teatrocalima.com.co/inicio/entretenimiento" },
       { "URL": "https://www.comfandi.com.co/personas/cultura/agenda-cultural" },
-      { "URL": "https://www.eventbrite.co/d/colombia--cali/events--next-week" }
+      { "URL": "https://www.colomboamericano.edu.co/agenda-cultural/" },
+      { "URL": "https://www.cinecolombia.com/cali/alternativo" }
     ],
     "agosto": [
       { "URL": "https://ajazzgofestival.com/programacion/" }
@@ -21,7 +22,19 @@
       { "URL": "URL_programacion_feria_de_Cali" }
     ]
   },
-  "Bogotá": {},
+  "Bogotá": {
+    "chequeo_permanente": [
+      { "URL": "https://www.teatromayor.org/es/temporada/2025" },
+      { "URL": "https://bogota.gov.co/que-hacer/agenda-cultural" },
+      { "URL": "https://www.idartes.gov.co/es/agenda" },
+      { "URL": "https://www.idartes.gov.co/es/agenda/teatro-jeg" },
+      { "URL": "https://movistararena.co/eventos/" },
+      { "URL": "https://corferias.com/es/calendario" },
+      { "URL": "https://www.royalcenter.com.co/" },
+      { "URL": "https://corporativo.compensar.com/recreacion-deportes/agenda-cultural" },
+      { "URL": "https://www.banrepcultural.org/actividades/bogota?city=Bogot%C3%A1&modality=Presencial" }
+    ]
+  },
   "Medellín": {},
   "Barranquilla": {},
   "Cartagena": {}

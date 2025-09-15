@@ -151,11 +151,17 @@ export default function TopNavigation() {
                     </button>
                     <div className="hidden group-hover:block absolute right-0 pt-1 w-44 z-50">
                       <div className="bg-white border border-gray-200 rounded-lg shadow-lg">
-                        <button 
+                        <button
                           onClick={() => router.push('/favoritos')}
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                         >
                           Mis Favoritos
+                        </button>
+                        <button
+                          onClick={() => router.push('/mis-eventos')}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Mis Eventos
                         </button>
                         <button onClick={() => signOut()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900">Cerrar sesión</button>
                       </div>
@@ -185,7 +191,7 @@ export default function TopNavigation() {
                         >
                           Crear Evento
                         </button>
-                        <button 
+                        <button
                           onClick={() => {
                             router.push('/favoritos')
                             setIsUserMenuOpen(false)
@@ -193,6 +199,15 @@ export default function TopNavigation() {
                           className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
                         >
                           Mis Favoritos
+                        </button>
+                        <button
+                          onClick={() => {
+                            router.push('/mis-eventos')
+                            setIsUserMenuOpen(false)
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                        >
+                          Mis Eventos
                         </button>
                         <button 
                           onClick={() => {

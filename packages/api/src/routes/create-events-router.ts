@@ -233,8 +233,9 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
     }
   })
 
-  // List organizer's events (must come before /:city)
-  router.get('/manage', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+  // List user's events (must come before /:city)
+  router.get('/manage', authenticate, async (req, res) => {
+    console.log('MANAGE ENDPOINT HIT - User:', req.user)
     try {
       const parseResult = listQuerySchema.safeParse(req.query)
       if (!parseResult.success) {
