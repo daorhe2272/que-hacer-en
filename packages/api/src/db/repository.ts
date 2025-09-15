@@ -40,6 +40,7 @@ export interface EventDto {
   location: string
   address: string
   category: string
+  city: string
   price: number | null
   currency: string
   image: string
@@ -119,6 +120,7 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
+    city: r.city,
     price: r.price,
     currency: r.currency,
     image: r.image ?? '',
@@ -168,6 +170,7 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
+    city: r.city,
     price: r.price,
     currency: r.currency,
     image: r.image ?? '',
@@ -182,7 +185,7 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
 export async function listEventsByCityDb(city: string): Promise<EventDto[] | null> {
   const cityRes = await query<{ id: number }>(`SELECT id FROM cities WHERE slug = $1`, [city])
   if (cityRes.rows.length === 0) return null
-  const rows = await query<Omit<EventRowDto, 'city'>>(
+  const rows = await query<EventRowDto>(
     `SELECT e.id,
             e.title,
             e.description,
@@ -192,9 +195,11 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
             e.currency,
             e.image,
             e.starts_at as utc_timestamp,
-            ct.label as category
+            ct.label as category,
+            c.slug as city
      FROM events e
      JOIN categories ct ON ct.id = e.category_id
+     JOIN cities c ON c.id = e.city_id
      WHERE e.city_id = $1 AND (e.starts_at AT TIME ZONE 'America/Bogota')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date
      ORDER BY e.starts_at ASC, e.id ASC`, [cityRes.rows[0].id]
   )
@@ -206,6 +211,7 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
+    city: r.city,
     price: r.price,
     currency: r.currency,
     image: r.image ?? '',
@@ -467,6 +473,7 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     location: r.location ?? '',
     address: r.address ?? '',
     category: r.category,
+    city: r.city,
     price: r.price,
     currency: r.currency,
     image: r.image ?? '',
@@ -558,6 +565,7 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
       location: r.location ?? '',
       address: r.address ?? '',
       category: r.category,
+      city: r.city,
       price: r.price,
       currency: r.currency,
       image: r.image ?? '',
@@ -677,6 +685,7 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
       location: r.location ?? '',
       address: r.address ?? '',
       category: r.category,
+      city: r.city,
       price: r.price,
       currency: r.currency,
       image: r.image ?? '',

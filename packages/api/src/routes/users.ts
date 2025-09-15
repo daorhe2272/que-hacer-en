@@ -155,6 +155,7 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
         location: 'Test Venue',
         address: 'Test Address',
         category: 'musica',
+        city: 'bogota',
         price: 50000,
         currency: 'COP',
         image: 'test-image.jpg',

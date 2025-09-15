@@ -140,6 +140,32 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
     }
   })
 
+  // Get event by UUID (for database events)
+  router.get('/uuid/:id', async (req, res) => {
+    try {
+      const { id } = req.params
+      const useDb = process.env.NODE_ENV !== 'test'
+      const found = useDb ? await getEventByIdDb(id) : (() => {
+        const data = readEvents()
+        const all: Event[] = [
+          ...data.bogota,
+          ...data.medellin,
+          ...data.cali,
+          ...data.barranquilla,
+          ...data.cartagena
+        ]
+        return all.find(e => e.id === id)
+      })()
+      if (!found) {
+        res.status(404).json({ error: 'Event not found' })
+        return
+      }
+      res.json(found)
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to load event' })
+    }
+  })
+
   router.get('/id/:id', async (req, res) => {
     try {
       const { id } = req.params
@@ -189,6 +215,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           location: parsed.data.location!,
           address: parsed.data.address || 'Test Address',
           category: parsed.data.category!,
+          city: parsed.data.city!,
           price: parsed.data.price || null,
           currency: parsed.data.currency || 'COP',
           image: parsed.data.image || 'test-image.jpg',
@@ -235,6 +262,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           location: 'Test Venue',
           address: 'Test Address',
           category: 'musica',
+          city: 'bogota',
           price: 50000,
           currency: 'COP',
           image: 'test-image.jpg',
@@ -279,6 +307,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             location: 'Test Venue',
             address: 'Test Address',
             category: 'musica',
+            city: 'bogota',
             price: 50000,
             currency: 'COP',
             image: 'test-image.jpg',
@@ -327,6 +356,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             location: parsed.data.location!,
             address: parsed.data.address || 'Test Address',
             category: parsed.data.category!,
+            city: parsed.data.city || 'bogota',
             price: parsed.data.price || null,
             currency: parsed.data.currency || 'COP',
             image: parsed.data.image || 'test-image.jpg',

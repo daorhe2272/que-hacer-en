@@ -201,6 +201,7 @@ describe('Repository Functions', () => {
         location: 'Test Location',
         address: 'Test Address',
         category: 'Música',
+        city: 'bogota',
         price: 50000,
         currency: 'COP',
         image: 'test.jpg',

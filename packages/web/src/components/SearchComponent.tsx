@@ -55,7 +55,7 @@ export default function SearchComponent({ cityId }: SearchComponentProps) {
       params.delete('page')
       
       const query = params.toString()
-      router.push(`/eventos/${cityId}${query ? `?${query}` : ''}`)
+      router.push(`/eventos/${cityId}${query ? `?${query}` : ''}#events`)
       return
     }
     // TODO: Implementar navegación desde home cuando no haya ciudad aún

@@ -4,6 +4,7 @@ import type { Event } from '@/types/event'
 import { formatEventDate, formatEventTime, formatEventPrice } from '@/lib/events'
 import { useSession } from '@/lib/session'
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 
 interface EventCardProps {
   event: Event
@@ -195,9 +196,12 @@ export default function EventCard({ event }: EventCardProps) {
         </div>
 
         {/* Action Button */}
-        <button className="w-full bg-primary-50 hover:bg-primary-100 text-primary-800 py-3 px-4 rounded-lg font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+        <Link
+          href={`/eventos/${event.city}/${event.id}`}
+          className="block w-full bg-primary-50 hover:bg-primary-100 text-primary-800 py-3 px-4 rounded-lg font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-center"
+        >
           Ver detalles
-        </button>
+        </Link>
       </div>
     </div>
   )
