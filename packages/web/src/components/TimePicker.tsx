@@ -333,6 +333,7 @@ export default function TimePicker({ value, onChange, disabled, error }: TimePic
                 onClick={() => {
                   setIsPM(false)
                   updateTime(selectedHour, selectedMinute, false)
+                  setIsOpen(false)
                 }}
                 className={`flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                   !isPM ? 'bg-white text-purple-600 shadow' : 'text-gray-600 hover:text-gray-900'
@@ -345,6 +346,7 @@ export default function TimePicker({ value, onChange, disabled, error }: TimePic
                 onClick={() => {
                   setIsPM(true)
                   updateTime(selectedHour, selectedMinute, true)
+                  setIsOpen(false)
                 }}
                 className={`flex-1 px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                   isPM ? 'bg-white text-purple-600 shadow' : 'text-gray-600 hover:text-gray-900'
