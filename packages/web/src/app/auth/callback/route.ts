@@ -16,9 +16,15 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(`${origin}${next}`)
       }
       // Otherwise, redirect to a page that can handle back navigation
-      // Using a special callback page that can run client-side router.back()
+      // Check if there's a redirect parameter in the original request
+      const redirectParam = searchParams.get('redirect')
       const webUrl = process.env.NEXT_PUBLIC_WEB_URL || origin
-      return NextResponse.redirect(`${webUrl}/auth/success`)
+
+      if (redirectParam) {
+        return NextResponse.redirect(`${webUrl}/auth/success?redirect=${encodeURIComponent(redirectParam)}`)
+      } else {
+        return NextResponse.redirect(`${webUrl}/auth/success`)
+      }
     }
   }
 

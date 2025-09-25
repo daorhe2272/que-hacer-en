@@ -13,7 +13,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     const authHeader = req.headers.authorization || ''
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
     if (!token) {
-      console.log('Auth middleware: No token provided')
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
@@ -22,7 +21,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.log('Auth middleware: Supabase configuration missing')
       res.status(500).json({ error: 'Auth misconfigured' })
       return
     }
@@ -32,7 +30,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     const { data: { user }, error } = await supabase.auth.getUser(token)
 
     if (error || !user) {
-      console.log('Auth middleware: Token verification failed:', error?.message || 'No user')
       res.status(401).json({ error: 'Unauthorized' })
       return
     }
@@ -40,11 +37,9 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     // Get role from user metadata or default to attendee
     const role = (user.user_metadata?.role || user.app_metadata?.role || 'attendee') as ('attendee' | 'organizer' | 'admin')
 
-    console.log('Auth middleware: Successfully verified token for user:', user.id)
     req.user = { id: user.id, email: user.email || undefined, role }
     next()
   } catch (err) {
-    console.log('Auth middleware: Token verification failed:', err instanceof Error ? err.message : String(err))
     res.status(401).json({ error: 'Unauthorized' })
   }
 }

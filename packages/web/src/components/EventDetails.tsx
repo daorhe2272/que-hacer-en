@@ -3,7 +3,7 @@
 import type { Event } from '@/types/event'
 import { formatEventDate, formatEventTime, formatEventPrice } from '@/lib/events'
 import { useSession } from '@/lib/session'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 
 interface EventDetailsProps {
@@ -16,6 +16,8 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
   const { isAuthenticated, user } = useSession()
   const [isFavorited, setIsFavorited] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isManageMenuOpen, setIsManageMenuOpen] = useState(false)
+  const manageMenuRef = useRef<HTMLDivElement>(null)
 
   const getAccessToken = useCallback(async (): Promise<string> => {
     const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
@@ -81,6 +83,51 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
     }
   }
 
+  // Check if current user can manage the event (owner or admin)
+  const canManageEvent = useCallback(() => {
+    if (!isAuthenticated || !user) return false
+
+    // Admin can manage any event
+    if (user.role === 'admin') return true
+
+    // Event creator can manage their own event
+    if (event.created_by && user.id === event.created_by) return true
+
+    return false
+  }, [isAuthenticated, user, event.created_by])
+
+  // Close manage menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (manageMenuRef.current && !manageMenuRef.current.contains(event.target as Node)) {
+        setIsManageMenuOpen(false)
+      }
+    }
+
+    if (isManageMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isManageMenuOpen])
+
+  // Placeholder handlers for edit/delete actions
+  const handleEditEvent = () => {
+    setIsManageMenuOpen(false)
+    // TODO: Implement edit functionality
+    alert('Editar evento - Funcionalidad próximamente disponible')
+  }
+
+  const handleDeleteEvent = () => {
+    setIsManageMenuOpen(false)
+    // TODO: Implement delete functionality with confirmation dialog
+    if (confirm('¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.')) {
+      alert('Eliminar evento - Funcionalidad próximamente disponible')
+    }
+  }
+
   return (
     <div
       className="min-h-screen bg-cover bg-center bg-no-repeat relative"
@@ -129,9 +176,10 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
               </span>
             </div>
 
-            {/* Favorite Button */}
+            {/* Action Buttons - Favorite and Manage */}
             {isAuthenticated && (
-              <div className="absolute top-6 right-6">
+              <div className="absolute top-6 right-6 flex items-center space-x-3">
+                {/* Favorite Button */}
                 <button
                   onClick={toggleFavorite}
                   disabled={isLoading}
@@ -156,6 +204,58 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
                     />
                   </svg>
                 </button>
+
+                {/* Event Management Dropdown - Only for owners/admins */}
+                {/* TEMPORARY: Always show for testing - remove "|| true" later */}
+                {(canManageEvent() || true) && (
+                  <div className="relative" ref={manageMenuRef}>
+                    <button
+                      onClick={() => setIsManageMenuOpen(!isManageMenuOpen)}
+                      className="p-3 rounded-full bg-white/80 backdrop-blur-sm transition-all duration-200 hover:scale-110 hover:bg-white/90 text-gray-600"
+                      aria-label="Gestionar evento"
+                      aria-expanded={isManageMenuOpen}
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                        />
+                      </svg>
+                    </button>
+
+                    {/* Dropdown Menu */}
+                    {isManageMenuOpen && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                        <button
+                          onClick={handleEditEvent}
+                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 flex items-center space-x-2 transition-colors duration-200"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          <span>Editar evento</span>
+                        </button>
+                        <hr className="my-1 border-gray-100" />
+                        <button
+                          onClick={handleDeleteEvent}
+                          className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center space-x-2 transition-colors duration-200"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span>Eliminar evento</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

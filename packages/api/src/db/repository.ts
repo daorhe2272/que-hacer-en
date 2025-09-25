@@ -30,6 +30,7 @@ export interface EventRowDto {
   category: string
   city: string
   image: string | null
+  created_by: string | null
 }
 
 export interface EventDto {
@@ -48,6 +49,7 @@ export interface EventDto {
   capacity: number | null
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
+  created_by?: string
 }
 
 export async function listEventsDb(params: ListParams): Promise<{ events: EventDto[], total: number }>{
@@ -449,7 +451,8 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
             e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
-            e.image
+            e.image,
+            e.created_by
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -460,8 +463,8 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
   if (!r) return null
 
   const tagsRes = await query<{ name: string }>(
-    `SELECT t.name FROM tags t 
-     JOIN event_tags et ON t.id = et.tag_id 
+    `SELECT t.name FROM tags t
+     JOIN event_tags et ON t.id = et.tag_id
      WHERE et.event_id = $1`, [eventId]
   )
 
@@ -480,7 +483,8 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     organizer: '',
     capacity: 0,
     tags: tagsRes.rows.map(t => t.name),
-    status: 'active'
+    status: 'active',
+    created_by: r.created_by ?? undefined
   }
   return event
 }

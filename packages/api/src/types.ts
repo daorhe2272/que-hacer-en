@@ -14,6 +14,7 @@ export interface Event {
   capacity: number | null
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
+  created_by?: string
 }
 
 export interface EventsData {

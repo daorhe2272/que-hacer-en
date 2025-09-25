@@ -43,7 +43,20 @@ export const updateEventSchema = eventSchema.partial().extend({
   id: z.string().uuid()
 })
 
+// User validation schemas
+export const userRegistrationSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8, 'Password must be at least 8 characters long')
+})
+
+export const userLoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1, 'Password is required')
+})
+
 export type ListQuery = z.infer<typeof listQuerySchema>
 export type NewEvent = z.infer<typeof eventSchema>
+export type UserRegistration = z.infer<typeof userRegistrationSchema>
+export type UserLogin = z.infer<typeof userLoginSchema>
 
 
