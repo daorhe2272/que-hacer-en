@@ -27,16 +27,21 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] When looking at an event details, if the user is the owner of the event, he/she should be able to either edit it or deleted it. For the time being, just create the edit/delete buttons. Analyze where would it be best to place these options, and what form should they take (buttons, dropdown, icons?).
 - [ ] Filtro de eventos para hoy, mañana, esta semana, fin de semana, siguiente semana, este mes, próximo mes.
 - [ ] Incluir link original del evento en la página del evento detallada.
+- [ ] Add social media sharing and viral features
 
 ## Pending tasks:
-- [ ] Add an option for users to share events.
 - [ ] Establcer rol de usuarios por defecto: `attendee`;
+- [ ] Mejorar UX de confirmación de email en registro
 - [ ] Página "Forgot Password" con reset por email
 - [ ] Agregar "Remember me" option para sesiones extendidas
+- [ ] Event creation form para organizers (UI placeholder creado, form real pendiente)
+- [ ] Add role promotion/demotion functionality for admins
+- [ ] Add geolocation feature to auto-detect user's city
+- [ ] Avatar/profile picture integration con Google OAuth (Opcional)
+- [ ] Add organizer event statistics and analytics (Opcional)
 - [ ] Add progressive loading for images and search results
 - [ ] Welcome email o onboarding flow post-registro
 - [ ] Set up backup and recovery procedures
-- [ ] Enhance search with autocomplete and suggestions
 - [ ] Implement advanced filtering (date ranges, price ranges, distance)
 - [ ] Add CTA: "Ver más de [Categoría] en [Ciudad]" when category is active
 - [ ] Implement organizer verification process
@@ -52,29 +57,25 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   - [ ] Implement CSRF protection for form submissions
   - [ ] Add audit logging for sensitive operations (event creation/deletion)
 - [ ] Configurar SMTP personalizado con SendGrid para emails de producción (reemplazar servicio built-in de Supabase con límite de 3-4 emails/hora)
-- [ ] Mejorar UX de confirmación de email en registro
 - [ ] Document API endpoints in packages/api/README.md
  - [ ] Añadir guía de roles (attendee/organizer/admin) y bootstrap de admin
 - [ ] Loading states más granulares en OAuth flow
-- [ ] Manejo de errores específicos para autenticación (email ya existe, contraseña débil, etc.)
-- [ ] Event creation form para organizers (UI placeholder creado, form real pendiente)
-- [ ] Add role promotion/demotion functionality for admins
 - [ ] Monitoring/Errors: integrate Sentry (web + api)
-- [ ] Avatar/profile picture integration con Google OAuth (Opcional)
-- [ ] Add organizer event statistics and analytics (Opcional)
 - [ ] Create organizer dashboard to manage their events (Opcional)
 
 ## Advanced Features & Optimization:
-- [ ] Add geolocation feature to auto-detect user's city
 - [ ] Create interactive map view for event locations  
 - [ ] Expand the number of locations to include all cities in Colombia
 - [ ] Implement payment processing and booking system
-- [ ] Add social media sharing and viral features
 - [ ] Create recommendation engine based on user behavior
 - [ ] Implement analytics and performance monitoring
 - [ ] Add multilingual support and localization
 - [ ] Create event organizer dashboard and management tools
 - [ ] Expand one by one to other countries
+- [ ] Allow users to mark an interest in finding people to go with to an event
+  - [ ] Users should have the possibility to message each other
+  - [ ] Users should be able to upload a profile picture
+  - [ ] Users should be able to add an "About Me" section
 
 ## Business & Growth Features
 - [ ] Implement revenue model (commissions, subscriptions, ads)

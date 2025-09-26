@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     if (!error) {
       // If we have a specific redirect destination, use it
       if (next) {
-        return NextResponse.redirect(`${origin}${next}`)
+        const baseUrl = process.env.NODE_ENV === 'development' ? origin : 'https://www.pahacer.com'
+        return NextResponse.redirect(`${baseUrl}${next}`)
       }
       // Otherwise, redirect to a page that can handle back navigation
       // Check if there's a redirect parameter in the original request
