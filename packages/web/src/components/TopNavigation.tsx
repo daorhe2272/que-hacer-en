@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { useSession } from '@/lib/session'
+import { LoginLink } from './LoginLink'
 import Image from 'next/image'
 
 const cities = [
@@ -224,9 +225,9 @@ export default function TopNavigation() {
                 </div>
               </>
             ) : (
-              <a href="/login" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 md:px-6 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+              <LoginLink className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 md:px-6 rounded-lg text-sm font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
                 Iniciar sesión
-              </a>
+              </LoginLink>
             )}
           </div>
         </div>

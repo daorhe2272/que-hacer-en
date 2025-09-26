@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { LoginLink } from '@/components/LoginLink'
 
 export default function AuthCodeErrorPage() {
   return (
@@ -25,12 +25,9 @@ export default function AuthCodeErrorPage() {
           Hubo un problema al procesar tu autenticación. Por favor, intenta nuevamente.
         </p>
         
-        <Link 
-          href="/login" 
-          className="w-full inline-flex justify-center items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors"
-        >
+        <LoginLink className="w-full inline-flex justify-center items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg transition-colors">
           Volver al inicio de sesión
-        </Link>
+        </LoginLink>
       </div>
     </div>
   )

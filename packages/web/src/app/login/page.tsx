@@ -66,26 +66,9 @@ function LoginPageContent() {
       setPasswordError(validatePassword(value))
     }
   }
-  
-  // Redirect function using Next.js best practices
-  const handleSuccessfulAuth = useCallback(() => {
-    // 1. First priority: URL redirect parameter (from middleware)
-    let redirectParam = searchParams.get('redirect')
 
-    // 2. If no redirect param, try to get referrer from document.referrer
-    if (!redirectParam && typeof window !== 'undefined' && document.referrer) {
-      try {
-        const referrerUrl = new URL(document.referrer)
-        // Only use referrer if it's from the same origin and not the login page
-        if (referrerUrl.origin === window.location.origin &&
-            referrerUrl.pathname !== '/login' &&
-            isValidRedirectUrl(referrerUrl.pathname)) {
-          redirectParam = referrerUrl.pathname
-        }
-      } catch {
-        // Invalid referrer URL, ignore
-      }
-    }
+  const handleSuccessfulAuth = useCallback(() => {
+    const redirectParam = searchParams.get('redirect')
 
     if (redirectParam && isValidRedirectUrl(redirectParam)) {
       // Use window.location.href for validated redirect URLs to avoid typed route conflicts
@@ -93,8 +76,8 @@ function LoginPageContent() {
       return
     }
 
-    // 3. Fallback: Go back to previous page if available
-    router.back()
+    // Fallback: redirect to home page (predictable behavior)
+    router.replace('/')
   }, [router, searchParams])
   
   // Handle authentication state changes
@@ -168,22 +151,7 @@ function LoginPageContent() {
     const supabase = getSupabaseBrowserClient()
 
     // Get the redirect destination (same logic as handleSuccessfulAuth)
-    let redirectParam = searchParams.get('redirect')
-
-    // If no redirect param, try to get referrer from document.referrer
-    if (!redirectParam && typeof window !== 'undefined' && document.referrer) {
-      try {
-        const referrerUrl = new URL(document.referrer)
-        // Only use referrer if it's from the same origin and not the login page
-        if (referrerUrl.origin === window.location.origin &&
-            referrerUrl.pathname !== '/login' &&
-            isValidRedirectUrl(referrerUrl.pathname)) {
-          redirectParam = referrerUrl.pathname
-        }
-      } catch {
-        // Invalid referrer URL, ignore
-      }
-    }
+    const redirectParam = searchParams.get('redirect')
 
     let redirectUrl = `${window.location.origin}/auth/callback`
 
@@ -191,7 +159,7 @@ function LoginPageContent() {
       // If we have a redirect destination, pass it to callback
       redirectUrl += `?next=${encodeURIComponent(redirectParam)}`
     }
-    // If no redirect param, let the callback handle the fallback navigation
+    // If no redirect param, callback will redirect to home page
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
