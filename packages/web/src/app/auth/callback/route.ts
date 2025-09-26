@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       // Otherwise, redirect to a page that can handle back navigation
       // Check if there's a redirect parameter in the original request
       const redirectParam = searchParams.get('redirect')
-      const webUrl = process.env.NEXT_PUBLIC_WEB_URL || origin
+      const webUrl = process.env.NODE_ENV === 'development' ? origin : 'https://www.pahacer.com'
 
       if (redirectParam) {
         return NextResponse.redirect(`${webUrl}/auth/success?redirect=${encodeURIComponent(redirectParam)}`)
@@ -29,6 +29,6 @@ export async function GET(request: NextRequest) {
   }
 
   // return the user to an error page with instructions
-  const webUrl = process.env.NEXT_PUBLIC_WEB_URL || origin
+  const webUrl = process.env.NODE_ENV === 'development' ? origin : 'https://www.pahacer.com'
   return NextResponse.redirect(`${webUrl}/auth/auth-code-error`)
 }

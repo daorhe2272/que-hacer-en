@@ -153,7 +153,7 @@ function LoginPageContent() {
     // Get the redirect destination (same logic as handleSuccessfulAuth)
     const redirectParam = searchParams.get('redirect')
 
-    let redirectUrl = `${process.env.NEXT_PUBLIC_WEB_URL || window.location.origin}/auth/callback`
+    let redirectUrl = `${window.location.origin}/auth/callback`
 
     if (redirectParam && isValidRedirectUrl(redirectParam)) {
       // If we have a redirect destination, pass it to callback
