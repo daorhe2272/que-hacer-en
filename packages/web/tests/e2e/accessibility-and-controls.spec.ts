@@ -1,14 +1,11 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Controles y accesibilidad básica', () => {
-  test('Selects de orden y tamaño tienen ARIA labels y afectan URL', async ({ page }) => {
+  test('Select de tamaño de página tiene ARIA label y afecta URL', async ({ page }) => {
     await page.goto('/eventos/medellin')
-    await page.selectOption('select[aria-label="Orden: campo"]', { label: 'Fecha' })
-    await page.selectOption('select[aria-label="Orden: dirección"]', { label: 'Ascendente' })
-    await expect(page).toHaveURL(/sort=date/)
-    await expect(page).toHaveURL(/order=asc/)
 
-    await page.selectOption('select[aria-label="Por página"]', '12')
+    // Test page size selector (this control still exists)
+    await page.selectOption('select[aria-label="Eventos por página"]', '12')
     await expect(page).toHaveURL(/limit=12/)
   })
 

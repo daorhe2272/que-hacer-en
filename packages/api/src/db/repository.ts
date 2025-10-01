@@ -105,7 +105,8 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
             e.image,
             e.starts_at as utc_timestamp,
             ct.label as category,
-            c.slug as city
+            c.slug as city,
+            e.created_by
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -129,7 +130,8 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
     organizer: '',
     capacity: 0,
     tags: [],
-    status: 'active'
+    status: 'active',
+    created_by: r.created_by ?? undefined
   }))
 
   return { events, total }
@@ -198,7 +200,8 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
             e.image,
             e.starts_at as utc_timestamp,
             ct.label as category,
-            c.slug as city
+            c.slug as city,
+            e.created_by
      FROM events e
      JOIN categories ct ON ct.id = e.category_id
      JOIN cities c ON c.id = e.city_id
@@ -220,7 +223,8 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
     organizer: '',
     capacity: 0,
     tags: [],
-    status: 'active'
+    status: 'active',
+    created_by: r.created_by ?? undefined
   }))
 }
 

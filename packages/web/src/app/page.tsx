@@ -107,10 +107,10 @@ export default async function HomePage({
                     ¿Organizas eventos?
                   </h3>
                   <p className="text-white/90 mb-6">
-                    Publica tu evento gratis
+                    Publica tu evento de forma gratuita
                   </p>
                   <a href="/crear-evento" className="inline-block bg-accent-400 hover:bg-accent-500 text-white font-medium px-6 py-3 rounded-lg transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2">
-                    Publicar evento gratuito
+                    Publicar evento
                   </a>
                 </div>
               )}

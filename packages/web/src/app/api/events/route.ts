@@ -5,3 +5,4 @@ const handler = createProxyHandler('/api/events')
 
 export const GET = handler.GET
 export const POST = handler.POST
+export const DELETE = handler.DELETE

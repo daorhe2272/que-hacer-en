@@ -86,41 +86,51 @@ export async function forwardToInternalAPI({ method, path, request }: ProxyConfi
 export function createProxyHandler(apiPath: string) {
   return {
     async GET(request: NextRequest) {
+      const url = new URL(request.url)
+      const fullPath = apiPath + url.search
       return forwardToInternalAPI({
         method: 'GET',
-        path: apiPath,
+        path: fullPath,
         request
       })
     },
-    
+
     async POST(request: NextRequest) {
+      const url = new URL(request.url)
+      const fullPath = apiPath + url.search
       return forwardToInternalAPI({
         method: 'POST',
-        path: apiPath,
+        path: fullPath,
         request
       })
     },
-    
+
     async PUT(request: NextRequest) {
+      const url = new URL(request.url)
+      const fullPath = apiPath + url.search
       return forwardToInternalAPI({
         method: 'PUT',
-        path: apiPath,
+        path: fullPath,
         request
       })
     },
-    
+
     async DELETE(request: NextRequest) {
+      const url = new URL(request.url)
+      const fullPath = apiPath + url.search
       return forwardToInternalAPI({
         method: 'DELETE',
-        path: apiPath,
+        path: fullPath,
         request
       })
     },
-    
+
     async PATCH(request: NextRequest) {
+      const url = new URL(request.url)
+      const fullPath = apiPath + url.search
       return forwardToInternalAPI({
         method: 'PATCH',
-        path: apiPath,
+        path: fullPath,
         request
       })
     }

@@ -128,7 +128,11 @@ export async function loginUser(page: Page, testUser: TestUser, options?: {
   customVerification?: () => Promise<void>
 }): Promise<void> {
   await page.goto('/login')
-  
+
+  // Navigate through the new two-step login flow
+  // First, click "Iniciar sesión" on the welcome screen
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click()
+
   // Fill login form
   await page.getByPlaceholder('Correo electrónico').fill(testUser.email)
   await page.getByPlaceholder('Contraseña').fill(testUser.password)
@@ -162,11 +166,12 @@ export async function loginUser(page: Page, testUser: TestUser, options?: {
  */
 export async function registerUser(page: Page, testUser?: TestUser): Promise<TestUser> {
   const user = testUser || generateTestUser()
-  
+
   await page.goto('/login')
-  
-  // Switch to register mode
-  await page.locator('.bg-gray-100').getByRole('button', { name: 'Registrarse' }).click()
+
+  // Navigate through the new two-step registration flow
+  // First, click "Crear cuenta nueva" on the welcome screen
+  await page.getByRole('button', { name: 'Crear cuenta nueva' }).click()
   
   // Fill registration form
   await page.getByPlaceholder('Correo electrónico').fill(user.email)
@@ -176,10 +181,38 @@ export async function registerUser(page: Page, testUser?: TestUser): Promise<Tes
   // Submit form
   await page.locator('form').getByRole('button', { name: 'Crear cuenta' }).click()
   
-  // Wait for registration success message or redirect
-  await expect(page.getByText(/exitosamente|éxito/i)).toBeVisible({ timeout: 10000 })
-  
-  return user
+  // Wait for registration response - either success or explicit error
+  await page.waitForTimeout(3000) // Allow time for registration response
+
+  // Check current state after registration attempt
+  const currentUrl = page.url()
+
+  if (!currentUrl.includes('/login')) {
+    // Redirected away from login - successful registration with auto-login
+    return user
+  }
+
+  // Still on login page - check for messages
+  const messageElements = page.locator('.text-red-800, .bg-red-50, .text-green-800, .bg-green-50')
+  const messageCount = await messageElements.count()
+
+  if (messageCount > 0) {
+    const messageText = await messageElements.first().textContent() || ''
+
+    // Check for success indicators
+    if (messageText.includes('exitosamente') ||
+        messageText.includes('éxito') ||
+        messageText.includes('Cuenta creada pero hubo un problema al iniciar sesión')) {
+      // Registration succeeded (either with or without auto-login)
+      return user
+    }
+
+    // Any other message is treated as an error
+    throw new Error(`Registration failed: ${messageText}`)
+  }
+
+  // No messages visible - this is unexpected, registration should show some feedback
+  throw new Error('Registration completed but no success or error message was displayed')
 }
 
 /**

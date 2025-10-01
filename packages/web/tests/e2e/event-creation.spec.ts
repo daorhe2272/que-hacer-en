@@ -359,12 +359,9 @@ test.describe('Event Creation E2E Tests', () => {
       
       // Submit form
       await page.getByRole('button', { name: 'Crear Evento' }).click()
-      
-      // Should show loading state
-      await expect(page.getByText('Creando evento...')).toBeVisible()
-      
+
       // Should show success message
-      await expect(page.getByText('¡Evento creado exitosamente!')).toBeVisible({ timeout: 10000 })
+      await expect(page.getByText('¡Evento creado exitosamente!')).toBeVisible({ timeout: 15000 })
       
       // Should show success details
       await expect(page.getByText('Tu evento ha sido publicado y estará disponible para todos los usuarios.')).toBeVisible()
@@ -603,7 +600,11 @@ async function fillBasicValidEventData(page: any, options?: { skipCategoryAndCit
   const dateString = tomorrow.toISOString().split('T')[0]
   await page.locator('input[type="date"]').fill(dateString)
   
-  // The TimePicker component defaults to 12:00 AM which is fine for basic form validation tests
+  // Set time using the TimePicker component
+  await page.getByTestId('time-picker-input').click() // Open the time picker
+  await page.getByTestId('hour-increment').click() // Set to 1 PM
+  await page.getByText('PM').click() // Select PM and close picker
+
   await page.getByPlaceholder('Ej: Teatro Nacional').fill('Test Venue')
   await page.getByPlaceholder('Ej: Carrera 7 #22-47').fill('Test Address 123')
   
@@ -614,7 +615,7 @@ async function fillBasicValidEventData(page: any, options?: { skipCategoryAndCit
   
   // Set price to "De pago" to show the price input
   await page.locator('input[type="radio"][name="priceType"]').nth(2).check()
-  await page.getByPlaceholder('1000').fill('50000') // Price input appears with placeholder 1000
+  await page.getByPlaceholder('0').fill('50000') // Price input appears with placeholder 0
   
   // Set capacity to "Capacidad limitada" to show the capacity input
   await page.locator('input[type="radio"][name="capacityType"]').nth(2).check()

@@ -128,8 +128,12 @@ function LoginPageContent() {
 
           if (signInError) {
             setMessage('Cuenta creada pero hubo un problema al iniciar sesión. Intenta iniciar sesión manualmente.')
+          } else {
+            setMessage('Cuenta creada exitosamente. Redirigiendo...')
           }
           // If successful, useEffect will handle the redirect when isAuthenticated becomes true
+        } else {
+          setMessage('Cuenta creada exitosamente. Redirigiendo...')
         }
         // If data.session exists, user is already authenticated and useEffect will handle redirect
       }

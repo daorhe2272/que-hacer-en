@@ -383,7 +383,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
   })
 
   // Delete event
-  router.delete('/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+  router.delete('/:id', authenticate, async (req, res) => {
     try {
       const { id } = req.params
       const useDb = process.env.NODE_ENV !== 'test'

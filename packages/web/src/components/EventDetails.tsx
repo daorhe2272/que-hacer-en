@@ -5,6 +5,8 @@ import { formatEventDate, formatEventTime, formatEventPrice } from '@/lib/events
 import { useSession } from '@/lib/session'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import ConfirmationModal from './ConfirmationModal'
 
 interface EventDetailsProps {
   event: Event
@@ -17,7 +19,11 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
   const [isFavorited, setIsFavorited] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isManageMenuOpen, setIsManageMenuOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const manageMenuRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   const getAccessToken = useCallback(async (): Promise<string> => {
     const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
@@ -113,19 +119,78 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
     }
   }, [isManageMenuOpen])
 
-  // Placeholder handlers for edit/delete actions
+  // Placeholder handler for edit action
   const handleEditEvent = () => {
     setIsManageMenuOpen(false)
     // TODO: Implement edit functionality
     alert('Editar evento - Funcionalidad próximamente disponible')
   }
 
+  // Delete event handlers
   const handleDeleteEvent = () => {
     setIsManageMenuOpen(false)
-    // TODO: Implement delete functionality with confirmation dialog
-    if (confirm('¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer.')) {
-      alert('Eliminar evento - Funcionalidad próximamente disponible')
+    setDeleteError(null)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!isAuthenticated || isDeletingEvent) return
+
+    setIsDeletingEvent(true)
+    setDeleteError(null)
+
+    try {
+      const token = await getAccessToken()
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/events/uuid/${event.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'x-correlation-id': crypto.randomUUID()
+        }
+      })
+
+      if (response.ok) {
+        // Success - close modal and redirect
+        setIsDeleteModalOpen(false)
+        // Redirect to city events page
+        router.push(`/eventos/${cityId}`)
+      } else {
+        // Handle different error status codes
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
+        let errorMessage = 'Error al eliminar el evento'
+
+        switch (response.status) {
+          case 401:
+            errorMessage = 'No tienes autorización para realizar esta acción. Inicia sesión nuevamente.'
+            break
+          case 403:
+            errorMessage = 'No tienes permisos para eliminar este evento'
+            break
+          case 404:
+            errorMessage = 'El evento no fue encontrado'
+            break
+          case 500:
+            errorMessage = 'Error del servidor. Inténtalo de nuevo más tarde'
+            break
+          default:
+            errorMessage = errorData.error || 'Error al eliminar el evento'
+        }
+
+        setDeleteError(errorMessage)
+      }
+    } catch (err) {
+      console.error('Error deleting event:', err)
+      setDeleteError('Error de conexión. Verifica tu internet e inténtalo de nuevo')
+    } finally {
+      setIsDeletingEvent(false)
     }
+  }
+
+  const handleDeleteCancel = () => {
+    if (isDeletingEvent) return
+    setIsDeleteModalOpen(false)
+    setDeleteError(null)
   }
 
   return (
@@ -206,8 +271,7 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
                 </button>
 
                 {/* Event Management Dropdown - Only for owners/admins */}
-                {/* TEMPORARY: Always show for testing - remove "|| true" later */}
-                {(canManageEvent() || true) && (
+                {canManageEvent() && (
                   <div className="relative" ref={manageMenuRef}>
                     <button
                       onClick={() => setIsManageMenuOpen(!isManageMenuOpen)}
@@ -368,6 +432,43 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
             </div>
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+          isLoading={isDeletingEvent}
+          title="Eliminar evento"
+          message={`¿Estás seguro de que quieres eliminar "${event.title}"? Esta acción no se puede deshacer y el evento será eliminado permanentemente.`}
+          confirmText="Eliminar evento"
+          cancelText="Cancelar"
+          confirmButtonStyle="danger"
+        />
+
+        {/* Error Display */}
+        {deleteError && (
+          <div className="fixed bottom-4 right-4 max-w-sm bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg z-50">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-red-800">
+                  {deleteError}
+                </p>
+                <button
+                  onClick={() => setDeleteError(null)}
+                  className="mt-2 text-sm text-red-600 hover:text-red-500 underline"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
