@@ -41,6 +41,7 @@ export default function CrearEventoPage() {
   })
   
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [warnings, setWarnings] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
@@ -53,16 +54,35 @@ export default function CrearEventoPage() {
   
   const handleFieldChange = (field: keyof EventFormData, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    
+
     // Clear existing error for this field
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
-    
+
     // Real-time validation
     const error = validateField(field, value, formData)
     if (error) {
       setErrors(prev => ({ ...prev, [field]: error }))
+    }
+
+    // Check for image URL warnings
+    if (field === 'image' && typeof value === 'string' && value.trim()) {
+      try {
+        const url = new URL(value)
+        const pathname = url.pathname.toLowerCase()
+        const isImage = /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico)(\?.*)?(\#.*)?$/.test(pathname)
+        if (!isImage) {
+          setWarnings(prev => ({ ...prev, image: 'Es muy posible que este link no sea una imagen válida' }))
+        } else {
+          setWarnings(prev => ({ ...prev, image: '' }))
+        }
+      } catch {
+        // Invalid URL, but that's handled by validation
+        setWarnings(prev => ({ ...prev, image: '' }))
+      }
+    } else if (field === 'image') {
+      setWarnings(prev => ({ ...prev, image: '' }))
     }
   }
 
@@ -496,8 +516,8 @@ export default function CrearEventoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Imagen (URL)
               </label>
-              <input 
-                type="url" 
+              <input
+                type="url"
                 value={formData.image || ''}
                 onChange={(e) => handleFieldChange('image', e.target.value)}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
@@ -507,6 +527,7 @@ export default function CrearEventoPage() {
                 disabled={isSubmitting}
               />
               {errors.image && <p className="text-red-600 text-xs mt-1">{errors.image}</p>}
+              {warnings.image && <p className="text-yellow-600 text-xs mt-1">{warnings.image}</p>}
             </div>
 
             {/* Submit Button */}
