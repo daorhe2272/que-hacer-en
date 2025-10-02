@@ -10,8 +10,6 @@ export interface Event {
   price: number | null
   currency: string
   image: string
-  organizer: string
-  capacity: number | null
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
   created_by?: string

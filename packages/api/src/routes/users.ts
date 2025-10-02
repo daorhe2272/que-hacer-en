@@ -160,7 +160,6 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
         currency: 'COP',
         image: 'test-image.jpg',
         organizer: 'Test Organizer',
-        capacity: null,
         tags: ['test'],
         status: 'active'
       }

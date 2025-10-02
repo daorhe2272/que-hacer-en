@@ -83,6 +83,21 @@ export async function fetchEventById(id: string): Promise<Event | null> {
 }
 
 /**
+ * Client-side function to fetch event for editing (requires ownership)
+ * Goes through Next.js API routes (proxy)
+ */
+export async function fetchEventForEdit(id: string): Promise<Event | null> {
+  try {
+    const headers = await buildAuthHeadersClient()
+    const res = await fetch(`${CLIENT_API_URL}/api/events/manage/${id}`, { cache: 'no-store', headers })
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+/**
  * Client-side function to get user profile
  * Goes through Next.js API routes (proxy)
  */
@@ -149,8 +164,6 @@ export type EventFormData = {
   price: number | null  // null means unknown/undefined, 0 means free
   currency: string
   image?: string
-  organizer: string
-  capacity: number | null  // null means no capacity limit/unknown
   tags: string[]
   status: string
 }
@@ -166,15 +179,15 @@ export async function createEvent(eventData: EventFormData): Promise<CreateEvent
   try {
     const headers = await buildAuthHeadersClient() as Record<string, string>
     headers['Content-Type'] = 'application/json'
-    
+
     const res = await fetch(`${CLIENT_API_URL}/api/events`, {
       method: 'POST',
       headers,
       body: JSON.stringify(eventData)
     })
-    
+
     const data = await res.json()
-    
+
     if (!res.ok) {
       if (res.status === 400 && data.details) {
         // Handle validation errors from Zod
@@ -189,7 +202,54 @@ export async function createEvent(eventData: EventFormData): Promise<CreateEvent
         error: data.error || `Error del servidor (${res.status})`
       }
     }
-    
+
+    return {
+      success: true,
+      event: data.event
+    }
+  } catch (err) {
+    return {
+      success: false,
+      error: 'Error de conexión. Por favor intenta de nuevo.'
+    }
+  }
+}
+
+export type UpdateEventResult = {
+  success: boolean
+  event?: Event
+  error?: string
+  validationErrors?: Record<string, string[]>
+}
+
+export async function updateEvent(eventId: string, eventData: Partial<EventFormData>): Promise<UpdateEventResult> {
+  try {
+    const headers = await buildAuthHeadersClient() as Record<string, string>
+    headers['Content-Type'] = 'application/json'
+
+    const res = await fetch(`${CLIENT_API_URL}/api/events/uuid/${eventId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(eventData)
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      if (res.status === 400 && data.details) {
+        // Handle validation errors from Zod
+        return {
+          success: false,
+          error: data.error || 'Error de validación',
+          validationErrors: data.details.fieldErrors
+        }
+      }
+      return {
+        success: false,
+        error: data.error || `Error del servidor (${res.status})`
+      }
+    }
+
     return {
       success: true,
       event: data.event

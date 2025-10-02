@@ -119,11 +119,10 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
     }
   }, [isManageMenuOpen])
 
-  // Placeholder handler for edit action
+  // Handler for edit action
   const handleEditEvent = () => {
     setIsManageMenuOpen(false)
-    // TODO: Implement edit functionality
-    alert('Editar evento - Funcionalidad próximamente disponible')
+    router.push(`/editar-evento/${event.id}`)
   }
 
   // Delete event handlers
@@ -354,11 +353,6 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
                   <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                     {formatEventPrice(event.price, event.currency)}
                   </div>
-                  {event.capacity && (
-                    <div className="text-sm text-gray-500">
-                      Capacidad: {event.capacity} personas
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -376,10 +370,6 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Detalles del evento</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center">
-                    <span className="text-gray-600 font-medium w-24">Organizador:</span>
-                    <span className="text-gray-900">{event.organizer || 'Por confirmar'}</span>
-                  </div>
                   <div className="flex items-center">
                     <span className="text-gray-600 font-medium w-24">Estado:</span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${

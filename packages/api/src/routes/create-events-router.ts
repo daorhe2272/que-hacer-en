@@ -3,8 +3,8 @@ import fs from 'fs'
 import path from 'path'
 import type { Event, EventsData, CityKey } from '../types'
 import { listQuerySchema, createEventSchema, updateEventSchema } from '../validation'
-import { listEventsDb, getEventByLegacyIdDb, listEventsByCityDb, createEventDb, updateEventDb, deleteEventDb, getEventByIdDb, listOrganizerEventsDb, type EventDto } from '../db/repository'
-import { authenticate, requireRole } from '../middleware/auth'
+import { listEventsDb, getEventByLegacyIdDb, listEventsByCityDb, createEventDb, updateEventDb, deleteEventDb, getEventByIdDb, getEventForEditDb, listOrganizerEventsDb, type EventDto } from '../db/repository'
+import { authenticate } from '../middleware/auth'
 
 export type CreateEventsRouterOptions = {
   enableCache?: boolean
@@ -219,8 +219,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           price: parsed.data.price || null,
           currency: parsed.data.currency || 'COP',
           image: parsed.data.image || 'test-image.jpg',
-          organizer: 'Test Organizer',
-          capacity: parsed.data.capacity || null,
+          organizer: '',
           tags: parsed.data.tags || [],
           status: 'active'
         }
@@ -233,9 +232,8 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
     }
   })
 
-  // List user's events (must come before /:city)
+  // List user's events (must come before /:city) - returns user's own events
   router.get('/manage', authenticate, async (req, res) => {
-    console.log('MANAGE ENDPOINT HIT - User:', req.user)
     try {
       const parseResult = listQuerySchema.safeParse(req.query)
       if (!parseResult.success) {
@@ -268,7 +266,6 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           currency: 'COP',
           image: 'test-image.jpg',
           organizer: 'Test Organizer',
-          capacity: null,
           tags: ['test'],
           status: 'active'
         }
@@ -287,8 +284,8 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
     }
   })
 
-  // Get event by ID (for editing)
-  router.get('/manage/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+  // Get event by ID (for editing) - ownership checked in DB function
+  router.get('/manage/:id', authenticate, async (req, res) => {
     try {
       const { id } = req.params
       const useDb = process.env.NODE_ENV !== 'test'
@@ -296,7 +293,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
       let event: EventDto | null
       
       if (useDb) {
-        event = await getEventByIdDb(id)
+        event = await getEventForEditDb(id, req.user!.id)
       } else {
         // Mock event retrieval for tests
         if (id === '550e8400-e29b-41d4-a716-446655440000') {
@@ -313,7 +310,6 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             currency: 'COP',
             image: 'test-image.jpg',
             organizer: 'Test Organizer',
-            capacity: null,
             tags: ['test'],
             status: 'active'
           }
@@ -332,8 +328,8 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
     }
   })
 
-  // Update event
-  router.put('/:id', authenticate, requireRole('organizer', 'admin'), async (req, res) => {
+  // Update event - ownership checked in DB function
+  router.put('/:id', authenticate, async (req, res) => {
     try {
       const parsed = updateEventSchema.safeParse({ ...req.body, id: req.params.id })
       if (!parsed.success) {
@@ -361,8 +357,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             price: parsed.data.price || null,
             currency: parsed.data.currency || 'COP',
             image: parsed.data.image || 'test-image.jpg',
-            organizer: 'Test Organizer',
-            capacity: parsed.data.capacity || null,
+            organizer: '',
             tags: parsed.data.tags || [],
             status: 'active'
           }

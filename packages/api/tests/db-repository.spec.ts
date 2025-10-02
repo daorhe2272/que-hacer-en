@@ -206,9 +206,9 @@ describe('Repository Functions', () => {
         currency: 'COP',
         image: 'test.jpg',
         organizer: '',
-        capacity: 0,
         tags: [],
-        status: 'active'
+        status: 'active',
+        created_by: undefined
       })
     })
 
@@ -250,9 +250,9 @@ describe('Repository Functions', () => {
         currency: 'COP',
         image: '',     // Should be empty string due to null coalescing
         organizer: '',
-        capacity: 0,
         tags: [],
-        status: 'active'
+        status: 'active',
+        created_by: undefined
       })
       // This test should cover lines 174, 175, and 179
     })
@@ -313,9 +313,9 @@ describe('Repository Functions', () => {
         currency: 'COP',
         image: '',     // Should be empty string due to null coalescing
         organizer: '',
-        capacity: 0,
         tags: [],
-        status: 'active'
+        status: 'active',
+        created_by: undefined
       }))
       // This test should cover lines 214, 215, and 219 in listEventsByCityDb
     })
@@ -910,9 +910,9 @@ describe('Repository Functions', () => {
         currency: 'COP',
         image: '',     // Should be empty string due to null coalescing
         organizer: '',
-        capacity: 0,
         tags: ['rock'],
-        status: 'active'
+        status: 'active',
+        created_by: undefined
       }))
       // This test should cover lines 471, 472, and 476 in getEventByIdDb
     })

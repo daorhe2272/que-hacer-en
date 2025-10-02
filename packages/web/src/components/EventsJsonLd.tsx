@@ -40,10 +40,6 @@ export default function EventsJsonLd({ events, cityName, city }: EventsJsonLdPro
               "addressCountry": "CO"
             }
           },
-          "organizer": {
-            "@type": "Organization",
-            "name": event.organizer
-          },
           "offers": {
             "@type": "Offer",
             "price": event.price !== null ? event.price.toString() : "0",

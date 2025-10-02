@@ -123,25 +123,7 @@ export function validateEventForm(data: Partial<EventFormData>): ValidationResul
     }
   }
 
-  // Organizer validation
-  if (!data.organizer?.trim()) {
-    errors.organizer = 'El organizador es requerido'
-  } else if (data.organizer.trim().length < 2) {
-    errors.organizer = 'El organizador debe tener al menos 2 caracteres'
-  } else if (data.organizer.trim().length > 200) {
-    errors.organizer = 'El organizador no puede exceder 200 caracteres'
-  }
 
-  // Capacity validation (optional - can be null, 0 for unlimited, or positive number for limited)
-  if (data.capacity !== null && data.capacity !== undefined) {
-    if (typeof data.capacity !== 'number') {
-      errors.capacity = 'La capacidad debe ser un número'
-    } else if (data.capacity < 0) {
-      errors.capacity = 'La capacidad no puede ser negativa'
-    } else if (!Number.isInteger(data.capacity)) {
-      errors.capacity = 'La capacidad debe ser un número entero'
-    }
-  }
 
   return {
     isValid: Object.keys(errors).length === 0,

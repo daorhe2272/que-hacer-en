@@ -1,9 +1,9 @@
 'use client'
 
 import { useSession } from '@/lib/session'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { createEvent, type EventFormData } from '@/lib/api'
+import { useRouter, useParams } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
+import { updateEvent, fetchEventForEdit, type EventFormData } from '@/lib/api'
 import { validateEventForm, validateField } from '@/lib/validation'
 import { CATEGORIES } from '@que-hacer-en/shared'
 import TimePicker from '@/components/TimePicker'
@@ -18,10 +18,12 @@ const CITIES = [
 
 const AVAILABLE_CATEGORIES = CATEGORIES.filter(c => c.slug !== 'todos')
 
-export default function CrearEventoPage() {
+export default function EditarEventoPage() {
   const router = useRouter()
+  const params = useParams()
   const { isAuthenticated, loading: sessionLoading } = useSession()
-  
+  const eventId = params.id as string
+
   const [formData, setFormData] = useState<EventFormData>({
     title: '',
     description: '',
@@ -37,19 +39,77 @@ export default function CrearEventoPage() {
     tags: [],
     status: 'active'
   })
-  
+
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [warnings, setWarnings] = useState<Record<string, string>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [isLoadingEvent, setIsLoadingEvent] = useState(true)
+  const [eventNotFound, setEventNotFound] = useState(false)
+
+  // Function to convert UTC timestamp to Colombian timezone date/time
+  const convertTimestampToFormFields = (utcTimestamp: string) => {
+    const date = new Date(utcTimestamp)
+    // Convert to Colombian timezone
+    const colombianDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+
+    const dateStr = colombianDate.toISOString().split('T')[0] // YYYY-MM-DD
+    const timeStr = colombianDate.toTimeString().slice(0, 5) // HH:MM
+
+    return { date: dateStr, time: timeStr }
+  }
+
+  const fetchEventData = useCallback(async () => {
+    try {
+      setIsLoadingEvent(true)
+      const event = await fetchEventForEdit(eventId)
+
+      if (!event) {
+        setEventNotFound(true)
+        return
+      }
+
+      // Convert event data to form data
+      const { date, time } = convertTimestampToFormFields(event.utcTimestamp)
+
+      // Map category label to slug (case-insensitive)
+      const categorySlug = AVAILABLE_CATEGORIES.find(cat => cat.label.toLowerCase() === event.category.toLowerCase())?.slug || AVAILABLE_CATEGORIES.find(cat => cat.slug === event.category)?.slug || event.category
+
+      setFormData({
+        title: event.title,
+        description: event.description,
+        date,
+        time,
+        location: event.location,
+        address: event.address || '',
+        category: categorySlug,
+        city: event.city,
+        price: event.price,
+        currency: event.currency,
+        image: event.image || '',
+        tags: event.tags,
+        status: event.status
+      })
+    } catch (err) {
+      console.error('Error fetching event:', err)
+      setSubmitError('Error al cargar el evento')
+    } finally {
+      setIsLoadingEvent(false)
+    }
+  }, [eventId])
 
   useEffect(() => {
     if (!sessionLoading && !isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent('/crear-evento')}`)
+      router.push(`/login?redirect=${encodeURIComponent(`/editar-evento/${eventId}`)}`)
+      return
     }
-  }, [isAuthenticated, sessionLoading, router])
-  
+
+    if (isAuthenticated && eventId) {
+      fetchEventData()
+    }
+  }, [isAuthenticated, sessionLoading, router, eventId, fetchEventData])
+
   const handleFieldChange = (field: keyof EventFormData, value: string | number | null) => {
     setFormData(prev => ({ ...prev, [field]: value }))
 
@@ -84,28 +144,27 @@ export default function CrearEventoPage() {
     }
   }
 
-  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validate entire form
     const validation = validateEventForm(formData)
     if (!validation.isValid) {
       setErrors(validation.errors)
       return
     }
-    
+
     setIsSubmitting(true)
     setSubmitError(null)
-    
+
     try {
-      const result = await createEvent(formData)
-      
+      const result = await updateEvent(eventId, formData)
+
       if (result.success) {
         setSubmitSuccess(true)
-        // Redirect to event management or home after 2 seconds
+        // Redirect to event details after 2 seconds
         setTimeout(() => {
-          router.push('/')
+          router.push(`/eventos/${formData.city}/${eventId}`)
         }, 2000)
       } else {
         if (result.validationErrors) {
@@ -116,7 +175,7 @@ export default function CrearEventoPage() {
           })
           setErrors(serverErrors)
         }
-        setSubmitError(result.error || 'Error al crear el evento')
+        setSubmitError(result.error || 'Error al actualizar el evento')
       }
     } catch (error) {
       setSubmitError('Error de conexión. Por favor intenta de nuevo.')
@@ -126,9 +185,9 @@ export default function CrearEventoPage() {
   }
 
   // Show loading while checking authentication
-  if (sessionLoading) {
+  if (sessionLoading || isLoadingEvent) {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-no-repeat relative"
         style={{
           backgroundImage: "url('/hero-background.jpeg')"
@@ -139,7 +198,7 @@ export default function CrearEventoPage() {
           <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
             <div className="text-center py-12">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              <p className="text-gray-600 mt-4">Verificando permisos...</p>
+              <p className="text-gray-600 mt-4">Cargando evento...</p>
             </div>
           </div>
         </div>
@@ -152,10 +211,41 @@ export default function CrearEventoPage() {
     return null
   }
 
+  // Show not found error
+  if (eventNotFound) {
+    return (
+      <div
+        className="min-h-screen bg-cover bg-center bg-no-repeat relative"
+        style={{
+          backgroundImage: "url('/hero-background.jpeg')"
+        }}
+      >
+        <div className="absolute inset-0 bg-hero-gradient opacity-80 min-h-full"></div>
+        <div className="container mx-auto px-4 py-12 relative z-10">
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8 text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Evento no encontrado</h1>
+            <p className="text-gray-600 mb-6">El evento que intentas editar no existe o no tienes permisos para editarlo.</p>
+            <button
+              onClick={() => router.push('/mis-eventos')}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+            >
+              Volver a mis eventos
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // Show success message
   if (submitSuccess) {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-no-repeat relative"
         style={{
           backgroundImage: "url('/hero-background.jpeg')"
@@ -169,8 +259,8 @@ export default function CrearEventoPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">¡Evento creado exitosamente!</h1>
-            <p className="text-gray-600 mb-6">Tu evento ha sido publicado y estará disponible para todos los usuarios.</p>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">¡Evento actualizado exitosamente!</h1>
+            <p className="text-gray-600 mb-6">Los cambios han sido guardados y el evento está actualizado.</p>
             <p className="text-sm text-gray-500">Redirigiendo...</p>
           </div>
         </div>
@@ -179,7 +269,7 @@ export default function CrearEventoPage() {
   }
 
   return (
-    <div 
+    <div
       className="min-h-screen bg-cover bg-center bg-no-repeat relative"
       style={{
         backgroundImage: "url('/hero-background.jpeg')"
@@ -189,8 +279,8 @@ export default function CrearEventoPage() {
       <div className="absolute inset-0 bg-hero-gradient opacity-80 min-h-full"></div>
       <div className="container mx-auto px-4 py-12 relative z-10">
         <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">Crear Nuevo Evento</h1>
-          
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">Editar Evento</h1>
+
           {submitError && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-red-800 text-sm">{submitError}</p>
@@ -203,8 +293,8 @@ export default function CrearEventoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Título del evento *
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={formData.title}
                 onChange={(e) => handleFieldChange('title', e.target.value)}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
@@ -221,7 +311,7 @@ export default function CrearEventoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Descripción *
               </label>
-              <textarea 
+              <textarea
                 rows={4}
                 value={formData.description}
                 onChange={(e) => handleFieldChange('description', e.target.value)}
@@ -240,8 +330,8 @@ export default function CrearEventoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Fecha *
                 </label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   value={formData.date}
                   onChange={(e) => handleFieldChange('date', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
@@ -271,8 +361,8 @@ export default function CrearEventoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Ubicación *
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={formData.location}
                 onChange={(e) => handleFieldChange('location', e.target.value)}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
@@ -288,8 +378,8 @@ export default function CrearEventoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Dirección *
               </label>
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={formData.address}
                 onChange={(e) => handleFieldChange('address', e.target.value)}
                 className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
@@ -307,7 +397,7 @@ export default function CrearEventoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Categoría *
                 </label>
-                <select 
+                <select
                   value={formData.category}
                   onChange={(e) => handleFieldChange('category', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
@@ -327,7 +417,7 @@ export default function CrearEventoPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Ciudad *
                 </label>
-                <select 
+                <select
                   value={formData.city}
                   onChange={(e) => handleFieldChange('city', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 ${
@@ -443,11 +533,11 @@ export default function CrearEventoPage() {
 
             {/* Submit Button */}
             <div className="pt-6">
-              <button 
+              <button
                 type="submit"
                 className={`w-full py-3 px-4 rounded-lg font-medium ${
-                  isSubmitting 
-                    ? 'bg-gray-400 cursor-not-allowed' 
+                  isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-purple-600 hover:bg-purple-700'
                 } text-white transition duration-200`}
                 disabled={isSubmitting}
@@ -455,10 +545,10 @@ export default function CrearEventoPage() {
                 {isSubmitting ? (
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Creando evento...
+                    Actualizando evento...
                   </div>
                 ) : (
-                  'Crear Evento'
+                  'Actualizar Evento'
                 )}
               </button>
             </div>

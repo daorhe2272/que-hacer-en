@@ -117,11 +117,10 @@ export default function EventCard({ event }: EventCardProps) {
     }
   }, [isManageMenuOpen])
 
-  // Placeholder handler for edit action
+  // Handle edit event navigation
   const handleEditEvent = () => {
     setIsManageMenuOpen(false)
-    // TODO: Implement edit functionality
-    alert('Editar evento - Funcionalidad próximamente disponible')
+    router.push(`/editar-evento/${event.id}`)
   }
 
   // Delete event handlers

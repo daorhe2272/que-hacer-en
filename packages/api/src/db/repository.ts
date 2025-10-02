@@ -46,7 +46,6 @@ export interface EventDto {
   currency: string
   image: string
   organizer: string
-  capacity: number | null
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
   created_by?: string
@@ -128,7 +127,6 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
     currency: r.currency,
     image: r.image ?? '',
     organizer: '',
-    capacity: 0,
     tags: [],
     status: 'active',
     created_by: r.created_by ?? undefined
@@ -157,7 +155,8 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
             e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
-            e.image
+            e.image,
+            e.created_by
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -179,7 +178,6 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
     currency: r.currency,
     image: r.image ?? '',
     organizer: '',
-    capacity: 0,
     tags: [],
     status: 'active'
   }
@@ -221,7 +219,6 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
     currency: r.currency,
     image: r.image ?? '',
     organizer: '',
-    capacity: 0,
     tags: [],
     status: 'active',
     created_by: r.created_by ?? undefined
@@ -240,8 +237,6 @@ export interface CreateEventParams {
   price: number | null
   currency: string
   image?: string
-  organizer: string
-  capacity: number | null
   tags?: string[]
   status?: 'active' | 'cancelled' | 'postponed' | 'sold_out'
 }
@@ -252,11 +247,11 @@ export interface UpdateEventParams extends Partial<CreateEventParams> {
 }
 
 export async function createEventDb(params: CreateEventParams, organizerId: string): Promise<EventDto> {
-  
-  const { 
-    title, description, date, time, location, address, 
-    category, city, price, currency, image, tags = [] 
-  } = params
+
+   const {
+     title, description, date, time, location, address,
+     category, city, price, currency, image, tags = []
+   } = params
 
   const cityRes = await query<{ id: number }>(`SELECT id FROM cities WHERE slug = $1`, [city])
   if (cityRes.rows.length === 0) {
@@ -485,12 +480,45 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     currency: r.currency,
     image: r.image ?? '',
     organizer: '',
-    capacity: 0,
     tags: tagsRes.rows.map(t => t.name),
     status: 'active',
     created_by: r.created_by ?? undefined
   }
   return event
+}
+
+export async function getEventForEditDb(eventId: string, userId: string): Promise<EventDto | null> {
+  // Check if event exists and verify ownership or admin role
+  const ownershipCheck = await query<{ created_by: string | null, user_role: string, category_slug: string }>(
+    `SELECT e.created_by, u.role as user_role, ct.slug as category_slug
+     FROM events e
+     LEFT JOIN users u ON u.id = $2
+     LEFT JOIN categories ct ON ct.id = e.category_id
+     WHERE e.id = $1`,
+    [eventId, userId]
+  )
+  
+  if (ownershipCheck.rows.length === 0) {
+    return null // Event doesn't exist
+  }
+  
+  const { created_by, user_role, category_slug } = ownershipCheck.rows[0]
+  
+  // Allow access if user owns the event OR is admin
+  const hasAccess = created_by === userId || user_role === 'admin'
+  if (!hasAccess) {
+    return null // No permission
+  }
+
+  // Get event details and override category with slug for form editing
+  const event = await getEventByIdDb(eventId)
+  if (!event) return null
+  
+  // Return event with category slug instead of label for form compatibility
+  return {
+    ...event,
+    category: category_slug
+  }
 }
 
 export async function listOrganizerEventsDb(organizerId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
@@ -548,7 +576,8 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
             e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
-            e.image
+            e.image,
+            e.created_by
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -578,9 +607,9 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
       currency: r.currency,
       image: r.image ?? '',
       organizer: '',
-      capacity: 0,
       tags: tagsRes.rows.map(t => t.name),
-      status: 'active'
+      status: 'active',
+      created_by: r.created_by ?? undefined
     })
   }
 
@@ -667,7 +696,8 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
             e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
-            e.image
+            e.image,
+            e.created_by
      FROM favorites f
      JOIN events e ON e.id = f.event_id
      JOIN cities c ON c.id = e.city_id
@@ -698,9 +728,9 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
       currency: r.currency,
       image: r.image ?? '',
       organizer: '',
-      capacity: 0,
       tags: tagsRes.rows.map(t => t.name),
-      status: 'active'
+      status: 'active',
+      created_by: r.created_by ?? undefined
     })
   }
 

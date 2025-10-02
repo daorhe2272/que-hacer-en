@@ -18,7 +18,6 @@ export const mockEvents: EventDto[] = [
     currency: 'COP',
     image: 'https://example.com/rock-al-parque.jpg',
     organizer: 'IDARTES',
-    capacity: 100000,
     tags: ['rock', 'festival', 'gratis', 'aire libre'],
     status: 'active'
   },
@@ -35,7 +34,6 @@ export const mockEvents: EventDto[] = [
     currency: 'COP',
     image: 'https://example.com/avaro-teatro.jpg',
     organizer: 'Teatro Colón',
-    capacity: 895,
     tags: ['teatro', 'clásico', 'comedia'],
     status: 'active'
   },
@@ -53,7 +51,6 @@ export const mockEvents: EventDto[] = [
     currency: 'COP',
     image: 'https://example.com/festival-flores.jpg',
     organizer: 'Alcaldía de Medellín',
-    capacity: 50000,
     tags: ['tradición', 'flores', 'silleteros', 'gratis'],
     status: 'active'
   },
@@ -71,7 +68,6 @@ export const mockEvents: EventDto[] = [
     currency: 'COP',
     image: 'https://example.com/tie-test-a.jpg',
     organizer: 'Tie Test Organizer A',
-    capacity: 100,
     tags: ['tie-test', 'sorting'],
     status: 'active'
   },
@@ -88,7 +84,6 @@ export const mockEvents: EventDto[] = [
     currency: 'COP',
     image: 'https://example.com/tie-test-b.jpg',
     organizer: 'Tie Test Organizer B',
-    capacity: 100,
     tags: ['tie-test', 'sorting'],
     status: 'active'
   }
