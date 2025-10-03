@@ -47,6 +47,16 @@ alwaysApply: true
 - API routes should follow RESTful conventions (`/api/events`, `/api/events/[city]`).
 
 ## API & Data Management
+
+### Three-Layer API Architecture (Critical!)
+When adding a new API endpoint, you MUST create all three layers:
+1. **Backend route** (`packages/api/src/routes/*.ts`) - Express route handler
+2. **Next.js proxy** (`packages/web/src/app/api/**/route.ts`) - Use `createProxyHandler()` from `proxy-utils.ts`
+3. **Client function** (`packages/web/src/lib/api.ts`) - Frontend API call function
+`packages/web/src/lib/api.ts` → `export async function getAdminStats()`
+**Never skip the proxy layer!** Without it, frontend requests won't reach the backend API.
+
+### General API Standards
 - All API communication should use RESTful patterns with clear JSON responses.
 - API responses must include proper error handling and status codes.
 - Use proper TypeScript interfaces for API request/response types.

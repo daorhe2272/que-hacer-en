@@ -166,8 +166,16 @@ describe('App Integration Tests', () => {
       expect(response.body).toEqual({ status: 'ok' })
     })
 
-    // Note: Testing CORS rejection is complex with supertest as it doesn't 
-    // trigger the full browser CORS flow. The middleware logic is tested indirectly.
+    it('should reject requests from non-allowed origins', async () => {
+      process.env.CORS_ORIGINS = 'https://allowed.com,https://also-allowed.com'
+      
+      const response = await request(app)
+        .get('/api/health')
+        .set('Origin', 'https://malicious.com')
+        .expect(403)
+
+      expect(response.body).toEqual({ error: 'CORS no permitido' })
+    })
   })
 
   describe('Rate Limiting', () => {

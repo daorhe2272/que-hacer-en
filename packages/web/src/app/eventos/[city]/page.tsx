@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       url,
-      siteName: '¿Qué hacer en...?',
+      siteName: '¿Qué hay pa\' hacer?',
       locale: 'es_CO',
       type: 'website',
       images: [
@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           url: `${process.env.NEXT_PUBLIC_WEB_URL || 'https://quehaceren.co'}/og-image.jpg`,
           width: 1200,
           height: 630,
-          alt: `Eventos en ${cityName} - ¿Qué hacer en...?`,
+          alt: `Eventos en ${cityName} - ¿Qué hay pa&apos; hacer?`,
         },
       ],
     },
@@ -169,7 +169,7 @@ export default async function CityEventsPage({ params, searchParams }: { params:
             {/* Brand Section */}
             <div className="lg:col-span-1">
               <div className="mb-4">
-                <Image src="/logo-wide-dark.png" alt="¿Qué hacer en...?" width={256} height={64} className="h-16 w-auto rounded-lg border border-gray-700" />
+                <Image src="/logo-wide-dark.png" alt="¿Qué hay pa&apos; hacer?" width={256} height={64} className="h-16 w-auto rounded-lg border border-gray-700" />
               </div>
               <p className="text-gray-400 mb-4">
                 Descubre los mejores eventos en toda Colombia. Conciertos, festivales, talleres, gastronomía y mucho más.
@@ -223,7 +223,7 @@ export default async function CityEventsPage({ params, searchParams }: { params:
           <div className="mt-12 pt-8 border-t border-gray-800">
             <div className="flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
               <p className="mb-4 md:mb-0">
-                © 2025 ¿Qué hacer en...? - Todos los derechos reservados
+                © 2025 ¿Qué hay pa&apos; hacer? - Todos los derechos reservados
               </p>
               <div className="flex space-x-6">
                 <a href="#" className="hover:text-white transition-colors">

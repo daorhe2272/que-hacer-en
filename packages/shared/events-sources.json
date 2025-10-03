@@ -1,6 +1,17 @@
 {
-  "Cali": {
-    "chequeo_permanente": [
+  "regular_sources": {
+    "Bogotá": [
+      { "URL": "https://www.teatromayor.org/es/temporada/2025" },
+      { "URL": "https://bogota.gov.co/que-hacer/agenda-cultural" },
+      { "URL": "https://www.idartes.gov.co/es/agenda" },
+      { "URL": "https://www.idartes.gov.co/es/agenda/teatro-jeg" },
+      { "URL": "https://movistararena.co/eventos/" },
+      { "URL": "https://corferias.com/es/calendario" },
+      { "URL": "https://www.royalcenter.com.co/" },
+      { "URL": "https://corporativo.compensar.com/recreacion-deportes/agenda-cultural" },
+      { "URL": "https://www.banrepcultural.org/actividades/bogota?city=Bogot%C3%A1&modality=Presencial" }
+    ],
+    "Cali": [
       { "URL": "https://www.cali.gov.co/calendario/" },
       { "URL": "https://museolatertulia.com/cinemateca" },
       { "URL": "https://teatrocalima.com.co/inicio/entretenimiento" },
@@ -9,6 +20,11 @@
       { "URL": "https://www.cinecolombia.com/cali/alternativo" },
       { "URL": "https://bellasartes.edu.co/category/eventos/" }
     ],
+    "Medellín": [],
+    "Barranquilla": [],
+    "Cartagena": []
+  },
+  "occasional_sources": {
     "agosto": [
       { "URL": "https://ajazzgofestival.com/programacion/" }
     ],
@@ -21,21 +37,5 @@
     "diciembre": [
       { "URL": "URL_programacion_feria_de_Cali" }
     ]
-  },
-  "Bogotá": {
-    "chequeo_permanente": [
-      { "URL": "https://www.teatromayor.org/es/temporada/2025" },
-      { "URL": "https://bogota.gov.co/que-hacer/agenda-cultural" },
-      { "URL": "https://www.idartes.gov.co/es/agenda" },
-      { "URL": "https://www.idartes.gov.co/es/agenda/teatro-jeg" },
-      { "URL": "https://movistararena.co/eventos/" },
-      { "URL": "https://corferias.com/es/calendario" },
-      { "URL": "https://www.royalcenter.com.co/" },
-      { "URL": "https://corporativo.compensar.com/recreacion-deportes/agenda-cultural" },
-      { "URL": "https://www.banrepcultural.org/actividades/bogota?city=Bogot%C3%A1&modality=Presencial" }
-    ]
-  },
-  "Medellín": {},
-  "Barranquilla": {},
-  "Cartagena": {}
-}   
+  }
+}

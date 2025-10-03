@@ -27,6 +27,7 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Add social media sharing and viral features
 - [ ] Incluir link original del evento en la página del evento detallada.
 - [ ] Filtro de eventos para hoy, mañana, esta semana, fin de semana, siguiente semana, este mes, próximo mes.
+- [ ] Cambiar logo de la página por uno que refleje el nuevo nombre "Qué hay pa' hacer?
 
 ## Pending tasks:
 - [ ] Establcer rol de usuarios por defecto: `attendee`;

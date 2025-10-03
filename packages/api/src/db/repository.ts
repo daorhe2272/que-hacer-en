@@ -749,4 +749,27 @@ export async function isEventFavoritedDb(userId: string, eventId: string): Promi
   }
 }
 
+export async function getAdminStatsDb(): Promise<{ totalUsers: number; activeEvents: number }> {
+  try {
+    // Get total users
+    const usersResult = await query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM users`
+    )
+    const totalUsers = Number(usersResult.rows[0]?.count || '0')
+
+    // Get active events (future events)
+    const eventsResult = await query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
+       FROM events e
+       JOIN cities c ON c.id = e.city_id
+       JOIN categories ct ON ct.id = e.category_id
+       WHERE (e.starts_at AT TIME ZONE 'America/Bogota')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date`
+    )
+    const activeEvents = Number(eventsResult.rows[0]?.count || '0')
+
+    return { totalUsers, activeEvents }
+  } catch (err) {
+    return { totalUsers: 0, activeEvents: 0 }
+  }
+}
 

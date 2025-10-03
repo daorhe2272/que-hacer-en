@@ -1,12 +1,16 @@
 import { jest } from '@jest/globals'
 import { authenticate, requireRole } from '../src/middleware/auth'
-import { mockRequest, mockResponse, mockNext } from './test-helpers/mock-database'
+import { mockRequest, mockResponse, mockNext, createMockQuery } from './test-helpers/mock-database'
+import { query } from '../src/db/client'
+
+// Mock database client
+const mockQuery = createMockQuery()
+jest.mocked(query).mockImplementation(mockQuery)
 
 // Mock Supabase client
-const mockGetUser = jest.fn() as jest.MockedFunction<any>
 const mockSupabaseClient = {
   auth: {
-    getUser: mockGetUser
+    getUser: jest.fn()
   }
 }
 
@@ -24,6 +28,7 @@ describe('Authentication Middleware', () => {
     res = mockResponse()
     next = mockNext()
     jest.clearAllMocks()
+    mockQuery.mockClear()
   })
 
   describe('authenticate', () => {
@@ -81,9 +86,10 @@ describe('Authentication Middleware', () => {
       process.env.NODE_ENV = 'production'
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
-      
+
       req.headers = { authorization: 'Bearer valid-token' }
 
+      const mockGetUser = mockSupabaseClient.auth.getUser as jest.MockedFunction<any>
       mockGetUser.mockResolvedValue({
         data: {
           user: {
@@ -94,6 +100,8 @@ describe('Authentication Middleware', () => {
         },
         error: null
       })
+
+      mockQuery.mockResolvedValue({ rows: [{ role: 'organizer' }], rowCount: 1 })
 
       await authenticate(req, res, next)
 
@@ -110,9 +118,10 @@ describe('Authentication Middleware', () => {
       process.env.NODE_ENV = 'production'
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
-      
+
       req.headers = { authorization: 'Bearer valid-token' }
 
+      const mockGetUser = mockSupabaseClient.auth.getUser as jest.MockedFunction<any>
       mockGetUser.mockResolvedValue({
         data: {
           user: {
@@ -124,6 +133,8 @@ describe('Authentication Middleware', () => {
         },
         error: null
       })
+
+      mockQuery.mockResolvedValue({ rows: [], rowCount: 0 })
 
       await authenticate(req, res, next)
 
@@ -139,9 +150,10 @@ describe('Authentication Middleware', () => {
       process.env.NODE_ENV = 'production'
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
-      
+
       req.headers = { authorization: 'Bearer valid-token' }
 
+      const mockGetUser = mockSupabaseClient.auth.getUser as jest.MockedFunction<any>
       mockGetUser.mockResolvedValue({
             data: {
               user: {
@@ -153,6 +165,8 @@ describe('Authentication Middleware', () => {
             },
             error: null
       })
+
+      mockQuery.mockResolvedValue({ rows: [{ role: 'admin' }], rowCount: 1 })
 
       await authenticate(req, res, next)
 
@@ -171,6 +185,7 @@ describe('Authentication Middleware', () => {
       
       req.headers = { authorization: 'Bearer invalid-token' }
 
+      const mockGetUser = mockSupabaseClient.auth.getUser as jest.MockedFunction<any>
       mockGetUser.mockResolvedValue({
             data: { user: null },
             error: { message: 'Invalid token' }
@@ -190,6 +205,7 @@ describe('Authentication Middleware', () => {
       
       req.headers = { authorization: 'Bearer expired-token' }
 
+      const mockGetUser = mockSupabaseClient.auth.getUser as jest.MockedFunction<any>
       mockGetUser.mockResolvedValue({
             data: { user: null },
             error: null
@@ -209,6 +225,7 @@ describe('Authentication Middleware', () => {
       
       req.headers = { authorization: 'Bearer valid-token' }
 
+      const mockGetUser = mockSupabaseClient.auth.getUser as jest.MockedFunction<any>
       mockGetUser.mockRejectedValue(new Error('Network error'))
 
       await authenticate(req, res, next)
@@ -222,9 +239,10 @@ describe('Authentication Middleware', () => {
       process.env.NODE_ENV = 'production'
       process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
-      
+
       req.headers = { authorization: 'Bearer valid-token' }
 
+      const mockGetUser = mockSupabaseClient.auth.getUser as jest.MockedFunction<any>
       mockGetUser.mockResolvedValue({
             data: {
               user: {
@@ -235,6 +253,8 @@ describe('Authentication Middleware', () => {
             },
             error: null
       })
+
+      mockQuery.mockResolvedValue({ rows: [{ role: 'attendee' }], rowCount: 1 })
 
       await authenticate(req, res, next)
 

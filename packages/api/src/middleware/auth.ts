@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { createClient } from '@supabase/supabase-js'
+import { query } from '../db/client'
 
 export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   // Skip authentication in test environment with special test user
@@ -34,8 +35,13 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       return
     }
 
-    // Get role from user metadata or default to attendee
-    const role = (user.user_metadata?.role || user.app_metadata?.role || 'attendee') as ('attendee' | 'organizer' | 'admin')
+    // Get role from database (authoritative source)
+    const result = await query<{ role: string }>(
+      'SELECT role FROM users WHERE id = $1',
+      [user.id]
+    )
+    
+    const role = (result.rows[0]?.role || 'attendee') as ('attendee' | 'organizer' | 'admin')
 
     req.user = { id: user.id, email: user.email || undefined, role }
     next()

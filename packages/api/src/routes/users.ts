@@ -66,60 +66,52 @@ usersRouter.get('/me', authenticate, async (req, res) => {
 
 // Add event to favorites
 usersRouter.post('/favorites', authenticate, async (req, res) => {
-  try {
-    const authReq = assertAuthenticated(req)
-    const userId = authReq.user.id
-    const { eventId } = req.body
-    
-    if (!eventId || typeof eventId !== 'string') {
-      res.status(400).json({ error: 'eventId es requerido' })
-      return
-    }
+  const authReq = assertAuthenticated(req)
+  const userId = authReq.user.id
+  const { eventId } = req.body
+  
+  if (!eventId || typeof eventId !== 'string') {
+    res.status(400).json({ error: 'eventId es requerido' })
+    return
+  }
 
-    const useDb = process.env.NODE_ENV !== 'test'
-    let success: boolean
-    
-    if (useDb) {
-      success = await addToFavoritesDb(userId, eventId)
-    } else {
-      // Mock add to favorites for tests
-      success = true
-    }
-    
-    if (success) {
-      res.status(201).json({ message: 'Evento agregado a favoritos' })
-    } else {
-      res.status(500).json({ error: 'Error al agregar a favoritos' })
-    }
-  } catch (err) {
+  const useDb = process.env.NODE_ENV !== 'test'
+  let success: boolean
+  
+  if (useDb) {
+    success = await addToFavoritesDb(userId, eventId)
+  } else {
+    // Mock add to favorites for tests
+    success = true
+  }
+  
+  if (success) {
+    res.status(201).json({ message: 'Evento agregado a favoritos' })
+  } else {
     res.status(500).json({ error: 'Error al agregar a favoritos' })
   }
 })
 
 // Remove event from favorites
 usersRouter.delete('/favorites/:eventId', authenticate, async (req, res) => {
-  try {
-    const authReq = assertAuthenticated(req)
-    const userId = authReq.user.id
-    const { eventId } = req.params
+  const authReq = assertAuthenticated(req)
+  const userId = authReq.user.id
+  const { eventId } = req.params
 
-    const useDb = process.env.NODE_ENV !== 'test'
-    let success: boolean
-    
-    if (useDb) {
-      success = await removeFromFavoritesDb(userId, eventId)
-    } else {
-      // Mock remove from favorites for tests
-      success = eventId === 'event-123'
-    }
-    
-    if (success) {
-      res.json({ message: 'Evento removido de favoritos' })
-    } else {
-      res.status(404).json({ error: 'Favorito no encontrado' })
-    }
-  } catch (err) {
-    res.status(500).json({ error: 'Error al remover de favoritos' })
+  const useDb = process.env.NODE_ENV !== 'test'
+  let success: boolean
+  
+  if (useDb) {
+    success = await removeFromFavoritesDb(userId, eventId)
+  } else {
+    // Mock remove from favorites for tests
+    success = eventId === 'event-123'
+  }
+  
+  if (success) {
+    res.json({ message: 'Evento removido de favoritos' })
+  } else {
+    res.status(404).json({ error: 'Favorito no encontrado' })
   }
 })
 
@@ -184,25 +176,21 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
 
 // Check if event is favorited
 usersRouter.get('/favorites/:eventId/status', authenticate, async (req, res) => {
-  try {
-    const authReq = assertAuthenticated(req)
-    const userId = authReq.user.id
-    const { eventId } = req.params
+  const authReq = assertAuthenticated(req)
+  const userId = authReq.user.id
+  const { eventId } = req.params
 
-    const useDb = process.env.NODE_ENV !== 'test'
-    let isFavorited: boolean
-    
-    if (useDb) {
-      isFavorited = await isEventFavoritedDb(userId, eventId)
-    } else {
-      // Mock favorite status for tests
-      isFavorited = eventId === 'event-123'
-    }
-    
-    res.json({ isFavorited })
-  } catch (err) {
-    res.status(500).json({ error: 'Error al verificar favorito' })
+  const useDb = process.env.NODE_ENV !== 'test'
+  let isFavorited: boolean
+  
+  if (useDb) {
+    isFavorited = await isEventFavoritedDb(userId, eventId)
+  } else {
+    // Mock favorite status for tests
+    isFavorited = eventId === 'event-123'
   }
+  
+  res.json({ isFavorited })
 })
 
 

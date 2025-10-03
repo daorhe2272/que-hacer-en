@@ -229,6 +229,7 @@ describe('Users Router', () => {
       
       process.env.NODE_ENV = 'test'
     })
+
   })
 
   describe('DELETE /api/users/favorites/:eventId', () => {
@@ -301,6 +302,7 @@ describe('Users Router', () => {
       
       process.env.NODE_ENV = 'test'
     })
+
   })
 
   describe('GET /api/users/favorites', () => {
@@ -499,6 +501,7 @@ describe('Users Router', () => {
       
       process.env.NODE_ENV = 'test'
     })
+
   })
 
   describe('Type assertion helper', () => {

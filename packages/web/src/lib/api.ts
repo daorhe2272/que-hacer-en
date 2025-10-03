@@ -262,4 +262,18 @@ export async function updateEvent(eventId: string, eventData: Partial<EventFormD
   }
 }
 
+export async function getAdminStats(): Promise<{ totalUsers: number; activeEvents: number }> {
+  try {
+    const headers = await buildAuthHeadersClient()
+    const res = await fetch(`${CLIENT_API_URL}/api/admin/stats`, { cache: 'no-store', headers })
+
+    if (!res.ok) {
+      throw new Error(`Error al cargar estadísticas de admin (${res.status})`)
+    }
+    return res.json()
+  } catch (err) {
+    console.error('getAdminStats error:', err)
+    throw new Error(err instanceof Error ? err.message : 'Error al cargar estadísticas de admin')
+  }
+}
 

@@ -73,7 +73,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       url,
-      siteName: '¿Qué hacer en...?',
+      siteName: '¿Qué hay pa\' hacer?',
       locale: 'es_CO',
       type: 'article',
       images: [

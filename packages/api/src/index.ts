@@ -5,6 +5,7 @@ import morgan from 'morgan'
 import dotenv from 'dotenv'
 import { router as eventsRouter } from './routes/events'
 import { usersRouter } from './routes/users'
+import { adminRouter } from './routes/admin'
 import rateLimit from 'express-rate-limit'
 import type { RequestHandler } from 'express'
 import crypto from 'crypto'
@@ -46,6 +47,8 @@ app.get('/api/health', (_req: Request, res: Response) => res.json({ status: 'ok'
 app.use('/api/events', eventsRouter)
 // Users routes
 app.use('/api/users', usersRouter)
+// Admin routes
+app.use('/api/admin', adminRouter)
 
 // 404 handler
 app.use((_req, res) => res.status(404).json({ error: 'Not Found' }))

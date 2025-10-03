@@ -72,7 +72,7 @@ export default function TopNavigation() {
           {/* Logo */}
           <div className="flex-shrink-0">
             <a href="/" className="flex items-center">
-              <Image src="/logo-wide.png" alt="¿Qué hacer en...?" width={192} height={48} className="h-12 w-auto" priority />
+              <Image src="/logo-wide.png" alt="¿Qué hay pa' hacer?" width={192} height={48} className="h-12 w-auto" priority />
             </a>
           </div>
 

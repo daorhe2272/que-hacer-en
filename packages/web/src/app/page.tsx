@@ -4,14 +4,14 @@ import CitySelector from '@/components/CitySelector'
 import Image from 'next/image'
 
 export const metadata: Metadata = {
-  title: '¿Qué hacer en...? - Descubre los mejores eventos en Colombia',
+  title: '¿Qué hay pa\' hacer? - Descubre los mejores eventos en Colombia',
   description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti. Conciertos, festivales, arte y cultura en toda Colombia.',
   keywords: ['eventos colombia', 'actividades colombia', 'conciertos', 'festivales', 'que hacer'],
   openGraph: {
-    title: '¿Qué hacer en...? - Descubre los mejores eventos en Colombia',
+    title: '¿Qué hay pa\' hacer? - Descubre los mejores eventos en Colombia',
     description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti. Conciertos, festivales, arte y cultura en toda Colombia.',
     url: process.env.NEXT_PUBLIC_WEB_URL,
-    siteName: '¿Qué hacer en...?',
+    siteName: '¿Qué hay pa\' hacer?',
     locale: 'es_CO',
     type: 'website',
     images: [
@@ -19,13 +19,13 @@ export const metadata: Metadata = {
         url: `${process.env.NEXT_PUBLIC_WEB_URL}/og-image.jpg`,
         width: 1200,
         height: 630,
-        alt: '¿Qué hacer en...? - Eventos en Colombia',
+        alt: '¿Qué hay pa\' hacer? - Eventos en Colombia',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '¿Qué hacer en...? - Descubre los mejores eventos en Colombia',
+    title: '¿Qué hay pa\' hacer? - Descubre los mejores eventos en Colombia',
     description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti.',
     images: [`${process.env.NEXT_PUBLIC_WEB_URL}/og-image.jpg`],
     creator: '@quehaceren',
@@ -167,7 +167,7 @@ export default async function HomePage({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                Por qué elegir <span className="text-primary-600">¿qué hacer en...?</span>
+                Por qué elegir <span className="text-primary-600">¿Qué hay pa&apos; hacer?</span>
               </h2>
               <p className="text-lg text-gray-600 max-w-3xl mx-auto">
                 La plataforma líder para descubrir y publicar eventos únicos en Colombia
@@ -251,7 +251,7 @@ export default async function HomePage({
                {/* Brand Section */}
                <div className="lg:col-span-1">
                   <div className="mb-4">
-                    <Image src="/logo-wide-dark.png" alt="¿Qué hacer en...?" width={256} height={64} className="h-16 w-auto rounded-lg border border-gray-700" />
+                    <Image src="/logo-wide-dark.png" alt="¿Qué hay pa&apos; hacer?" width={256} height={64} className="h-16 w-auto rounded-lg border border-gray-700" />
                   </div>
                  <p className="text-gray-400 mb-4">
                    Descubre los mejores eventos en toda Colombia. Conciertos, festivales, talleres, gastronomía y mucho más.
@@ -305,7 +305,7 @@ export default async function HomePage({
              <div className="mt-12 pt-8 border-t border-gray-800">
                <div className="flex flex-col md:flex-row justify-between items-center text-gray-400 text-sm">
                  <p className="mb-4 md:mb-0">
-                   © 2025 ¿Qué hacer en...? - Todos los derechos reservados
+                   © 2025 ¿Qué hay pa&apos; hacer? - Todos los derechos reservados
                  </p>
                  <div className="flex space-x-6">
                    <a href="#" className="hover:text-white transition-colors">

@@ -2,11 +2,11 @@
 
 ## 1. Project Purpose
 
-"Qué hacer en..." is a web application designed to help users discover local events in their city. The primary goal is to provide a simple, intuitive platform for finding entertainment and activities. The project is built with future expansion in mind, allowing for a straightforward transition into native Android and iOS applications.
+"Qué hacer en..." is a web application designed to help users discover local events in their city. The platform enables users to browse, search, and save events, while organizers can create and manage their own events. The primary goal is to provide a simple, intuitive platform for finding entertainment and activities with a complete user management system. The project is built with future expansion in mind, allowing for a straightforward transition into native Android and iOS applications.
 
 All user-facing content will be in Spanish.
 
-## 2. Architecture
+## 2. General Architecture
 
 The project is structured as a **TypeScript monorepo** managed with a package manager like `pnpm` or `yarn workspaces`. This approach enables maximum code reuse and a streamlined development process across different parts of the application.
 
@@ -27,8 +27,10 @@ A core architectural requirement is strong SEO performance. To achieve this, the
 *   **Frontend (Web)**: React, Next.js
 *   **Frontend (Mobile)**: React Native, Expo
 *   **Backend**: Node.js, Express.js
-*   **Database**: PostgreSQL (Supabase). `events.json` is retained for seeding and test-only fallback.
+*   **Database**: PostgreSQL (Supabase) with full migration and seeding system
+*   **Authentication**: Supabase Auth with Google OAuth integration
 *   **Styling**: Tailwind CSS for utility-first styling. The web package uses Tailwind CSS with PostCSS and Autoprefixer for optimal browser compatibility.
+*   **Testing**: Jest for unit tests, Playwright for E2E testing
 
 ## 4. Development Roadmap
 
@@ -47,18 +49,35 @@ The project will be developed in phases:
     *   Sticky navigation with search functionality. ✅
     *   System fonts implementation for optimal performance. ✅
     *   Responsive search component with enhanced width. ✅
-3.  **Phase 3: Backend API Development** ✅ *Complete (initial release)*
+3.  **Phase 3: Backend API Development** ✅ *Complete*
     *   Node.js/Express API implemented and connected to web frontend ✅
     *   In-memory response caching for list endpoints ✅
     *   CORS, rate limiting, correlation IDs, pagination, sorting, and filters ✅
-    *   Authentication and real-time features planned for later
-4.  **Phase 4: Mobile App**
+4.  **Phase 4: Database & Authentication** ✅ *Complete*
+    *   PostgreSQL database with Supabase integration ✅
+    *   Database migrations and seeding system ✅
+    *   Supabase Auth with Google OAuth ✅
+    *   User management with role-based access control ✅
+    *   JWT verification middleware ✅
+5.  **Phase 5: User Features & Event Management** ✅ *Complete*
+    *   User registration and login system ✅
+    *   Event creation and management for organizers ✅
+    *   Favorites/bookmarks functionality ✅
+    *   User profiles and event management dashboards ✅
+    *   Admin panel and statistics ✅
+6.  **Phase 6: Testing & CI/CD** ✅ *Complete*
+    *   Unit tests for API endpoints ✅
+    *   E2E tests with Playwright ✅
+    *   GitHub Actions CI/CD pipeline ✅
+    *   Code coverage reporting ✅
+7.  **Phase 7: Mobile App**
     *   Develop the Expo mobile app, reusing components from the web app.
     *   Adapt UI/UX for mobile devices.
     *   Implement mobile-specific features (push notifications, offline support)
-5.  **Phase 5: Advanced Features**
-    *   Geolocation, advanced filtering, map views, user accounts
+8.  **Phase 8: Advanced Features**
+    *   Geolocation, advanced filtering, map views
     *   Payment integration, analytics, and performance optimization
+    *   Social features and event recommendations
 
 ## 5. Configuration & Environment Variables
 
@@ -86,6 +105,8 @@ The project will be developed in phases:
 
 - App (`packages/app`)
   - `EXPO_PUBLIC_API_URL`
+  - `EXPO_PUBLIC_SUPABASE_URL`
+  - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 
 - Quick usage (PowerShell)
   - API (run): `pnpm --filter @que-hacer-en/api start`
@@ -120,13 +141,63 @@ Notes: prefer `CORS_ORIGINS`.
 *   **API**: All communication between the frontend and backend will be done via a RESTful API with clear and consistent JSON responses.
 *   **Project Planning**: Comprehensive task tracking in `TASKS.md` and strategic questions in `QUESTIONS.md` guide development priorities and ensure professional-level quality.
 
-## 7. Testing & CI/CD
+## 7. API Architecture
+
+### Three-Layer Pattern
+
+All API endpoints follow a three-layer architecture:
+
+1. **Express Backend** (`/packages/api/src/routes/`) - Handles business logic, validation, and database operations
+2. **Next.js Proxy** (`/packages/web/src/app/api/`) - Forwards requests from client to backend using `createProxyHandler()` from `proxy-utils.ts`
+3. **Client API** (`/packages/web/src/lib/api.ts`) - Provides typed functions for frontend components to call
+
+This pattern ensures:
+- Clean separation between frontend and backend
+- Type-safe API calls with proper error handling
+- Server-to-server communication in containerized deployments
+- Consistent authentication header forwarding
+
+### Authentication Integration
+
+The API architecture integrates seamlessly with Supabase Auth:
+
+- **JWT Verification**: Express middleware validates Supabase JWT tokens for protected routes
+- **Role-Based Access**: User roles (attendee, organizer, admin) are enforced at the API level
+- **Session Management**: Automatic token refresh and session validation
+- **User Context**: Request objects are enriched with user information for authorization
+
+## 8. Database Architecture
+
+The platform uses PostgreSQL with Supabase as the database provider:
+
+### Schema Design
+- **Events**: Core entity with normalized relationships to cities and categories
+- **Users**: User profiles with role-based permissions
+- **Cities**: Location normalization with slug-based URLs
+- **Categories**: Event categorization with hierarchical structure
+- **Tags**: Flexible tagging system for events
+- **Favorites**: Many-to-many relationship between users and events
+
+### Database Features
+- Full-text search with trigram indexing and accent normalization
+- Timezone-aware event handling (America/Bogota)
+- Database migrations with version control
+- Automatic seeding from `events.json` for development
+- Optimized queries with proper indexing
+
+### Data Management
+- Session pooler configuration for production
+- Backup and recovery procedures
+- Environment-specific database configurations
+- Test database isolation with Testcontainers
+
+## 9. Testing & CI/CD
 
 The project enforces quality via automated pipelines:
 
 - GitHub Actions runs lint, unit tests, build, and end-to-end tests with Node 22 and pnpm caching
 - High test coverage thresholds are enforced in CI; coverage and E2E reports are uploaded as artifacts
-- Unit tests focus on the API (validation, pagination, sorting, error handling) and run against PostgreSQL via Testcontainers where applicable
+- Unit tests focus on the API (validation, pagination, sorting, error handling, authentication) and run against PostgreSQL via Testcontainers where applicable
 
 ### E2E Strategy (Web)
 
@@ -134,28 +205,76 @@ The project enforces quality via automated pipelines:
 - Browser matrix: Chromium, Firefox, WebKit
 - Tests use accessible selectors (ARIA) and minimal `data-testid` only when necessary
 - For CI/E2E scenarios, Next.js image optimization is disabled to avoid external fetches during tests
+- Authentication flows tested with mock users and real OAuth integration
 
-## 8. API Guarantees (High-Level)
+## 10. API Guarantees (High-Level)
 
 - Pagination returns page, limit, total, and totalPages
 - Sorting is stable; date sorting considers date+time with deterministic tie-breaking
 - Requests and responses propagate `x-correlation-id` for traceability
 - Standard rate-limit headers are included to communicate limits and remaining requests
 
-### API Endpoints (MVP)
+### API Endpoints
 
+#### Public Endpoints
 - `GET /api/health`: health check
 - `GET /api/events`: list with filters (`city`, `category`, `q`, `from`, `to`, `minPrice`, `maxPrice`, `page`, `limit`, `sort`, `order`) with in-memory caching
 - `GET /api/events/:city`: events for a city
 - `GET /api/events/id/:id`: event by legacy ID
-- `POST /api/events`: validate and accept event payload (mock create)
+- `GET /api/events/uuid/:id`: event by UUID
 
-## 9. Environment & Configuration Notes
+#### Authentication Required
+- `GET /api/users/me`: get current user profile
+- `POST /api/users/favorites`: add event to favorites
+- `DELETE /api/users/favorites/:eventId`: remove event from favorites
+- `GET /api/users/favorites`: get user's favorite events
+- `GET /api/users/favorites/:eventId/status`: check if event is favorited
+
+#### Organizer & Admin Endpoints
+- `POST /api/events`: create new event (organizer role required)
+- `PUT /api/events/manage/:id`: update event (owner or admin)
+- `DELETE /api/events/manage/:id`: delete event (owner or admin)
+- `GET /api/admin/stats`: get admin statistics (admin role required)
+
+## 11. User Features & Interface
+
+### Event Discovery
+- City-based event browsing with SEO-friendly URLs
+- Advanced filtering by category, date range, price, and location
+- Full-text search with accent-insensitive matching
+- Responsive grid layout with event cards
+- Real-time search suggestions and filters
+
+### User Interaction
+- Favorites/bookmarks system with persistent storage
+- Event sharing capabilities
+- Mobile-first responsive design
+- Loading states and error handling
+- Accessible navigation and UI components
+
+### Event Management
+- Event creation form with validation and preview
+- Image upload support with URL integration
+- Organizer dashboard for managing events
+- Event analytics and statistics for organizers
+- Bulk operations and batch management
+
+### Authentication Interface
+- Multi-step authentication flow (choice → login/register → form)
+- Google OAuth integration with redirect handling
+- Password strength validation with real-time feedback
+- Error messaging in Spanish with localization
+- Session persistence and automatic logout handling
+
+## 12. Environment & Configuration Notes
 
 - Core variables include `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, and `DATABASE_URL`, managed via `.env`
 - An optional `E2E` flag can be used in test environments to adjust runtime behavior (e.g., image optimization)
+- Supabase configuration requires both client and server environment variables
 
 Backend behaviors:
 - CORS allowlist via `CORS_ORIGINS` (empty = allow all)
 - Rate limiting: 100 req/min under `/api/`
 - In-memory cache (default TTL 15s) for event listings, disabled in test
+- Authentication middleware with JWT verification
+- Role-based access control for protected routes
