@@ -4,5 +4,5 @@ We are going to push our changes to origin master, but first we need to make sur
 2) Check there are no linting errors for api and web
 3) Check the builds work for api and web
 4) Add all changes to git (git add .)
-5) Commit the changes. Add an appropriate, brief message based on the changes introduced since the last commit.
+5) Commit the changes. Add an appropriate, clear and concise message based on the changes introduced since the last commit.
 6) Push to origin master

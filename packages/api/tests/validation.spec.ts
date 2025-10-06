@@ -196,9 +196,7 @@ describe('Validation Schemas', () => {
       city: 'bogota',
       price: 50000,
       currency: 'COP',
-      image: 'https://example.com/image.jpg',
-      organizer: 'Test Organizer',
-      capacity: 100
+      image: 'https://example.com/image.jpg'
     }
 
     it('should validate complete valid event', () => {
@@ -416,25 +414,6 @@ describe('Validation Schemas', () => {
       })
     })
 
-    describe('capacity validation', () => {
-      it('should reject zero or negative capacity', () => {
-        const invalidCapacities = [0, -1, -100]
-        
-        invalidCapacities.forEach(capacity => {
-          const result = eventSchema.safeParse({ ...validEvent, capacity })
-          expect(result.success).toBe(false)
-        })
-      })
-
-      it('should accept positive capacity', () => {
-        const validCapacities = [1, 100, 50000]
-        
-        validCapacities.forEach(capacity => {
-          const result = eventSchema.safeParse({ ...validEvent, capacity })
-          expect(result.success).toBe(true)
-        })
-      })
-    })
 
     describe('status validation', () => {
       it('should accept all valid status values', () => {
@@ -484,9 +463,7 @@ describe('Validation Schemas', () => {
         category: 'musica',
         city: 'bogota',
         price: 50000,
-        currency: 'COP',
-        organizer: 'Test Organizer',
-        capacity: 100
+        currency: 'COP'
       }
 
       const result = createEventSchema.safeParse(eventWithId)

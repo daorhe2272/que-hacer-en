@@ -91,6 +91,7 @@ The project will be developed in phases:
   - `NEXT_PUBLIC_WEB_URL` (e.g., `http://localhost:4000`)
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `REVALIDATE_SECRET` (secret token for on-demand revalidation)
   - `WEB_BASE_URL` (Playwright baseURL)
   - `E2E`, `CI` (flags)
 
@@ -101,6 +102,8 @@ The project will be developed in phases:
   - `HOST` (optional)
   - `NEXT_PUBLIC_SUPABASE_URL` (shared with web)
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (shared with web)
+  - `NEXT_PUBLIC_WEB_URL` (URL of web app for revalidation requests)
+  - `REVALIDATE_SECRET` (secret token for on-demand revalidation, must match web)
   - `ENABLE_AUTH` (`true` to require auth for protected routes)
 
 - App (`packages/app`)
@@ -278,3 +281,4 @@ Backend behaviors:
 - In-memory cache (default TTL 15s) for event listings, disabled in test
 - Authentication middleware with JWT verification
 - Role-based access control for protected routes
+- On-demand revalidation for city pages when events are created/updated/deleted

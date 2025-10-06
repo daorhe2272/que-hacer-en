@@ -15,7 +15,8 @@ import Pagination from '@/components/Pagination'
 import EventsJsonLd from '@/components/EventsJsonLd'
 import ScrollToHash from '@/components/ScrollToHash'
 
-export const dynamic = 'force-dynamic'
+export const dynamic = 'auto'
+export const revalidate = 3600 // 1 hour fallback revalidation
 
 type Props = {
   params: { city: string }

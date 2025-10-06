@@ -6,6 +6,41 @@ import { listQuerySchema, createEventSchema, updateEventSchema } from '../valida
 import { listEventsDb, getEventByLegacyIdDb, listEventsByCityDb, createEventDb, updateEventDb, deleteEventDb, getEventByIdDb, getEventForEditDb, listOrganizerEventsDb, type EventDto } from '../db/repository'
 import { authenticate } from '../middleware/auth'
 
+// Helper function to trigger revalidation
+async function triggerRevalidation(city: string): Promise<void> {
+  const webUrl = process.env.NEXT_PUBLIC_WEB_URL
+  const revalidateSecret = process.env.REVALIDATE_SECRET
+  
+  if (!webUrl || !revalidateSecret) {
+    console.warn('Revalidation skipped: Missing NEXT_PUBLIC_WEB_URL or REVALIDATE_SECRET')
+    return
+  }
+
+  try {
+    const response = await fetch(`${webUrl}/api/revalidate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        path: `/eventos/${city}`,
+        secret: revalidateSecret
+      })
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error('Revalidation failed:', response.status, errorText)
+    } else {
+      const result = await response.json()
+      console.log('Revalidation successful:', result)
+    }
+  } catch (error) {
+    console.error('Error triggering revalidation:', error)
+    // Don't fail the main operation if revalidation fails
+  }
+}
+
 export type CreateEventsRouterOptions = {
   enableCache?: boolean
   cacheTtlMs?: number
@@ -225,6 +260,11 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
         }
       }
       
+      // Trigger revalidation for the city page
+      if (useDb && event.city) {
+        await triggerRevalidation(event.city)
+      }
+      
       res.status(201).json({ message: 'Evento creado exitosamente', event })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al crear el evento'
@@ -370,6 +410,12 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
         res.status(404).json({ error: 'Evento no encontrado' })
         return
       }
+      
+      // Trigger revalidation for the city page
+      if (useDb && event.city) {
+        await triggerRevalidation(event.city)
+      }
+      
       res.json({ message: 'Evento actualizado exitosamente', event })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al actualizar el evento'
@@ -384,18 +430,31 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
       const useDb = process.env.NODE_ENV !== 'test'
       
       let deleted: boolean
+      let eventCity: string | undefined
       
       if (useDb) {
+        // Get the event first to determine the city for revalidation
+        const event = await getEventForEditDb(id, req.user!.id)
+        if (event) {
+          eventCity = event.city
+        }
         deleted = await deleteEventDb(id, req.user!.id)
       } else {
         // Mock event deletion for tests
         deleted = id === '550e8400-e29b-41d4-a716-446655440000'
+        eventCity = 'bogota'
       }
       
       if (!deleted) {
         res.status(404).json({ error: 'Evento no encontrado' })
         return
       }
+      
+      // Trigger revalidation for the city page
+      if (useDb && eventCity) {
+        await triggerRevalidation(eventCity)
+      }
+      
       res.json({ message: 'Evento eliminado exitosamente' })
     } catch (err) {
       res.status(500).json({ error: 'Error al eliminar el evento' })

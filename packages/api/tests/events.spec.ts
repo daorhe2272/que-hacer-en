@@ -664,12 +664,9 @@ describe('Events Router', () => {
       process.env.NODE_ENV = 'test'
     })
 
-    it('should create event with default values for optional fields (lines 190-193,196-197)', async () => {
-      // This test targets lines 190-193 and 196-197 in mock event creation
-      // Lines 190,192-193,196-197 are fallback values when optional fields are missing
+    it('should create event with default values for optional fields', async () => {
       process.env.NODE_ENV = 'test'
 
-      // Event data that omits optional fields - these should trigger fallback values in mock
       const minimalEventData = {
         title: 'Minimal Test Event',
         description: 'This is a minimal event to test default values for optional fields.',
@@ -703,13 +700,97 @@ describe('Events Router', () => {
           id: expect.any(String),
           title: 'Minimal Test Event',
           description: 'This is a minimal event to test default values for optional fields.',
-          address: 'Valid Address',   // We provided this value
-          price: null,                // We explicitly provided null
-          currency: 'COP',           // We provided this value
-          image: 'test-image.jpg',   // Line 194: should be default since image not provided
-          tags: []                   // Line 197: should be default since tags not provided
+          address: 'Valid Address',
+          price: null,
+          currency: 'COP',
+          image: 'test-image.jpg',
+          tags: []
         })
       })
+    })
+
+    it('should trigger successful revalidation on event creation', async () => {
+      // Test for successful revalidation (fetch resolves with ok: true)
+      // This should cover lines 35-36 in triggerRevalidation function
+      const originalEnv = process.env.NODE_ENV
+      const originalWebUrl = process.env.NEXT_PUBLIC_WEB_URL
+      const originalSecret = process.env.REVALIDATE_SECRET
+
+      try {
+        process.env.NODE_ENV = 'production' // Enable database calls
+        process.env.NEXT_PUBLIC_WEB_URL = 'http://localhost:4000'
+        process.env.REVALIDATE_SECRET = 'test-secret'
+
+        // Mock database queries for event creation
+        const createdEvent = {
+          id: 'test-created-event-id',
+          title: validEventData.title,
+          description: validEventData.description,
+          utcTimestamp: `${validEventData.date}T${validEventData.time}:00-05:00`,
+          location: validEventData.location,
+          address: validEventData.address,
+          category: validEventData.category,
+          city: validEventData.city,
+          price: validEventData.price || null,
+          currency: validEventData.currency,
+          image: 'test-image.jpg',
+          organizer: '',
+          tags: [],
+          status: 'active'
+        }
+        mockQuery
+          .mockImplementationOnce(() => ({ rows: [{ id: 1 }], rowCount: 1 })) // City lookup
+          .mockImplementationOnce(() => ({ rows: [{ id: 1 }], rowCount: 1 })) // Category lookup
+          .mockImplementationOnce(() => ({ rows: [], rowCount: 1 })) // Event creation
+          .mockImplementationOnce(() => ({ rows: [createdEvent], rowCount: 1 })) // Get created event
+          .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Tags
+
+        // Mock fetch for successful revalidation
+        const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve({ success: true })
+        } as Response)
+
+        // Spy on console.log to verify revalidation success message
+        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
+
+        const response = await request(app)
+          .post('/api/events')
+          .set('Authorization', 'Bearer test-token')
+          .send(validEventData)
+          .expect(201)
+
+        expect(response.body).toEqual({
+          message: 'Evento creado exitosamente',
+          event: expect.objectContaining({
+            id: expect.any(String),
+            title: 'New Test Event'
+          })
+        })
+
+        // Verify fetch was called for revalidation
+        expect(fetchMock).toHaveBeenCalledWith(
+          'http://localhost:4000/api/revalidate',
+          expect.objectContaining({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path: '/eventos/bogota', // City from mockEvents[0]
+              secret: 'test-secret'
+            })
+          })
+        )
+
+        // Verify success message was logged
+        expect(consoleLogSpy).toHaveBeenCalledWith('Revalidation successful:', { success: true })
+
+        fetchMock.mockRestore()
+        consoleLogSpy.mockRestore()
+      } finally {
+        process.env.NODE_ENV = originalEnv
+        process.env.NEXT_PUBLIC_WEB_URL = originalWebUrl
+        process.env.REVALIDATE_SECRET = originalSecret
+      }
     })
   })
 
@@ -838,6 +919,104 @@ describe('Events Router', () => {
       expect(response.body).toEqual({
         error: 'Evento no encontrado'
       })
+    })
+
+    it('should trigger failed revalidation on event update', async () => {
+      // Test for failed revalidation (fetch resolves with ok: false)
+      // This should cover lines 31-33 in triggerRevalidation function
+      const originalEnv = process.env.NODE_ENV
+      const originalWebUrl = process.env.NEXT_PUBLIC_WEB_URL
+      const originalSecret = process.env.REVALIDATE_SECRET
+
+      try {
+        process.env.NODE_ENV = 'production' // Enable database calls
+        process.env.NEXT_PUBLIC_WEB_URL = 'http://localhost:4000'
+        process.env.REVALIDATE_SECRET = 'test-secret'
+
+        // Mock database queries for event update
+        const updatedEvent = {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          title: updateData.title,
+          description: 'Updated description',
+          utcTimestamp: '2024-12-01T20:00:00-05:00',
+          location: 'Updated Location',
+          address: 'Updated Address',
+          category: 'musica',
+          city: 'bogota',
+          price: updateData.price,
+          currency: 'COP',
+          image: 'test-image.jpg',
+          organizer: '',
+          tags: [],
+          status: 'active'
+        }
+        mockQuery
+          .mockImplementationOnce(() => ({ rows: [{ created_by: 'test-user-id', user_role: 'organizer' }], rowCount: 1 })) // Ownership check
+          .mockImplementationOnce(() => ({ rows: [], rowCount: 1 })) // Update event (returns empty result for UPDATE)
+          .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Tags query (DELETE FROM event_tags)
+          .mockImplementationOnce(() => ({ rows: [{ // getEventByIdDb - event row
+            id: updatedEvent.id,
+            title: updatedEvent.title,
+            description: updatedEvent.description,
+            location: updatedEvent.location,
+            address: updatedEvent.address,
+            price: updatedEvent.price,
+            currency: updatedEvent.currency,
+            utc_timestamp: updatedEvent.utcTimestamp,
+            category: updatedEvent.category,
+            city: updatedEvent.city,
+            image: updatedEvent.image,
+            created_by: 'test-user-id'
+          }], rowCount: 1 }))
+          .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Tags query in getEventByIdDb
+
+        // Mock fetch for failed revalidation
+        const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+          ok: false,
+          status: 500,
+          text: () => Promise.resolve('Internal Server Error')
+        } as Response)
+
+        // Spy on console.error to verify error logging
+        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+        const response = await request(app)
+          .put('/api/events/550e8400-e29b-41d4-a716-446655440000')
+          .set('Authorization', 'Bearer test-token')
+          .send(updateData)
+          .expect(200)
+
+        expect(response.body).toEqual({
+          message: 'Evento actualizado exitosamente',
+          event: expect.objectContaining({
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            title: updateData.title
+          })
+        })
+
+        // Verify fetch was called for revalidation
+        expect(fetchMock).toHaveBeenCalledWith(
+          'http://localhost:4000/api/revalidate',
+          expect.objectContaining({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path: '/eventos/bogota', // City from updated event
+              secret: 'test-secret'
+            })
+          })
+        )
+
+        // Verify error message was logged
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Revalidation failed:', 500, 'Internal Server Error')
+
+        fetchMock.mockRestore()
+        consoleErrorSpy.mockRestore()
+      } finally {
+        process.env.NODE_ENV = originalEnv
+        process.env.NEXT_PUBLIC_WEB_URL = originalWebUrl
+        process.env.REVALIDATE_SECRET = originalSecret
+      }
     })
   })
 
@@ -1141,6 +1320,79 @@ describe('Events Router', () => {
         // This should cover line 399 (catch block in GET /:city route)
       } finally {
         process.env.NODE_ENV = originalEnv
+      }
+    })
+
+    it('should trigger revalidation error on event deletion', async () => {
+      // Test for revalidation error (fetch rejects)
+      // This should cover lines 38-40 in triggerRevalidation function
+      const originalEnv = process.env.NODE_ENV
+      const originalWebUrl = process.env.NEXT_PUBLIC_WEB_URL
+      const originalSecret = process.env.REVALIDATE_SECRET
+
+      try {
+        process.env.NODE_ENV = 'production' // Enable database calls
+        process.env.NEXT_PUBLIC_WEB_URL = 'http://localhost:4000'
+        process.env.REVALIDATE_SECRET = 'test-secret'
+
+        // Mock database queries for event deletion
+        mockQuery
+          .mockImplementationOnce(() => ({ rows: [{ created_by: 'test-user-id', user_role: 'organizer', category_slug: 'musica' }], rowCount: 1 })) // Ownership check in getEventForEditDb
+          .mockImplementationOnce(() => ({ rows: [{ // getEventByIdDb query
+            id: '550e8400-e29b-41d4-a716-446655440000',
+            title: 'Test Event',
+            description: 'Test Description',
+            location: 'Test Venue',
+            address: 'Test Address',
+            price: 50000,
+            currency: 'COP',
+            utc_timestamp: '2024-12-02T01:00:00.000Z',
+            category: 'Música',
+            city: 'bogota',
+            image: 'test-image.jpg',
+            created_by: 'test-user-id'
+          }], rowCount: 1 }))
+          .mockImplementationOnce(() => ({ rows: [], rowCount: 1 })) // Tags query in getEventByIdDb
+          .mockImplementationOnce(() => ({ rows: [{ created_by: 'test-user-id', user_role: 'organizer' }], rowCount: 1 })) // Ownership check in deleteEventDb
+          .mockImplementationOnce(() => ({ rows: [], rowCount: 1 })) // Delete event (successful deletion)
+
+        // Mock fetch to reject with an error
+        const fetchMock = jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'))
+
+        // Spy on console.error to verify error logging
+        const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+        const response = await request(app)
+          .delete('/api/events/550e8400-e29b-41d4-a716-446655440000')
+          .set('Authorization', 'Bearer test-token')
+          .expect(200)
+
+        expect(response.body).toEqual({
+          message: 'Evento eliminado exitosamente'
+        })
+
+        // Verify fetch was called for revalidation
+        expect(fetchMock).toHaveBeenCalledWith(
+          'http://localhost:4000/api/revalidate',
+          expect.objectContaining({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path: '/eventos/bogota', // City from test event
+              secret: 'test-secret'
+            })
+          })
+        )
+
+        // Verify error message was logged
+        expect(consoleErrorSpy).toHaveBeenCalledWith('Error triggering revalidation:', expect.any(Error))
+
+        fetchMock.mockRestore()
+        consoleErrorSpy.mockRestore()
+      } finally {
+        process.env.NODE_ENV = originalEnv
+        process.env.NEXT_PUBLIC_WEB_URL = originalWebUrl
+        process.env.REVALIDATE_SECRET = originalSecret
       }
     })
   })
