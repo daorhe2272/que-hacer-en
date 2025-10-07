@@ -1,13 +1,9 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 export const dynamic = 'force-dynamic'
-import { getAdminStats } from '@/lib/api'
-import dataSourcesRaw from '../../../../shared/events-sources.json'
-const dataSources = dataSourcesRaw as {
-  regular_sources: Record<string, { URL: string }[]>
-  occasional_sources: Record<string, { URL: string }[]>
-}
+import { getAdminStats, getDataSources, createDataSource, deleteDataSource, triggerDataSourceMining, getCities, type DataSource, type City } from '@/lib/api'
+import ConfirmationModal from '@/components/ConfirmationModal'
 
 type TabType = 'dashboard' | 'users' | 'events' | 'data-sources' | 'analytics' | 'settings'
 
@@ -91,7 +87,6 @@ function DashboardTab() {
     const fetchStats = async () => {
       try {
         const data = await getAdminStats()
-        console.log('Admin stats received:', data)
         setStats(data)
         setError(null)
       } catch (error) {
@@ -406,112 +401,297 @@ function EventsTab() {
 }
 
 function DataSourcesTab() {
-  const [mainTab, setMainTab] = useState<'regular_sources' | 'occasional_sources'>('regular_sources')
-  const [subTab, setSubTab] = useState<string>('Bogotá')
-  const [selectedSources, setSelectedSources] = useState<Record<string, number[]>>({})
+  const [dataSources, setDataSources] = useState<DataSource[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set())
   const [showDialog, setShowDialog] = useState(false)
   const [showWarningDialog, setShowWarningDialog] = useState(false)
+  const [showAddSourceDialog, setShowAddSourceDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [sourceToDelete, setSourceToDelete] = useState<DataSource | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [newSourceUrl, setNewSourceUrl] = useState('')
+  const [newSourceType, setNewSourceType] = useState<'regular' | 'occasional'>('regular')
+  const [newSourceCity, setNewSourceCity] = useState('')
+  const [filterSourceType, setFilterSourceType] = useState<'regular' | 'occasional'>('regular')
+  const [filterCity, setFilterCity] = useState('bogota')
+  const [filterActive, setFilterActive] = useState<boolean | ''>(true)
 
-  const currentSelections = selectedSources[subTab] || []
+  const loadDataSources = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const result = await getDataSources({})
+      setDataSources(result.data_sources)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar fuentes de datos')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const toggleSelection = (index: number) => {
+  useEffect(() => {
+    loadDataSources()
+  }, [loadDataSources])
+
+  const toggleSelection = (id: string) => {
     setSelectedSources(prev => {
-      const citySelections = prev[subTab] || []
-      const newCitySelections = citySelections.includes(index) ? citySelections.filter(i => i !== index) : [...citySelections, index]
-      return { ...prev, [subTab]: newCitySelections }
+      const newSet = new Set(prev)
+      if (newSet.has(id)) {
+        newSet.delete(id)
+      } else {
+        newSet.add(id)
+      }
+      return newSet
     })
   }
 
   const handleSelectAll = () => {
-    const allIndices = sources.map((_, index) => index)
-    setSelectedSources(prev => {
-      const citySelections = prev[subTab] || []
-      const newCitySelections = citySelections.length === sources.length ? [] : allIndices
-      return { ...prev, [subTab]: newCitySelections }
+    const filteredSources = dataSources.filter(source => {
+      if (filterSourceType && source.source_type !== filterSourceType) return false
+      if (filterCity && source.city_slug !== filterCity) return false
+      if (filterActive !== '' && source.active !== filterActive) return false
+      return true
     })
+
+    if (selectedSources.size === filteredSources.length) {
+      setSelectedSources(new Set())
+    } else {
+      setSelectedSources(new Set(filteredSources.map(s => s.id)))
+    }
   }
 
-  const mainTabs = [
-    { id: 'regular_sources' as const, label: 'Fuentes Regulares' },
-    { id: 'occasional_sources' as const, label: 'Fuentes Ocasionales' },
-  ]
+  const handleCreateSource = async () => {
+    if (!newSourceUrl.trim()) return
 
-  const subTabs = Object.keys(dataSources[mainTab] as Record<string, unknown>).filter(key => ((dataSources[mainTab] as Record<string, unknown[]>)[key] || []).length > 0)
-  const sources = ((dataSources[mainTab] as Record<string, { URL: string }[]>)[subTab] || [])
+    try {
+      const data: Parameters<typeof createDataSource>[0] = {
+        url: newSourceUrl.trim(),
+        source_type: newSourceType
+      }
+      if (newSourceType === 'regular' && newSourceCity) {
+        data.city_slug = newSourceCity
+      }
+
+      await createDataSource(data)
+      setShowAddSourceDialog(false)
+      setNewSourceUrl('')
+      setNewSourceCity('')
+      loadDataSources()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear fuente de datos')
+    }
+  }
+
+  const handleDeleteSource = (source: DataSource) => {
+    setSourceToDelete(source)
+    setShowDeleteDialog(true)
+    setError(null)
+  }
+
+  const confirmDeleteSource = async () => {
+    if (!sourceToDelete) return
+
+    setDeleteLoading(true)
+    setError(null)
+    try {
+      await deleteDataSource(sourceToDelete.id)
+      setShowDeleteDialog(false)
+      setSourceToDelete(null)
+      loadDataSources()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar fuente de datos')
+      setShowDeleteDialog(false)
+      setSourceToDelete(null)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  const handleTriggerMining = async () => {
+    if (selectedSources.size === 0) {
+      setShowWarningDialog(true)
+      return
+    }
+
+    try {
+      // Trigger mining for all selected sources
+      const promises = Array.from(selectedSources).map(id => triggerDataSourceMining(id))
+      await Promise.all(promises)
+      setShowDialog(false)
+      setSelectedSources(new Set())
+      loadDataSources()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al iniciar minería')
+    }
+  }
+
+  const filteredSources = dataSources.filter(source => {
+    if (filterSourceType && source.source_type !== filterSourceType) return false
+    if (filterCity && source.city_slug !== filterCity) return false
+    if (filterActive !== '' && source.active !== filterActive) return false
+    return true
+  })
+
+  const [cities, setCities] = useState<City[]>([])
+
+  const loadCities = useCallback(async () => {
+    try {
+      const citiesData = await getCities()
+      setCities(citiesData)
+    } catch (err) {
+      console.error('Error loading cities:', err)
+      // Fallback to static list if API fails
+      setCities([
+        { id: 1, slug: 'bogota', name: 'Bogotá' },
+        { id: 2, slug: 'medellin', name: 'Medellín' },
+        { id: 3, slug: 'cali', name: 'Cali' },
+        { id: 4, slug: 'barranquilla', name: 'Barranquilla' },
+        { id: 5, slug: 'cartagena', name: 'Cartagena' }
+      ])
+    }
+  }, [])
 
   useEffect(() => {
-    // Reset subTab when mainTab changes
-    const firstSubTab = Object.keys(dataSources[mainTab]).find(key => (dataSources[mainTab][key] || []).length > 0)
-    if (firstSubTab) setSubTab(firstSubTab)
-  }, [mainTab])
+    loadDataSources()
+    loadCities()
+  }, [loadDataSources, loadCities])
 
+  const isValidUrl = (url: string) => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
+  }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Fuentes de Datos y Minería</h2>
-        <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+    <div className="space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Fuentes de Datos y Minería</h2>
+          <p className="text-sm text-gray-600 mt-1">Gestiona las fuentes de datos y ejecuta trabajos de minería</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg font-medium flex items-center justify-center"
+            onClick={() => setShowAddSourceDialog(true)}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
             Agregar Fuente
           </button>
-          <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" onClick={() => {
-            if (currentSelections.length === 0) {
-              setShowWarningDialog(true)
-              return
-            }
-            setShowDialog(true)
-          }}>
-            Ejecutar Trabajo de Minería
+          <button
+            className="px-6 py-3 bg-accent-400 text-white rounded-lg hover:bg-accent-500 transition-all duration-300 hover:scale-105 shadow-md hover:shadow-lg font-medium flex items-center justify-center"
+            onClick={() => {
+              if (selectedSources.size === 0) {
+                setShowWarningDialog(true)
+                return
+              }
+              setShowDialog(true)
+            }}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Ejecutar Minería
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        <div>
-          <h3 className="text-lg font-medium mb-3">Estado de Minería</h3>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium">Trabajo Actual</span>
-              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Ejecutándose</span>
+
+      {/* Enhanced Mining Status Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Current Mining Status */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Estado de Minería</h3>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="px-3 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full animate-pulse">
+                Ejecutándose
+              </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: '65%' }}></div>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">Progreso Actual</span>
+                <span className="text-sm font-bold text-primary-600">65%</span>
+              </div>
+              <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary-500 to-primary-600 rounded-full transition-all duration-500 ease-out relative overflow-hidden"
+                  style={{ width: '65%' }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-600 mt-2 font-medium">Procesando eventos... 65% completado</p>
             </div>
-            <div className="text-xs text-gray-600">Procesando eventos... 65% completado</div>
-            <div className="mt-3 flex space-x-2">
-              <button className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">
-                Detener Trabajo
+            
+            <div className="flex space-x-3">
+              <button className="flex-1 px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-all duration-200 hover:scale-105 flex items-center justify-center">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                </svg>
+                Detener
               </button>
-              <button className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600">
+              <button className="flex-1 px-4 py-2 bg-gray-500 text-white text-sm font-medium rounded-lg hover:bg-gray-600 transition-all duration-200 hover:scale-105 flex items-center justify-center">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
                 Ver Registros
               </button>
             </div>
           </div>
         </div>
 
-        <div>
-          <h3 className="text-lg font-medium mb-3">Trabajos Recientes</h3>
-          <div className="space-y-2">
-            <div className="bg-white border border-gray-200 rounded-lg p-3">
+        {/* Recent Jobs */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Trabajos Recientes</h3>
+          <div className="space-y-3">
+            <div className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium">Trabajo #1234</div>
-                  <div className="text-xs text-gray-500">Completado • hace 2 horas</div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Trabajo #1234</div>
+                    <div className="text-xs text-gray-500">Completado • hace 2 horas</div>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-green-600">156 eventos</div>
+                  <div className="text-sm font-bold text-green-600">156 eventos</div>
                   <div className="text-xs text-gray-500">Éxito: 98%</div>
                 </div>
               </div>
             </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-3">
+            
+            <div className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium">Trabajo #1233</div>
-                  <div className="text-xs text-gray-500">Completado • hace 1 día</div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-gray-900">Trabajo #1233</div>
+                    <div className="text-xs text-gray-500">Completado • hace 1 día</div>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-medium text-green-600">203 eventos</div>
+                  <div className="text-sm font-bold text-green-600">203 eventos</div>
                   <div className="text-xs text-gray-500">Éxito: 95%</div>
                 </div>
               </div>
@@ -520,90 +700,289 @@ function DataSourcesTab() {
         </div>
       </div>
 
-      <div>
-        {/* Main Tabs */}
-        <div className="mb-4">
-          <nav className="flex flex-wrap gap-1 bg-white p-1 rounded-lg shadow-sm">
-            {mainTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setMainTab(tab.id)}
-                className={`flex items-center px-3 sm:px-4 lg:px-6 py-2 lg:py-3 text-sm lg:text-base font-medium rounded-md transition-colors ${
-                  mainTab === tab.id
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-100'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+      {/* Loading and Error States */}
+      {loading && (
+        <div className="text-center py-8">
+          <div className="text-gray-600">Cargando fuentes de datos...</div>
         </div>
+      )}
 
-        {/* Sub Tabs */}
-        <div className="mb-4">
-          <nav className="flex flex-wrap gap-1 bg-gray-50 p-1 rounded-lg">
-            {subTabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSubTab(tab)}
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  subTab === tab
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-gray-200'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+          <strong>Error:</strong> {error}
         </div>
+      )}
 
-        {/* Data Sources Table */}
+      {!loading && !error && (
         <div>
-          <h3 className="text-lg font-medium mb-3">Fuentes de Datos - {subTab}</h3>
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {/* Minimalist Dropdown Filter Row */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center space-x-4">
+                {/* Source Type Dropdown */}
+                <select
+                  value={filterSourceType}
+                  onChange={(e) => setFilterSourceType(e.target.value as 'regular' | 'occasional')}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
+                >
+                  <option value="regular">Regulares</option>
+                  <option value="occasional">Ocasionales</option>
+                </select>
+
+                {/* City Dropdown */}
+                <select
+                  value={filterCity}
+                  onChange={(e) => setFilterCity(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
+                >
+                  <option value="">Todas</option>
+                  {cities.map(city => (
+                    <option key={city.slug} value={city.slug}>{city.name}</option>
+                  ))}
+                </select>
+
+                {/* Status Dropdown */}
+                <select
+                  value={filterActive === '' ? '' : String(filterActive)}
+                  onChange={(e) => setFilterActive(e.target.value === '' ? '' : e.target.value === 'true')}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors text-sm"
+                >
+                  <option value="">Todos</option>
+                  <option value="true">Activos</option>
+                  <option value="false">Inactivos</option>
+                </select>
+              </div>
+
+              {/* Clear Filters Button */}
+              <button
+                onClick={() => {
+                  setFilterSourceType('regular')
+                  setFilterCity('')
+                  setFilterActive('')
+                }}
+                className="flex items-center px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-all duration-300 hover:scale-105 font-medium"
+              >
+                <span className="mr-2">🧹</span>
+                <span className="text-sm">Limpiar</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Enhanced Data Sources Header */}
+          <div className="mb-6">
+            <h3 className="text-xl font-bold text-gray-900">
+              Fuentes de Datos
+              <span className="ml-2 px-3 py-1 text-sm font-medium bg-primary-100 text-primary-800 rounded-full">
+                {filteredSources.length} de {dataSources.length}
+              </span>
+            </h3>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {filterCity && (
+                <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                  🏙 {cities.find(c => c.slug === filterCity)?.name || filterCity}
+                </span>
+              )}
+              {filterSourceType && (
+                <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                  {filterSourceType === 'regular' ? '📍 Regulares' : '🎯 Ocasionales'}
+                </span>
+              )}
+              {filterActive !== '' && (
+                <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                  {filterActive ? '✅ Activos' : '❌ Inactivos'}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Enhanced Data Sources Table */}
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
-                    <input type="checkbox" checked={currentSelections.length === sources.length && sources.length > 0} onChange={handleSelectAll} />
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">
+                    <input
+                      type="checkbox"
+                      checked={selectedSources.size === filteredSources.length && filteredSources.length > 0}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">URL</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Última Minería</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Acciones</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">URL</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Estado</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Última Minería</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {sources.map((source: { URL: string }, index: number) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={currentSelections.includes(index)} onChange={() => toggleSelection(index)} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <a href={source.URL} target="_blank" rel="noopener noreferrer" className="text-sm font-medium break-all text-blue-600 hover:text-blue-800 hover:underline">{source.URL}</a>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">Nunca</td>
-                    <td className="px-4 py-3">
-                      <div className="flex space-x-2">
-                        <button className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
-                        <button className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
-                      </div>
-                    </td>
-                  </tr>
+                {filteredSources.map((source) => (
+                  <tr key={source.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <td className="px-6 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedSources.has(source.id)}
+                      onChange={() => toggleSelection(source.id)}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-mono text-gray-700 break-all hover:text-primary-600 hover:underline transition-colors duration-200"
+                    >
+                      {source.url}
+                    </a>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-3 py-1 text-xs font-medium rounded-full ${
+                      source.active
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {source.active ? '✅ Activo' : '❌ Inactivo'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {source.last_mined
+                      ? new Date(source.last_mined).toLocaleDateString('es-CO', {
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'Nunca'
+                    }
+                  </td>
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() => handleDeleteSource(source)}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors duration-200 flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
                 ))}
-                {sources.length === 0 && (
+                {filteredSources.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                      No hay fuentes configuradas para {subTab}
+                    <td colSpan={5} className="px-6 py-12 text-center">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No hay fuentes de datos</h3>
+                      <p className="text-gray-600 mb-4">No se encontraron fuentes que coincidan con los filtros seleccionados</p>
+
+                      {filterCity || filterSourceType || filterActive !== '' ? (
+                        <div className="space-y-3">
+                          <div className="text-sm text-gray-500">
+                            <p>Filtros activos:</p>
+                            <div className="flex flex-wrap justify-center gap-2 mt-2">
+                              {filterCity && (
+                                <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                                  🏙 {cities.find(c => c.slug === filterCity)?.name || filterCity}
+                                </span>
+                              )}
+                              {filterSourceType && (
+                                <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                                  {filterSourceType === 'regular' ? '📍 Regulares' : '🎯 Ocasionales'}
+                                </span>
+                              )}
+                              {filterActive !== '' && (
+                                <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                                  {filterActive ? '✅ Activos' : '❌ Inactivos'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setFilterSourceType('regular')
+                              setFilterCity('')
+                              setFilterActive('')
+                            }}
+                            className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium"
+                          >
+                            Limpiar todos los filtros
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setShowAddSourceDialog(true)}
+                          className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium"
+                        >
+                          Agregar primera fuente
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* Empty State */}
+          {filteredSources.length === 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay fuentes de datos</h3>
+              <p className="text-gray-600 mb-4">No se encontraron fuentes que coincidan con los filtros seleccionados</p>
+              
+              {filterCity || filterSourceType || filterActive !== '' ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-gray-500">
+                    <p>Filtros activos:</p>
+                    <div className="flex flex-wrap justify-center gap-2 mt-2">
+                      {filterCity && (
+                        <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                          🏙 {cities.find(c => c.slug === filterCity)?.name || filterCity}
+                        </span>
+                      )}
+                      {filterSourceType && (
+                        <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                          {filterSourceType === 'regular' ? '📍 Regulares' : '🎯 Ocasionales'}
+                        </span>
+                      )}
+                      {filterActive !== '' && (
+                        <span className="inline-flex items-center px-3 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                          {filterActive ? '✅ Activos' : '❌ Inactivos'}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setFilterSourceType('regular')
+                      setFilterCity('')
+                      setFilterActive('')
+                    }}
+                    className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium"
+                  >
+                    Limpiar todos los filtros
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddSourceDialog(true)}
+                  className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors duration-200 font-medium"
+                >
+                  Agregar primera fuente
+                </button>
+              )}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {showDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -629,11 +1008,8 @@ function DataSourcesTab() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span className="text-sm font-medium text-primary-800">
-                    {currentSelections.length} fuente{currentSelections.length !== 1 ? 's' : ''} seleccionada{currentSelections.length !== 1 ? 's' : ''}
+                    {selectedSources.size} fuente{selectedSources.size !== 1 ? 's' : ''} seleccionada{selectedSources.size !== 1 ? 's' : ''}
                   </span>
-                </div>
-                <div className="text-sm text-primary-600">
-                  Ciudad: {subTab}
                 </div>
               </div>
             </div>
@@ -643,14 +1019,17 @@ function DataSourcesTab() {
               <p className="text-gray-700 mb-3 font-medium">Se ejecutará el trabajo de minería para las siguientes URLs:</p>
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto">
                 <ul className="space-y-2">
-                  {currentSelections.map((index: number) => sources[index].URL).map((url: string, idx: number) => (
-                    <li key={idx} className="flex items-start">
-                      <svg className="w-4 h-4 text-primary-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-sm text-gray-700 break-all font-mono bg-white px-2 py-1 rounded border border-gray-200">{url}</span>
-                    </li>
-                  ))}
+                  {Array.from(selectedSources).map((id) => {
+                    const source = dataSources.find(s => s.id === id)
+                    return source ? (
+                      <li key={id} className="flex items-start">
+                        <svg className="w-4 h-4 text-primary-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm text-gray-700 break-all font-mono bg-white px-2 py-1 rounded border border-gray-200">{source.url}</span>
+                      </li>
+                    ) : null
+                  })}
                 </ul>
               </div>
             </div>
@@ -679,11 +1058,7 @@ function DataSourcesTab() {
               </button>
               <button
                 className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center"
-                onClick={() => {
-                  // Here would go the actual mining logic
-                  setShowDialog(false)
-                  alert('Trabajo de minería iniciado')
-                }}
+                onClick={handleTriggerMining}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -765,10 +1140,125 @@ function DataSourcesTab() {
           </div>
         </div>
       )}
+
+      {showAddSourceDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl max-w-lg w-full mx-4 shadow-2xl border border-gray-100 transform transition-all duration-300 ease-out scale-100 animate-slideIn">
+            {/* Header Section with Icon */}
+            <div className="flex items-center mb-6">
+              <div className="flex items-center justify-center w-12 h-12 bg-primary-100 rounded-full mr-4 shadow-sm">
+                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Agregar Nueva Fuente</h3>
+                <p className="text-sm text-gray-600 mt-1">Ingresa la URL de la fuente de datos</p>
+              </div>
+            </div>
+
+            {/* Input Section */}
+            <div className="mb-6 space-y-4">
+              <div>
+                <label htmlFor="source-url" className="block text-sm font-semibold text-gray-700 mb-2">
+                  URL de la Fuente
+                </label>
+                <input
+                  id="source-url"
+                  type="url"
+                  value={newSourceUrl}
+                  onChange={(e) => setNewSourceUrl(e.target.value)}
+                  placeholder="https://ejemplo.com/eventos"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Ingresa una URL válida que contenga información de eventos
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="source-type" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Tipo de Fuente
+                </label>
+                <select
+                  id="source-type"
+                  value={newSourceType}
+                  onChange={(e) => setNewSourceType(e.target.value as 'regular' | 'occasional')}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                >
+                  <option value="regular">Regular - Fuentes específicas de ciudad</option>
+                  <option value="occasional">Ocasional - Fuentes temporales o generales</option>
+                </select>
+              </div>
+
+              {newSourceType === 'regular' && (
+                <div>
+                  <label htmlFor="source-city" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Ciudad
+                  </label>
+                  <select
+                    id="source-city"
+                    value={newSourceCity}
+                    onChange={(e) => setNewSourceCity(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                  >
+                    <option value="">Seleccionar ciudad...</option>
+                    {cities.map(city => (
+                      <option key={city.slug} value={city.slug}>{city.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Button Section */}
+            <div className="flex justify-end space-x-3">
+              <button
+                className="px-6 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center"
+                onClick={() => {
+                  setShowAddSourceDialog(false)
+                  setNewSourceUrl('')
+                  setNewSourceCity('')
+                }}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cancelar
+              </button>
+              <button
+                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!newSourceUrl.trim() || !isValidUrl(newSourceUrl) || (newSourceType === 'regular' && !newSourceCity)}
+                onClick={handleCreateSource}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Agregar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteDialog && sourceToDelete && (
+        <ConfirmationModal
+          isOpen={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onConfirm={confirmDeleteSource}
+          isLoading={deleteLoading}
+          title="Eliminar Fuente de Datos"
+          message={`¿Estás seguro de que quieres eliminar la fuente "${sourceToDelete.url}"? Esta acción no se puede deshacer.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          confirmButtonStyle="danger"
+        />
+      )}
+
     </div>
   )
 }
-
 function AnalyticsTab() {
   return (
     <div>

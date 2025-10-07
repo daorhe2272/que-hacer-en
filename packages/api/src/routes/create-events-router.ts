@@ -5,6 +5,7 @@ import type { Event, EventsData, CityKey } from '../types'
 import { listQuerySchema, createEventSchema, updateEventSchema } from '../validation'
 import { listEventsDb, getEventByLegacyIdDb, listEventsByCityDb, createEventDb, updateEventDb, deleteEventDb, getEventByIdDb, getEventForEditDb, listOrganizerEventsDb, type EventDto } from '../db/repository'
 import { authenticate } from '../middleware/auth'
+import { query } from '../db/client'
 
 // Helper function to trigger revalidation
 async function triggerRevalidation(city: string): Promise<void> {
@@ -458,6 +459,26 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
       res.json({ message: 'Evento eliminado exitosamente' })
     } catch (err) {
       res.status(500).json({ error: 'Error al eliminar el evento' })
+    }
+  })
+
+  // Get all available cities (must come before /:city to avoid matching 'cities' as a city name)
+  router.get('/cities', async (_req, res) => {
+    try {
+      const result = await query<{ id: number, slug: string, name: string }>(
+        'SELECT id, slug, name FROM cities ORDER BY name'
+      )
+
+      const cities = result.rows.map(row => ({
+        id: row.id,
+        slug: row.slug,
+        name: row.name
+      }))
+
+      res.json({ cities })
+    } catch (error) {
+      console.error('Error fetching cities:', error)
+      res.status(500).json({ error: 'Error interno del servidor' })
     }
   })
 

@@ -6,6 +6,7 @@ import dotenv from 'dotenv'
 import { router as eventsRouter } from './routes/events'
 import { usersRouter } from './routes/users'
 import { adminRouter } from './routes/admin'
+import dataSourcesRouter from './routes/data-sources'
 import rateLimit from 'express-rate-limit'
 import type { RequestHandler } from 'express'
 import crypto from 'crypto'
@@ -49,6 +50,8 @@ app.use('/api/events', eventsRouter)
 app.use('/api/users', usersRouter)
 // Admin routes
 app.use('/api/admin', adminRouter)
+// Data sources routes
+app.use('/api/data-sources', dataSourcesRouter)
 
 // 404 handler
 app.use((_req, res) => res.status(404).json({ error: 'Not Found' }))

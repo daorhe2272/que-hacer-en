@@ -113,6 +113,38 @@ export const mockCategories = [
   { id: 5, slug: 'gastronomia', label: 'Gastronomía' }
 ]
 
+// Mock data sources data
+export const mockDataSources = [
+  {
+    id: 'ds-001',
+    url: 'https://example.com/events1',
+    city_id: 1,
+    city_name: 'Bogotá',
+    city_slug: 'bogota',
+    source_type: 'regular',
+    last_mined: '2024-01-01T00:00:00.000Z',
+    mining_status: 'completed',
+    active: true,
+    created_at: '2024-01-01T00:00:00.000Z',
+    updated_at: '2024-01-01T00:00:00.000Z',
+    created_by: 'admin-id'
+  },
+  {
+    id: 'ds-002',
+    url: 'https://example.com/events2',
+    city_id: null,
+    city_name: null,
+    city_slug: null,
+    source_type: 'occasional',
+    last_mined: null,
+    mining_status: 'pending',
+    active: true,
+    created_at: '2024-01-02T00:00:00.000Z',
+    updated_at: '2024-01-02T00:00:00.000Z',
+    created_by: 'admin-id'
+  }
+]
+
 export interface MockQueryResult<T = any> {
   rows: T[]
   rowCount: number | null
@@ -154,7 +186,70 @@ export function createMockQuery() {
     if (sql.includes('DELETE FROM events')) {
       return { rows: [], rowCount: 1 }
     }
-    
+
+    // Data sources queries
+    if (sql.includes('SELECT COUNT(*)') && sql.includes('FROM data_sources')) {
+      return { rows: [{ count: '2' } as T], rowCount: 1 }
+    }
+
+    if (sql.includes('FROM data_sources ds') && sql.includes('LEFT JOIN cities c')) {
+      // Mock data sources listing
+      return { rows: mockDataSources as T[], rowCount: 2 }
+    }
+
+    if (sql.includes('SELECT id FROM cities WHERE slug')) {
+      const citySlug = args[0]
+      const city = mockCities.find(c => c.slug === citySlug)
+      return city ? { rows: [city as T], rowCount: 1 } : { rows: [], rowCount: 0 }
+    }
+
+    if (sql.includes('SELECT id FROM data_sources WHERE url')) {
+      // Mock duplicate check
+      return { rows: [], rowCount: 0 }
+    }
+
+    if (sql.includes('INSERT INTO data_sources')) {
+      const newDataSource = {
+        id: 'ds-new',
+        url: args[0],
+        city_id: args[1],
+        source_type: args[2],
+        last_mined: null,
+        mining_status: 'pending',
+        active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: args[3]
+      }
+      return { rows: [newDataSource as T], rowCount: 1 }
+    }
+
+    if (sql.includes('SELECT created_by FROM data_sources WHERE id')) {
+      return { rows: [{ created_by: 'admin-id' } as T], rowCount: 1 }
+    }
+
+    if (sql.includes('UPDATE data_sources SET')) {
+      return { rows: [mockDataSources[0] as T], rowCount: 1 }
+    }
+
+    if (sql.includes('DELETE FROM data_sources')) {
+      return { rows: [], rowCount: 1 }
+    }
+
+    if (sql.includes('SELECT url, active FROM data_sources WHERE id')) {
+      return { rows: [{ url: 'https://example.com/test', active: true } as T], rowCount: 1 }
+    }
+
+    if (sql.includes('UPDATE data_sources SET mining_status')) {
+      return { rows: [], rowCount: 1 }
+    }
+
+    if (sql.includes('SELECT name FROM cities WHERE id')) {
+      const cityId = args[0]
+      const city = mockCities.find(c => c.id === cityId)
+      return city ? { rows: [{ name: city.name } as T], rowCount: 1 } : { rows: [], rowCount: 0 }
+    }
+
     // Default empty result
     return { rows: [], rowCount: 0 }
   })
