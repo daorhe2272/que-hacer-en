@@ -408,6 +408,28 @@ function EventsTab() {
 function DataSourcesTab() {
   const [mainTab, setMainTab] = useState<'regular_sources' | 'occasional_sources'>('regular_sources')
   const [subTab, setSubTab] = useState<string>('Bogotá')
+  const [selectedSources, setSelectedSources] = useState<Record<string, number[]>>({})
+  const [showDialog, setShowDialog] = useState(false)
+  const [showWarningDialog, setShowWarningDialog] = useState(false)
+
+  const currentSelections = selectedSources[subTab] || []
+
+  const toggleSelection = (index: number) => {
+    setSelectedSources(prev => {
+      const citySelections = prev[subTab] || []
+      const newCitySelections = citySelections.includes(index) ? citySelections.filter(i => i !== index) : [...citySelections, index]
+      return { ...prev, [subTab]: newCitySelections }
+    })
+  }
+
+  const handleSelectAll = () => {
+    const allIndices = sources.map((_, index) => index)
+    setSelectedSources(prev => {
+      const citySelections = prev[subTab] || []
+      const newCitySelections = citySelections.length === sources.length ? [] : allIndices
+      return { ...prev, [subTab]: newCitySelections }
+    })
+  }
 
   const mainTabs = [
     { id: 'regular_sources' as const, label: 'Fuentes Regulares' },
@@ -423,6 +445,7 @@ function DataSourcesTab() {
     if (firstSubTab) setSubTab(firstSubTab)
   }, [mainTab])
 
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
@@ -431,7 +454,13 @@ function DataSourcesTab() {
           <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
             Agregar Fuente
           </button>
-          <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+          <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" onClick={() => {
+            if (currentSelections.length === 0) {
+              setShowWarningDialog(true)
+              return
+            }
+            setShowDialog(true)
+          }}>
             Ejecutar Trabajo de Minería
           </button>
         </div>
@@ -537,9 +566,10 @@ function DataSourcesTab() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">
+                    <input type="checkbox" checked={currentSelections.length === sources.length && sources.length > 0} onChange={handleSelectAll} />
+                  </th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">URL</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Tipo</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Estado</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Última Minería</th>
                   <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Acciones</th>
                 </tr>
@@ -548,27 +578,23 @@ function DataSourcesTab() {
                 {sources.map((source: { URL: string }, index: number) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium break-all">{source.URL}</div>
+                      <input type="checkbox" checked={currentSelections.includes(index)} onChange={() => toggleSelection(index)} />
                     </td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-full">Web</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Activo</span>
+                      <a href={source.URL} target="_blank" rel="noopener noreferrer" className="text-sm font-medium break-all text-blue-600 hover:text-blue-800 hover:underline">{source.URL}</a>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">Nunca</td>
                     <td className="px-4 py-3">
                       <div className="flex space-x-2">
                         <button className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
-                        <button className="text-gray-600 hover:text-gray-800 text-sm">Probar</button>
-                        <button className="text-red-600 hover:text-red-800 text-sm">Deshabilitar</button>
+                        <button className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
                       </div>
                     </td>
                   </tr>
                 ))}
                 {sources.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
                       No hay fuentes configuradas para {subTab}
                     </td>
                   </tr>
@@ -578,6 +604,167 @@ function DataSourcesTab() {
           </div>
         </div>
       </div>
+
+      {showDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl max-w-lg w-full mx-4 shadow-2xl border border-gray-100 transform transition-all duration-300 ease-out scale-100 animate-fadeIn">
+            {/* Header Section with Icon */}
+            <div className="flex items-center mb-6">
+              <div className="flex items-center justify-center w-12 h-12 bg-primary-100 rounded-full mr-4">
+                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Confirmar Trabajo de Minería</h3>
+                <p className="text-sm text-gray-600 mt-1">Procesamiento de fuentes de datos</p>
+              </div>
+            </div>
+
+            {/* Summary Section */}
+            <div className="bg-primary-50 border border-primary-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-primary-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-medium text-primary-800">
+                    {currentSelections.length} fuente{currentSelections.length !== 1 ? 's' : ''} seleccionada{currentSelections.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="text-sm text-primary-600">
+                  Ciudad: {subTab}
+                </div>
+              </div>
+            </div>
+
+            {/* Content Section */}
+            <div className="mb-6">
+              <p className="text-gray-700 mb-3 font-medium">Se ejecutará el trabajo de minería para las siguientes URLs:</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-48 overflow-y-auto">
+                <ul className="space-y-2">
+                  {currentSelections.map((index: number) => sources[index].URL).map((url: string, idx: number) => (
+                    <li key={idx} className="flex items-start">
+                      <svg className="w-4 h-4 text-primary-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm text-gray-700 break-all font-mono bg-white px-2 py-1 rounded border border-gray-200">{url}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6 flex items-start">
+              <svg className="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <div className="text-sm text-yellow-800">
+                <p className="font-medium">Tiempo estimado: 2-5 minutos</p>
+                <p className="text-xs mt-1">El proceso se ejecutará en segundo plano</p>
+              </div>
+            </div>
+
+            {/* Button Section */}
+            <div className="flex justify-end space-x-3">
+              <button
+                className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-bold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center"
+                onClick={() => setShowDialog(false)}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cancelar
+              </button>
+              <button
+                className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-bold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center"
+                onClick={() => {
+                  // Here would go the actual mining logic
+                  setShowDialog(false)
+                  alert('Trabajo de minería iniciado')
+                }}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWarningDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl max-w-lg w-full mx-4 shadow-2xl border border-gray-100 transform transition-all duration-300 ease-out scale-100 animate-fadeIn">
+            {/* Header Section with Warning Icon */}
+            <div className="flex items-center mb-6">
+              <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full mr-4">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Advertencia</h3>
+                <p className="text-sm text-gray-600 mt-1">No hay fuentes seleccionadas</p>
+              </div>
+            </div>
+
+            {/* Warning Message Section */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <svg className="w-5 h-5 text-yellow-600 mr-2 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium">Por favor, selecciona al menos una fuente de datos antes de ejecutar el trabajo de minería.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Guidance Section */}
+            <div className="mb-6">
+              <p className="text-gray-700 mb-3 font-medium">Para seleccionar fuentes:</p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <ul className="space-y-2">
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-gray-700">Marca las casillas en la tabla de fuentes</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-gray-700">Usa &quot;Seleccionar todo&quot; para elegir todas las fuentes</span>
+                  </li>
+                  <li className="flex items-start">
+                    <svg className="w-4 h-4 text-blue-500 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm text-gray-700">Cambia entre &quot;Fuentes Regulares&quot; y &quot;Fuentes Ocasionales&quot; según necesites</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Button Section */}
+            <div className="flex justify-end">
+              <button
+                className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-bold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center"
+                onClick={() => setShowWarningDialog(false)}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
