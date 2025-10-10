@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
-export const dynamic = 'force-dynamic'
 import { getAdminStats, getDataSources, createDataSource, deleteDataSource, triggerDataSourceMining, getCities, type DataSource, type City } from '@/lib/api'
 import ConfirmationModal from '@/components/ConfirmationModal'
+import { useState, useEffect, useCallback } from 'react'
+export const dynamic = 'force-dynamic'
 
 type TabType = 'dashboard' | 'users' | 'events' | 'data-sources' | 'analytics' | 'settings'
 

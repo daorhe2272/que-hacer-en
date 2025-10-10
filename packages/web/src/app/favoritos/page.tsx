@@ -1,10 +1,10 @@
 'use client'
 
-import { useSession } from '@/lib/session'
 import { useState, useEffect, useCallback } from 'react'
 import EventCard from '@/components/EventCard'
-import { Event } from '@/types/event'
 import { useRouter } from 'next/navigation'
+import { useSession } from '@/lib/session'
+import { Event } from '@/types/event'
 
 export default function FavoritosPage() {
   const router = useRouter()

@@ -7,28 +7,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   
   const routes: MetadataRoute.Sitemap = [
     // Main pages
-    { 
-      url: `${base}/`, 
-      changeFrequency: 'daily', 
+    {
+      url: `${base}/`,
+      changeFrequency: 'daily',
       priority: 1,
-      lastModified: new Date()
-    },
-    { 
-      url: `${base}/login`, 
-      changeFrequency: 'monthly', 
-      priority: 0.5,
-      lastModified: new Date()
-    },
-    { 
-      url: `${base}/crear-evento`, 
-      changeFrequency: 'monthly', 
-      priority: 0.7,
-      lastModified: new Date()
-    },
-    { 
-      url: `${base}/favoritos`, 
-      changeFrequency: 'weekly', 
-      priority: 0.6,
       lastModified: new Date()
     },
     // City pages
