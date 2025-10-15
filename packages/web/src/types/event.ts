@@ -13,6 +13,8 @@ export interface Event {
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
   created_by?: string
+  event_url?: string
+  active?: boolean
 }
 
 export interface EventsData {

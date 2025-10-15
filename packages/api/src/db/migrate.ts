@@ -142,9 +142,15 @@ function getStatements(): string[] {
     
     // Add image column for event images
     `ALTER TABLE events ADD COLUMN IF NOT EXISTS image TEXT;`,
-    
+
     // Allow NULL price_cents for "Precio desconocido" events
     `ALTER TABLE events ALTER COLUMN price_cents DROP NOT NULL;`,
+
+    // Add event_url column for mined events
+    `ALTER TABLE events ADD COLUMN IF NOT EXISTS event_url TEXT;`,
+
+    // Add active column for event moderation
+    `ALTER TABLE events ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;`,
     
     // Backfill existing events with normalized text (BEFORE RLS is enabled)
     // WARNING: This backfill may fail silently if normalize_text function failed to create.

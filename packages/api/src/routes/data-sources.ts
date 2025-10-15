@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { authenticate, requireRole } from '../middleware/auth'
 import { query } from '../db/client'
+import { fetchHtmlContent } from '../utils/html-fetcher'
+import { extractEventsFromHtml } from '../utils/event-extractor'
 
 const router: Router = Router()
 
@@ -372,28 +374,70 @@ router.post('/:id/mine', async (req, res) => {
       [id]
     )
 
-    // TODO: Trigger actual mining process here
-    // For now, we'll simulate mining completion after a delay
-    setTimeout(async () => {
-      try {
-        await query(
-          `UPDATE data_sources SET mining_status = 'completed', last_mined = now() WHERE id = $1`,
-          [id]
-        )
-      } catch (error) {
-        console.error('Error updating mining status:', error)
-        await query(
-          `UPDATE data_sources SET mining_status = 'failed' WHERE id = $1`,
-          [id]
-        )
-      }
-    }, 2000) // Simulate 2 second mining process
+    console.log(`[Mining] Starting mining process for data source ${id} with URL: ${source.url}`)
 
-    return res.json({ message: 'Minería iniciada exitosamente', data_source_id: id })
+    // Fetch HTML content from the URL
+    const fetchResult = await fetchHtmlContent(source.url)
+
+    if (fetchResult.success) {
+      console.log(`[Mining] Successfully fetched content from ${source.url}`)
+      
+      // Extract events from the HTML content using Gemini
+      if (fetchResult.fullHtml) {
+        console.log(`[Mining] Starting event extraction from HTML content`)
+        const extractionResult = await extractEventsFromHtml(fetchResult.fullHtml, source.url)
+        
+        if (extractionResult.success) {
+          console.log(`[Mining] Successfully extracted events. Raw JSON output:`)
+          console.log(JSON.stringify(extractionResult.events, null, 2))
+        } else {
+          console.error(`[Mining] Failed to extract events: ${extractionResult.error}`)
+        }
+      }
+      
+      // Update mining status to completed with timestamp
+      await query(
+        `UPDATE data_sources SET mining_status = 'completed', last_mined = now() WHERE id = $1`,
+        [id]
+      )
+      
+      console.log(`[Mining] Mining completed successfully for data source ${id}`)
+    } else {
+      console.error(`[Mining] Failed to fetch content from ${source.url}: ${fetchResult.error}`)
+      
+      // Update mining status to failed
+      await query(
+        `UPDATE data_sources SET mining_status = 'failed' WHERE id = $1`,
+        [id]
+      )
+      
+      console.log(`[Mining] Mining failed for data source ${id}`)
+    }
+
+    return res.json({
+      message: fetchResult.success ? 'Minería completada exitosamente' : 'Minería completada con errores',
+      data_source_id: id,
+      success: fetchResult.success,
+      error: fetchResult.error
+    })
   } catch (error) {
    console.error('Error triggering mining:', error)
+   
+   // Try to update status to failed if we have the ID
+   try {
+     const { id } = req.params
+     if (id) {
+       await query(
+         `UPDATE data_sources SET mining_status = 'failed' WHERE id = $1`,
+         [id]
+       )
+     }
+   } catch (updateError) {
+     console.error('Error updating mining status to failed:', updateError)
+   }
+   
    return res.status(500).json({ error: 'Error interno del servidor' })
- }
+  }
 })
 
 export default router

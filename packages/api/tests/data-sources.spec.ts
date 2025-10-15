@@ -356,16 +356,16 @@ describe('Data Sources Router', () => {
   })
 
   describe('POST /api/data-sources/:id/mine', () => {
-    it('should trigger mining for data source', async () => {
+    it('should trigger mining for data source and fetch HTML content', async () => {
       const response = await request(app)
         .post('/api/data-sources/ds-001/mine')
         .set('Authorization', 'Bearer admin-token')
         .expect(200)
 
-      expect(response.body).toEqual({
-        message: 'Minería iniciada exitosamente',
-        data_source_id: 'ds-001'
-      })
+      expect(response.body).toHaveProperty('message')
+      expect(response.body).toHaveProperty('data_source_id', 'ds-001')
+      expect(response.body).toHaveProperty('success')
+      expect(response.body).toHaveProperty('error')
     })
 
     it('should return 404 for non-existent data source', async () => {
@@ -390,27 +390,20 @@ describe('Data Sources Router', () => {
       expect(response.body).toHaveProperty('error')
     })
 
-    it('should handle mining status update failure in setTimeout callback', async () => {
-      // Mock the sequence: data source exists and is active, initial update succeeds, but setTimeout update fails
+    it('should handle database error during mining', async () => {
+      // Mock the sequence: data source exists and is active, but mining_status update fails
       mockQuery
         .mockImplementationOnce(() => ({ rows: [{ url: 'https://example.com/test', active: true }], rowCount: 1 })) // Data source check
-        .mockImplementationOnce(() => ({ rows: [], rowCount: 1 })) // Initial mining_status update
         .mockImplementationOnce(() => {
           throw new Error('Database connection error')
-        }) // setTimeout update fails
+        }) // Mining_status update fails
 
       const response = await request(app)
         .post('/api/data-sources/ds-001/mine')
         .set('Authorization', 'Bearer admin-token')
-        .expect(200)
+        .expect(500)
 
-      expect(response.body).toEqual({
-        message: 'Minería iniciada exitosamente',
-        data_source_id: 'ds-001'
-      })
-
-      // Wait a bit for the setTimeout to execute
-      await new Promise(resolve => setTimeout(resolve, 2100))
+      expect(response.body).toHaveProperty('error')
     })
   })
 })

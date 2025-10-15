@@ -31,6 +31,8 @@ export interface EventRowDto {
   city: string
   image: string | null
   created_by: string | null
+  event_url: string | null
+  active: boolean
 }
 
 export interface EventDto {
@@ -49,6 +51,8 @@ export interface EventDto {
   tags: string[]
   status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
   created_by?: string
+  event_url?: string
+  active?: boolean
 }
 
 export async function listEventsDb(params: ListParams): Promise<{ events: EventDto[], total: number }>{
@@ -105,7 +109,9 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
             e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
-            e.created_by
+            e.created_by,
+            e.event_url,
+            e.active
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -129,7 +135,9 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
     organizer: '',
     tags: [],
     status: 'active',
-    created_by: r.created_by ?? undefined
+    created_by: r.created_by ?? undefined,
+    event_url: r.event_url ?? undefined,
+    active: r.active
   }))
 
   return { events, total }
@@ -156,7 +164,9 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
             ct.label as category,
             c.slug as city,
             e.image,
-            e.created_by
+            e.created_by,
+            e.event_url,
+            e.active
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -179,7 +189,9 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
     image: r.image ?? '',
     organizer: '',
     tags: [],
-    status: 'active'
+    status: 'active',
+    event_url: r.event_url ?? undefined,
+    active: r.active
   }
   return event
 }
@@ -199,7 +211,9 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
             e.starts_at as utc_timestamp,
             ct.label as category,
             c.slug as city,
-            e.created_by
+            e.created_by,
+            e.event_url,
+            e.active
      FROM events e
      JOIN categories ct ON ct.id = e.category_id
      JOIN cities c ON c.id = e.city_id
@@ -221,7 +235,9 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
     organizer: '',
     tags: [],
     status: 'active',
-    created_by: r.created_by ?? undefined
+    created_by: r.created_by ?? undefined,
+    event_url: r.event_url ?? undefined,
+    active: r.active
   }))
 }
 
@@ -270,9 +286,9 @@ export async function createEventDb(params: CreateEventParams, organizerId: stri
   const startsAt = `${date}T${time}:00-05:00`
 
   await query(
-    `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency, image, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency, image, organizerId]
+    `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency, image, created_by, active)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency, image, organizerId, true]
   )
 
   if (tags.length > 0) {
@@ -482,7 +498,9 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     organizer: '',
     tags: tagsRes.rows.map(t => t.name),
     status: 'active',
-    created_by: r.created_by ?? undefined
+    created_by: r.created_by ?? undefined,
+    event_url: r.event_url ?? undefined,
+    active: r.active
   }
   return event
 }
@@ -577,7 +595,9 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
             ct.label as category,
             c.slug as city,
             e.image,
-            e.created_by
+            e.created_by,
+            e.event_url,
+            e.active
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
@@ -609,7 +629,9 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
       organizer: '',
       tags: tagsRes.rows.map(t => t.name),
       status: 'active',
-      created_by: r.created_by ?? undefined
+      created_by: r.created_by ?? undefined,
+      event_url: r.event_url ?? undefined,
+      active: r.active
     })
   }
 
@@ -697,7 +719,9 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
             ct.label as category,
             c.slug as city,
             e.image,
-            e.created_by
+            e.created_by,
+            e.event_url,
+            e.active
      FROM favorites f
      JOIN events e ON e.id = f.event_id
      JOIN cities c ON c.id = e.city_id
@@ -730,7 +754,9 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
       organizer: '',
       tags: tagsRes.rows.map(t => t.name),
       status: 'active',
-      created_by: r.created_by ?? undefined
+      created_by: r.created_by ?? undefined,
+      event_url: r.event_url ?? undefined,
+      active: r.active
     })
   }
 
