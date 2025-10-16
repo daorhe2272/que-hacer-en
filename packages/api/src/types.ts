@@ -12,7 +12,6 @@ export interface Event {
   image: string
   organizer: string
   tags: string[]
-  status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
   created_by?: string
   event_url?: string
   active?: boolean

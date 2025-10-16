@@ -20,7 +20,6 @@ export type EventFormData = {
   organizer: string
   capacity: number | null  // null means unknown, 0 means unlimited, >0 means limited
   tags: string[]
-  status: string
 }
 
 const CITIES = ['bogota', 'medellin', 'cali', 'barranquilla', 'cartagena'] as const

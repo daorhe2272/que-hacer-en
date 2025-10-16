@@ -49,7 +49,6 @@ export interface EventDto {
   image: string
   organizer: string
   tags: string[]
-  status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
   created_by?: string
   event_url?: string
   active?: boolean
@@ -58,7 +57,7 @@ export interface EventDto {
 export async function listEventsDb(params: ListParams): Promise<{ events: EventDto[], total: number }>{
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
-  const where: string[] = ['(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date']
+  const where: string[] = ['(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date', 'e.active = true']
   const args: unknown[] = []
   let i = 1
   if (city) { where.push(`c.slug = $${i++}`); args.push(city) }
@@ -134,7 +133,6 @@ export async function listEventsDb(params: ListParams): Promise<{ events: EventD
     image: r.image ?? '',
     organizer: '',
     tags: [],
-    status: 'active',
     created_by: r.created_by ?? undefined,
     event_url: r.event_url ?? undefined,
     active: r.active
@@ -189,7 +187,6 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
     image: r.image ?? '',
     organizer: '',
     tags: [],
-    status: 'active',
     event_url: r.event_url ?? undefined,
     active: r.active
   }
@@ -217,7 +214,7 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
      FROM events e
      JOIN categories ct ON ct.id = e.category_id
      JOIN cities c ON c.id = e.city_id
-     WHERE e.city_id = $1 AND (e.starts_at AT TIME ZONE 'America/Bogota')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date
+     WHERE e.city_id = $1 AND (e.starts_at AT TIME ZONE 'America/Bogota')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date AND e.active = true
      ORDER BY e.starts_at ASC, e.id ASC`, [cityRes.rows[0].id]
   )
   return rows.rows.map(r => ({
@@ -234,7 +231,6 @@ export async function listEventsByCityDb(city: string): Promise<EventDto[] | nul
     image: r.image ?? '',
     organizer: '',
     tags: [],
-    status: 'active',
     created_by: r.created_by ?? undefined,
     event_url: r.event_url ?? undefined,
     active: r.active
@@ -254,7 +250,6 @@ export interface CreateEventParams {
   currency: string
   image?: string
   tags?: string[]
-  status?: 'active' | 'cancelled' | 'postponed' | 'sold_out'
 }
 
 export interface UpdateEventParams extends Partial<CreateEventParams> {
@@ -497,7 +492,6 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     image: r.image ?? '',
     organizer: '',
     tags: tagsRes.rows.map(t => t.name),
-    status: 'active',
     created_by: r.created_by ?? undefined,
     event_url: r.event_url ?? undefined,
     active: r.active
@@ -543,7 +537,7 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
   // Filter by organizer (user's own events) and exclude past events
-  const where: string[] = ['e.created_by = $1', '(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date']
+  const where: string[] = ['e.created_by = $1', '(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date', 'e.active = true']
   const args: unknown[] = [organizerId]
   let i = 2
 
@@ -628,7 +622,6 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
       image: r.image ?? '',
       organizer: '',
       tags: tagsRes.rows.map(t => t.name),
-      status: 'active',
       created_by: r.created_by ?? undefined,
       event_url: r.event_url ?? undefined,
       active: r.active
@@ -665,7 +658,7 @@ export async function removeFromFavoritesDb(userId: string, eventId: string): Pr
 export async function getUserFavoritesDb(userId: string, params: ListParams): Promise<{ events: EventDto[], total: number }> {
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
-  const where: string[] = ['f.user_id = $1', '(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date']
+  const where: string[] = ['f.user_id = $1', '(e.starts_at AT TIME ZONE \'America/Bogota\')::date >= (CURRENT_TIMESTAMP AT TIME ZONE \'America/Bogota\')::date', 'e.active = true']
   const args: unknown[] = [userId]
   let i = 2
 
@@ -753,7 +746,6 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
       image: r.image ?? '',
       organizer: '',
       tags: tagsRes.rows.map(t => t.name),
-      status: 'active',
       created_by: r.created_by ?? undefined,
       event_url: r.event_url ?? undefined,
       active: r.active
@@ -775,7 +767,7 @@ export async function isEventFavoritedDb(userId: string, eventId: string): Promi
   }
 }
 
-export async function getAdminStatsDb(): Promise<{ totalUsers: number; activeEvents: number }> {
+export async function getAdminStatsDb(): Promise<{ totalUsers: number; activeEvents: number; pendingReviews: number; lastMiningTime: string | null }> {
   try {
     // Get total users
     const usersResult = await query<{ count: string }>(
@@ -783,19 +775,32 @@ export async function getAdminStatsDb(): Promise<{ totalUsers: number; activeEve
     )
     const totalUsers = Number(usersResult.rows[0]?.count || '0')
 
-    // Get active events (future events)
+    // Get active events (future events that are active)
     const eventsResult = await query<{ count: string }>(
       `SELECT COUNT(*)::text AS count
        FROM events e
        JOIN cities c ON c.id = e.city_id
        JOIN categories ct ON ct.id = e.category_id
-       WHERE (e.starts_at AT TIME ZONE 'America/Bogota')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date`
+       WHERE (e.starts_at AT TIME ZONE 'America/Bogota')::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Bogota')::date
+       AND e.active = true`
     )
     const activeEvents = Number(eventsResult.rows[0]?.count || '0')
 
-    return { totalUsers, activeEvents }
+    // Get pending reviews (inactive events)
+    const pendingReviewsResult = await query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM events WHERE active = false`
+    )
+    const pendingReviews = Number(pendingReviewsResult.rows[0]?.count || '0')
+
+    // Get last mining time (most recent last_mined from data_sources, excluding NULL)
+    const lastMiningResult = await query<{ last_mined: string | null }>(
+      `SELECT last_mined FROM data_sources WHERE last_mined IS NOT NULL ORDER BY last_mined DESC LIMIT 1`
+    )
+    const lastMiningTime = lastMiningResult.rows[0]?.last_mined || null
+
+    return { totalUsers, activeEvents, pendingReviews, lastMiningTime }
   } catch (err) {
-    return { totalUsers: 0, activeEvents: 0 }
+    return { totalUsers: 0, activeEvents: 0, pendingReviews: 0, lastMiningTime: null }
   }
 }
 

@@ -33,7 +33,9 @@ adminRouter.get('/stats', authenticate, async (req, res) => {
       // Mock stats for tests
       res.json({
         totalUsers: 1234,
-        activeEvents: 567
+        activeEvents: 567,
+        pendingReviews: 23,
+        lastMiningTime: '2024-10-16T10:30:00.000Z'
       })
     }
   } catch (err) {

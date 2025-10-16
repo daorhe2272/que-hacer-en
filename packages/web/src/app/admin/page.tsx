@@ -79,7 +79,7 @@ export default function AdminPage() {
 }
 
 function DashboardTab() {
-  const [stats, setStats] = useState({ totalUsers: 0, activeEvents: 0 })
+  const [stats, setStats] = useState({ totalUsers: 0, activeEvents: 0, pendingReviews: 0, lastMiningTime: null as string | null })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -87,7 +87,7 @@ function DashboardTab() {
     const fetchStats = async () => {
       try {
         const data = await getAdminStats()
-        setStats(data)
+        setStats(data as { totalUsers: number; activeEvents: number; pendingReviews: number; lastMiningTime: string | null })
         setError(null)
       } catch (error) {
         console.error('Failed to fetch admin stats:', error)
@@ -122,11 +122,20 @@ function DashboardTab() {
           <div className="text-sm text-green-600">Eventos Activos</div>
         </div>
         <div className="bg-yellow-50 p-4 rounded-lg">
-          <div className="text-2xl font-bold text-yellow-600">23</div>
+          <div className="text-2xl font-bold text-yellow-600">
+            {loading ? '...' : stats.pendingReviews.toLocaleString()}
+          </div>
           <div className="text-sm text-yellow-600">Revisiones Pendientes</div>
         </div>
         <div className="bg-purple-50 p-4 rounded-lg">
-          <div className="text-2xl font-bold text-purple-600">hace 2h</div>
+          <div className="text-2xl font-bold text-purple-600">
+            {loading ? '...' : stats.lastMiningTime ? new Date(stats.lastMiningTime).toLocaleString('es-CO', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) : 'Nunca'}
+          </div>
           <div className="text-sm text-purple-600">Último Trabajo de Minería</div>
         </div>
       </div>
@@ -164,7 +173,9 @@ function DashboardTab() {
           <div className="grid grid-cols-2 gap-3">
             <button className="p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
               <div className="text-sm font-medium">Revisar Eventos</div>
-              <div className="text-xs opacity-90">23 pendientes</div>
+              <div className="text-xs opacity-90">
+                {loading ? '...' : `${stats.pendingReviews.toLocaleString()} pendientes`}
+              </div>
             </button>
             <button className="p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
               <div className="text-sm font-medium">Gestionar Usuarios</div>
@@ -174,7 +185,14 @@ function DashboardTab() {
             </button>
             <button className="p-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
               <div className="text-sm font-medium">Ejecutar Minería</div>
-              <div className="text-xs opacity-90">Último: hace 2h</div>
+              <div className="text-xs opacity-90">
+                Último: {loading ? '...' : stats.lastMiningTime ? new Date(stats.lastMiningTime).toLocaleString('es-CO', {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }) : 'Nunca'}
+              </div>
             </button>
             <button className="p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
               <div className="text-sm font-medium">Ver Reportes</div>

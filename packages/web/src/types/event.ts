@@ -11,7 +11,6 @@ export interface Event {
   currency: string
   image: string
   tags: string[]
-  status: 'active' | 'cancelled' | 'postponed' | 'sold_out'
   created_by?: string
   event_url?: string
   active?: boolean

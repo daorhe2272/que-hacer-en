@@ -207,7 +207,7 @@ describe('Repository Functions', () => {
         image: 'test.jpg',
         organizer: '',
         tags: [],
-        status: 'active',
+        
         created_by: undefined
       })
     })
@@ -251,7 +251,7 @@ describe('Repository Functions', () => {
         image: '',     // Should be empty string due to null coalescing
         organizer: '',
         tags: [],
-        status: 'active',
+        
         created_by: undefined
       })
       // This test should cover lines 174, 175, and 179
@@ -314,7 +314,7 @@ describe('Repository Functions', () => {
         image: '',     // Should be empty string due to null coalescing
         organizer: '',
         tags: [],
-        status: 'active',
+        
         created_by: undefined
       }))
       // This test should cover lines 214, 215, and 219 in listEventsByCityDb
@@ -911,7 +911,7 @@ describe('Repository Functions', () => {
         image: '',     // Should be empty string due to null coalescing
         organizer: '',
         tags: ['rock'],
-        status: 'active',
+        
         created_by: undefined
       }))
       // This test should cover lines 471, 472, and 476 in getEventByIdDb

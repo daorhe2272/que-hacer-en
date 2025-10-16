@@ -47,7 +47,7 @@ jest.mock('fs', () => ({
         organizer: 'Test Org',
         capacity: 100,
         tags: ['test'],
-        status: 'active'
+        
       }
     ],
     medellin: [
@@ -66,7 +66,7 @@ jest.mock('fs', () => ({
         organizer: 'Test Org Med',
         capacity: 50,
         tags: ['test-med'],
-        status: 'active'
+        
       }
     ],
     cali: [],

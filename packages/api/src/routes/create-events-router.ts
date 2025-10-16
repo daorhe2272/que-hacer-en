@@ -257,7 +257,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           image: parsed.data.image || 'test-image.jpg',
           organizer: '',
           tags: parsed.data.tags || [],
-          status: 'active'
+          
         }
       }
       
@@ -308,7 +308,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           image: 'test-image.jpg',
           organizer: 'Test Organizer',
           tags: ['test'],
-          status: 'active'
+          
         }
         events = [mockEvent]
         total = 1
@@ -352,7 +352,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             image: 'test-image.jpg',
             organizer: 'Test Organizer',
             tags: ['test'],
-            status: 'active'
+            
           }
         } else {
           event = null
@@ -400,7 +400,7 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             image: parsed.data.image || 'test-image.jpg',
             organizer: '',
             tags: parsed.data.tags || [],
-            status: 'active'
+            
           }
         } else {
           event = null

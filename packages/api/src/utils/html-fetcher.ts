@@ -69,29 +69,20 @@ export async function fetchHtmlContent(url: string, options: FetchOptions = {}):
       userAgent
     })
 
-    // If dynamic fetch fails but we have static content, use static as fallback
-    if (!dynamicResult.success && staticResult.content) {
-      return {
-        ...staticResult,
-        method: 'static'
-      }
-    }
-    
     return {
       ...dynamicResult,
       method: 'dynamic'
     }
   } catch (error) {
-    // Handle different error types without throwing
-    if (error instanceof Error) {
-      if (error.message.includes('Invalid URL')) {
-        console.error(`[HTML Fetcher] Invalid URL: ${url}`)
-        return {
-          success: false,
-          error: 'Invalid URL format'
-        }
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ERR_INVALID_URL') {
+      console.error(`[HTML Fetcher] Invalid URL: ${url}`)
+      return {
+        success: false,
+        error: 'Invalid URL format'
       }
-      
+    }
+    
+    if (error instanceof Error) {
       if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
         console.error(`[HTML Fetcher] Connection error for URL: ${url}`, error.message)
         return {
@@ -107,7 +98,6 @@ export async function fetchHtmlContent(url: string, options: FetchOptions = {}):
       }
     }
     
-    // Handle unknown error types
     console.error(`[HTML Fetcher] Unknown error for URL: ${url}`, error)
     return {
       success: false,
@@ -255,6 +245,16 @@ async function tryStaticFetch(url: string, userAgent: string): Promise<FetchHtml
       return {
         success: false,
         error: 'Static fetch timeout'
+      }
+    }
+    
+    if (error instanceof Error) {
+      if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
+        console.error(`[HTML Fetcher] Connection error for URL: ${url}`, error.message)
+        return {
+          success: false,
+          error: 'Connection failed - domain not reachable'
+        }
       }
     }
     

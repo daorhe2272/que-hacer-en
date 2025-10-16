@@ -19,7 +19,7 @@ export const mockEvents: EventDto[] = [
     image: 'https://example.com/rock-al-parque.jpg',
     organizer: 'IDARTES',
     tags: ['rock', 'festival', 'gratis', 'aire libre'],
-    status: 'active'
+    
   },
   {
     id: 'bg-002-uuid',
@@ -35,7 +35,7 @@ export const mockEvents: EventDto[] = [
     image: 'https://example.com/avaro-teatro.jpg',
     organizer: 'Teatro Colón',
     tags: ['teatro', 'clásico', 'comedia'],
-    status: 'active'
+    
   },
   // Medellín event
   {
@@ -52,7 +52,7 @@ export const mockEvents: EventDto[] = [
     image: 'https://example.com/festival-flores.jpg',
     organizer: 'Alcaldía de Medellín',
     tags: ['tradición', 'flores', 'silleteros', 'gratis'],
-    status: 'active'
+    
   },
   // Tie-breaking test events - identical date and time
   {
@@ -69,7 +69,7 @@ export const mockEvents: EventDto[] = [
     image: 'https://example.com/tie-test-a.jpg',
     organizer: 'Tie Test Organizer A',
     tags: ['tie-test', 'sorting'],
-    status: 'active'
+    
   },
   {
     id: 'bg-tie-2-uuid',
@@ -85,7 +85,7 @@ export const mockEvents: EventDto[] = [
     image: 'https://example.com/tie-test-b.jpg',
     organizer: 'Tie Test Organizer B',
     tags: ['tie-test', 'sorting'],
-    status: 'active'
+    
   }
 ]
 

@@ -153,7 +153,7 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
         image: 'test-image.jpg',
         organizer: 'Test Organizer',
         tags: ['test'],
-        status: 'active'
+        
       }
       events = [mockEvent]
       total = 1

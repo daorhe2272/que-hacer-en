@@ -165,7 +165,6 @@ export type EventFormData = {
   currency: string
   image?: string
   tags: string[]
-  status: string
 }
 
 export type CreateEventResult = {

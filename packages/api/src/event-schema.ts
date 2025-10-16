@@ -44,15 +44,15 @@ export const eventSchema = {
             type: Type.STRING,
             description: "The full street address of the event. If no address is provided, it should be the same as the event's location.",
           },
-          category: {
+          category_slug: {
             type: Type.STRING,
-            description: "The category of the event.",
-            enum: ['Música', 'Arte', 'Gastronomía', 'Deportes', 'Tecnología', 'Networking', 'Cine', 'Negocios'],
+            description: "Category slug for database lookup: 'musica', 'arte', 'gastronomia', 'deportes', 'tecnologia', 'networking', 'cine', 'negocios'",
+            enum: ['musica', 'arte', 'gastronomia', 'deportes', 'tecnologia', 'networking', 'cine', 'negocios'],
           },
-          ciudad: {
+          city_slug: {
             type: Type.STRING,
-            description: "The city where the event takes place.",
-            enum: ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena'],
+            description: "City slug for database lookup: 'bogota', 'medellin', 'cali', 'barranquilla', 'cartagena'",
+            enum: ['bogota', 'medellin', 'cali', 'barranquilla', 'cartagena'],
           },
           Price: {
             type: Type.NUMBER,
@@ -65,8 +65,8 @@ export const eventSchema = {
             nullable: true,
           },
         },
-        required: ["source_url", "event_url", "title", "description", "date", "time", "location", "address", "category", "ciudad", "Price", "image_url"],
-        propertyOrdering: ["source_url", "event_url", "title", "description", "date", "time", "location", "address", "category", "ciudad", "Price", "image_url"],
+        required: ["source_url", "event_url", "title", "description", "date", "time", "location", "address", "category_slug", "city_slug", "Price", "image_url"],
+        propertyOrdering: ["source_url", "event_url", "title", "description", "date", "time", "location", "address", "category_slug", "city_slug", "Price", "image_url"],
       },
     },
   },
@@ -85,8 +85,8 @@ export interface ExtractedEvent {
   time: string;
   location: string;
   address: string;
-  category: 'Música' | 'Arte' | 'Gastronomía' | 'Deportes' | 'Tecnología' | 'Networking' | 'Cine' | 'Negocios';
-  ciudad: 'Bogotá' | 'Medellín' | 'Cali' | 'Barranquilla' | 'Cartagena';
+  category_slug: 'musica' | 'arte' | 'gastronomia' | 'deportes' | 'tecnologia' | 'networking' | 'cine' | 'negocios';
+  city_slug: 'bogota' | 'medellin' | 'cali' | 'barranquilla' | 'cartagena';
   Price: number | null;
   image_url: string | null;
 }

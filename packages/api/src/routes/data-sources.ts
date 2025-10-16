@@ -3,6 +3,7 @@ import { authenticate, requireRole } from '../middleware/auth'
 import { query } from '../db/client'
 import { fetchHtmlContent } from '../utils/html-fetcher'
 import { extractEventsFromHtml } from '../utils/event-extractor'
+import { processExtractedEvents } from '../utils/event-processor'
 
 const router: Router = Router()
 
@@ -381,48 +382,72 @@ router.post('/:id/mine', async (req, res) => {
 
     if (fetchResult.success) {
       console.log(`[Mining] Successfully fetched content from ${source.url}`)
-      
+
       // Extract events from the HTML content using Gemini
       if (fetchResult.fullHtml) {
         console.log(`[Mining] Starting event extraction from HTML content`)
         const extractionResult = await extractEventsFromHtml(fetchResult.fullHtml, source.url)
-        
-        if (extractionResult.success) {
-          console.log(`[Mining] Successfully extracted events. Raw JSON output:`)
-          console.log(JSON.stringify(extractionResult.events, null, 2))
+
+        if (extractionResult.success && extractionResult.events) {
+          console.log(`[Mining] Successfully extracted ${extractionResult.events.length} events`)
+          console.log(`[Mining] Raw JSON output:`, JSON.stringify(extractionResult.events, null, 2))
+
+          // Process and store events in database
+          const storedEvents = await processExtractedEvents(extractionResult.events, req.user!.id)
+          console.log(`[Mining] Successfully stored ${storedEvents.length} events in database`)
+
+          // Update mining status to completed with timestamp and event count
+          await query(
+            `UPDATE data_sources SET mining_status = 'completed', last_mined = now() WHERE id = $1`,
+            [id]
+          )
+
+          return res.json({
+            message: 'Minería completada exitosamente',
+            data_source_id: id,
+            success: true,
+            events_extracted: extractionResult.events.length,
+            events_stored: storedEvents.length,
+            events_failed: extractionResult.events.length - storedEvents.length
+          })
         } else {
           console.error(`[Mining] Failed to extract events: ${extractionResult.error}`)
+
+          // Update mining status to completed with timestamp (even if no events found)
+          await query(
+            `UPDATE data_sources SET mining_status = 'completed', last_mined = now() WHERE id = $1`,
+            [id]
+          )
+
+          return res.json({
+            message: 'Minería completada - no se encontraron eventos',
+            data_source_id: id,
+            success: true,
+            events_extracted: 0,
+            events_stored: 0,
+            events_failed: 0
+          })
         }
       }
-      
-      // Update mining status to completed with timestamp
-      await query(
-        `UPDATE data_sources SET mining_status = 'completed', last_mined = now() WHERE id = $1`,
-        [id]
-      )
-      
+
       console.log(`[Mining] Mining completed successfully for data source ${id}`)
+      return res.status(500).json({ error: 'Error interno del servidor' })
     } else {
       console.error(`[Mining] Failed to fetch content from ${source.url}: ${fetchResult.error}`)
-      
+
       // Update mining status to failed
       await query(
         `UPDATE data_sources SET mining_status = 'failed' WHERE id = $1`,
         [id]
       )
-      
+
       console.log(`[Mining] Mining failed for data source ${id}`)
+      return res.status(500).json({ error: 'Error interno del servidor' })
     }
 
-    return res.json({
-      message: fetchResult.success ? 'Minería completada exitosamente' : 'Minería completada con errores',
-      data_source_id: id,
-      success: fetchResult.success,
-      error: fetchResult.error
-    })
   } catch (error) {
    console.error('Error triggering mining:', error)
-   
+
    // Try to update status to failed if we have the ID
    try {
      const { id } = req.params
@@ -435,7 +460,7 @@ router.post('/:id/mine', async (req, res) => {
    } catch (updateError) {
      console.error('Error updating mining status to failed:', updateError)
    }
-   
+
    return res.status(500).json({ error: 'Error interno del servidor' })
   }
 })
