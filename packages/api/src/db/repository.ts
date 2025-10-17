@@ -47,7 +47,6 @@ export interface EventDto {
   price: number | null
   currency: string
   image: string
-  organizer: string
   tags: string[]
   created_by?: string
   event_url?: string
@@ -185,7 +184,6 @@ export async function getEventByLegacyIdDb(legacyId: string): Promise<EventDto |
     price: r.price,
     currency: r.currency,
     image: r.image ?? '',
-    organizer: '',
     tags: [],
     event_url: r.event_url ?? undefined,
     active: r.active
@@ -255,6 +253,7 @@ export interface CreateEventParams {
 export interface UpdateEventParams extends Partial<CreateEventParams> {
   id: string
   utcTimestamp?: string
+  active?: boolean
 }
 
 export async function createEventDb(params: CreateEventParams, organizerId: string): Promise<EventDto> {
@@ -391,6 +390,10 @@ export async function updateEventDb(params: UpdateEventParams, organizerId: stri
     updates.push(`image = $${paramIndex++}`)
     values.push(image)
   }
+  if (params.active !== undefined) {
+    updates.push(`active = $${paramIndex++}`)
+    values.push(params.active)
+  }
 
   if (updates.length > 0) {
     values.push(id)
@@ -490,7 +493,6 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
     price: r.price,
     currency: r.currency,
     image: r.image ?? '',
-    organizer: '',
     tags: tagsRes.rows.map(t => t.name),
     created_by: r.created_by ?? undefined,
     event_url: r.event_url ?? undefined,
@@ -620,7 +622,6 @@ export async function listOrganizerEventsDb(organizerId: string, params: ListPar
       price: r.price,
       currency: r.currency,
       image: r.image ?? '',
-      organizer: '',
       tags: tagsRes.rows.map(t => t.name),
       created_by: r.created_by ?? undefined,
       event_url: r.event_url ?? undefined,
@@ -744,7 +745,6 @@ export async function getUserFavoritesDb(userId: string, params: ListParams): Pr
       price: r.price,
       currency: r.currency,
       image: r.image ?? '',
-      organizer: '',
       tags: tagsRes.rows.map(t => t.name),
       created_by: r.created_by ?? undefined,
       event_url: r.event_url ?? undefined,
@@ -802,5 +802,85 @@ export async function getAdminStatsDb(): Promise<{ totalUsers: number; activeEve
   } catch (err) {
     return { totalUsers: 0, activeEvents: 0, pendingReviews: 0, lastMiningTime: null }
   }
+}
+
+export async function listInactiveEventsDb(params: { city?: string; q?: string; page?: number; limit?: number }): Promise<{ events: EventDto[], total: number }> {
+  const { city, q, page = 1, limit = 20 } = params
+
+  const where: string[] = ['e.active = false']
+  const args: unknown[] = []
+  let i = 1
+  if (city) { where.push(`c.slug = $${i++}`); args.push(city) }
+  if (q) {
+    const term = `%${normalize(q)}%`
+    where.push(`(
+      e.title_norm LIKE $${i} OR
+      e.description_norm LIKE $${i} OR
+      e.venue_norm LIKE $${i} OR
+      EXISTS (
+        SELECT 1 FROM event_tags et JOIN tags t ON t.id = et.tag_id
+        WHERE et.event_id = e.id AND t.name_norm LIKE $${i}
+      )
+    )`)
+    args.push(term); i++
+  }
+
+  const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
+
+  const offset = (page - 1) * limit
+
+  const countRes = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count
+     FROM events e
+     JOIN cities c ON c.id = e.city_id
+     JOIN categories ct ON ct.id = e.category_id
+     ${whereSql}`, args
+  )
+  const total = Number(countRes.rows[0]?.count || '0')
+
+  const rows = await query<EventRowDto & { organizer_email: string | null }>(
+    `SELECT e.id,
+            e.title,
+            e.description,
+            e.venue as location,
+            e.address,
+            e.price_cents as price,
+            e.currency,
+            e.image,
+            e.starts_at as utc_timestamp,
+            ct.label as category,
+            c.slug as city,
+            e.created_by,
+            e.event_url,
+            e.active,
+            u.email as organizer_email
+     FROM events e
+     JOIN cities c ON c.id = e.city_id
+     JOIN categories ct ON ct.id = e.category_id
+     LEFT JOIN users u ON u.id = e.created_by
+     ${whereSql}
+     ORDER BY e.created_at DESC, e.id ASC
+     LIMIT ${limit} OFFSET ${offset}`, args
+  )
+
+  const events: EventDto[] = rows.rows.map(r => ({
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    utcTimestamp: r.utc_timestamp,
+    location: r.location ?? '',
+    address: r.address ?? '',
+    category: r.category,
+    city: r.city,
+    price: r.price,
+    currency: r.currency,
+    image: r.image ?? '',
+    tags: [],
+    created_by: r.organizer_email ?? undefined,
+    event_url: r.event_url ?? undefined,
+    active: r.active
+  }))
+
+  return { events, total }
 }
 

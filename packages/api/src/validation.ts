@@ -31,7 +31,8 @@ export const eventSchema = z.object({
   price: z.number().nonnegative().nullable(),
   currency: z.string().min(3).max(3),
   image: z.string().url().optional(),
-  tags: z.array(z.string()).default([])
+  tags: z.array(z.string()).default([]),
+  active: z.boolean().optional()
 })
 
 export const createEventSchema = eventSchema.omit({ id: true })

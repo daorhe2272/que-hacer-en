@@ -457,3 +457,47 @@ export async function getCities(): Promise<City[]> {
   }
 }
 
+export async function getInactiveEvents(params?: { city?: string; q?: string; page?: number; limit?: number }): Promise<{ events: Event[], pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
+  try {
+    const headers = await buildAuthHeadersClient()
+    const usp = new URLSearchParams()
+    if (params?.city) usp.set('city', params.city)
+    if (params?.q) usp.set('q', params.q)
+    if (params?.page) usp.set('page', String(params.page))
+    if (params?.limit) usp.set('limit', String(params.limit))
+    const query = usp.toString()
+    const url = `${CLIENT_API_URL}/api/admin/events/inactive${query ? `?${query}` : ''}`
+
+    const res = await fetch(url, { cache: 'no-store', headers })
+
+    if (!res.ok) {
+      throw new Error(`Error al cargar eventos inactivos (${res.status})`)
+    }
+
+    const data = await res.json()
+    return { events: data.events || [], pagination: data.pagination }
+  } catch (err) {
+    console.error('getInactiveEvents error:', err)
+    throw new Error(err instanceof Error ? err.message : 'Error al cargar eventos inactivos')
+  }
+}
+
+export async function deleteEvent(eventId: string): Promise<void> {
+  try {
+    const headers = await buildAuthHeadersClient()
+
+    const res = await fetch(`${CLIENT_API_URL}/api/events/manage/${eventId}`, {
+      method: 'DELETE',
+      headers
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json()
+      throw new Error(errorData.error || `Error al eliminar evento (${res.status})`)
+    }
+  } catch (err) {
+    console.error('deleteEvent error:', err)
+    throw new Error(err instanceof Error ? err.message : 'Error al eliminar evento')
+  }
+}
+

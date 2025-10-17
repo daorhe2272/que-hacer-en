@@ -1,6 +1,8 @@
 "use client"
 
-import { getAdminStats, getDataSources, createDataSource, deleteDataSource, triggerDataSourceMining, getCities, type DataSource, type City } from '@/lib/api'
+import { getAdminStats, getDataSources, createDataSource, deleteDataSource, triggerDataSourceMining, getCities, getInactiveEvents, deleteEvent, updateEvent, type DataSource, type City } from '@/lib/api'
+import { CATEGORIES } from '@que-hacer-en/shared'
+import type { Event } from '@/types/event'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import { useState, useEffect, useCallback } from 'react'
 export const dynamic = 'force-dynamic'
@@ -309,111 +311,494 @@ function UsersTab() {
 }
 
 function EventsTab() {
+  const [events, setEvents] = useState<Event[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCity, setSelectedCity] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [eventToDelete, setEventToDelete] = useState<Event | null>(null)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [editingEventId, setEditingEventId] = useState<string | null>(null)
+  const [editFormData, setEditFormData] = useState<Partial<{
+    title: string
+    description: string
+    date: string
+    time: string
+    location: string
+    address: string
+    category: string
+    city: string
+    price: number | null
+    image: string
+    event_url: string
+  }>>({})
+  const [editLoading, setEditLoading] = useState(false)
+  const [cities, setCities] = useState<City[]>([])
+
+  const fetchInactiveEvents = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const params: { city?: string; q?: string; page?: number; limit?: number } = { page: currentPage, limit: 20 }
+      if (searchQuery.trim()) params.q = searchQuery.trim()
+      if (selectedCity) params.city = selectedCity
+
+      const result = await getInactiveEvents(params)
+      setEvents(result.events || [])
+      setTotalPages(result.pagination?.totalPages || 1)
+    } catch (err) {
+      console.error('Failed to fetch inactive events:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+      setEvents([])
+    } finally {
+      setLoading(false)
+    }
+  }, [searchQuery, selectedCity, currentPage])
+
+  useEffect(() => {
+    fetchInactiveEvents()
+  }, [fetchInactiveEvents])
+
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        const citiesData = await getCities()
+        setCities(citiesData)
+      } catch (err) {
+        console.error('Error loading cities:', err)
+      }
+    }
+    loadCities()
+  }, [])
+
+  const handleSearch = () => {
+    setCurrentPage(1)
+    fetchInactiveEvents()
+  }
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handleDeleteEvent = (event: Event) => {
+    setEventToDelete(event)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete) return
+
+    setDeleteLoading(true)
+    setError(null)
+
+    // Optimistically remove the event from the UI
+    const eventToRemove = eventToDelete
+    setEvents(prev => prev.filter(e => e.id !== eventToRemove.id))
+
+    // Adjust pagination if we removed the last item on the current page
+    const remainingEvents = events.filter(e => e.id !== eventToRemove.id)
+    if (remainingEvents.length === 0 && currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+
+    try {
+      await deleteEvent(eventToRemove.id)
+      setShowDeleteModal(false)
+      setEventToDelete(null)
+    } catch (err) {
+      console.error('Failed to delete event:', err)
+      // Restore the event if deletion failed
+      setEvents(prev => [...prev, eventToRemove])
+      setError(err instanceof Error ? err.message : 'Error desconocido al eliminar el evento')
+      setShowDeleteModal(false)
+      setEventToDelete(null)
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  const handleEditEvent = (event: Event) => {
+    setEditingEventId(event.id)
+    // Parse the UTC timestamp to get date and time
+    const eventDate = new Date(event.utcTimestamp)
+    const dateStr = eventDate.toISOString().split('T')[0]
+    const timeStr = eventDate.toTimeString().slice(0, 5) // HH:MM format
+
+    setEditFormData({
+      title: event.title,
+      description: event.description,
+      date: dateStr,
+      time: timeStr,
+      location: event.location,
+      address: event.address,
+      category: event.category,
+      city: event.city,
+      price: event.price,
+      image: event.image || '',
+      event_url: event.event_url || ''
+    })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingEventId(null)
+    setEditFormData({})
+    setError(null)
+  }
+
+  const handleSaveAndApprove = async () => {
+    if (!editingEventId || !editFormData.title || !editFormData.description || !editFormData.date || !editFormData.time || !editFormData.location || !editFormData.address || !editFormData.category || !editFormData.city) {
+      setError('Todos los campos obligatorios deben estar completos')
+      return
+    }
+
+    setEditLoading(true)
+    setError(null)
+
+    try {
+      // Combine date and time into UTC timestamp
+      const utcTimestamp = `${editFormData.date}T${editFormData.time}:00-05:00`
+
+      const updateData = {
+        title: editFormData.title,
+        description: editFormData.description,
+        date: editFormData.date,
+        time: editFormData.time,
+        location: editFormData.location,
+        address: editFormData.address,
+        category: editFormData.category,
+        city: editFormData.city,
+        price: editFormData.price,
+        currency: 'COP' as const,
+        image: editFormData.image || undefined,
+        event_url: editFormData.event_url || undefined,
+        tags: [],
+        utcTimestamp,
+        active: true // This will approve the event
+      }
+
+      const result = await updateEvent(editingEventId, updateData)
+
+      if (result.success) {
+        // Remove the event from inactive list since it's now approved
+        setEvents(prev => prev.filter(e => e.id !== editingEventId))
+        setEditingEventId(null)
+        setEditFormData({})
+      } else {
+        setError(result.error || 'Error al guardar y aprobar el evento')
+      }
+    } catch (err) {
+      console.error('Failed to save and approve event:', err)
+      setError(err instanceof Error ? err.message : 'Error desconocido al guardar el evento')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Moderación de Eventos</h2>
-        <div className="flex space-x-2">
-          <button className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-            Aprobar Todos
-          </button>
-          <button className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-            Rechazar Todos
-          </button>
+      <h2 className="text-xl font-semibold mb-4">Moderación de Eventos</h2>
+
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+          <strong>Error:</strong> {error}
         </div>
-      </div>
+      )}
 
       <div className="mb-4 flex flex-wrap gap-2">
         <input
           type="text"
           placeholder="Buscar eventos..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg flex-1 min-w-64"
         />
-        <select className="px-3 py-2 border border-gray-300 rounded-lg">
-          <option>Todos los Estados</option>
-          <option>Pendiente</option>
-          <option>Aprobado</option>
-          <option>Rechazado</option>
-          <option>Publicado</option>
+        <select
+          value={selectedCity}
+          onChange={(e) => setSelectedCity(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg"
+        >
+          <option value="">Todas las Ciudades</option>
+          <option value="bogota">Bogotá</option>
+          <option value="medellin">Medellín</option>
+          <option value="cali">Cali</option>
+          <option value="barranquilla">Barranquilla</option>
+          <option value="cartagena">Cartagena</option>
         </select>
-        <select className="px-3 py-2 border border-gray-300 rounded-lg">
-          <option>Todas las Ciudades</option>
-          <option>Bogotá</option>
-          <option>Medellín</option>
-          <option>Cali</option>
-        </select>
-        <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+        <button
+          onClick={handleSearch}
+          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+        >
           Filtrar
         </button>
       </div>
 
-      <div className="space-y-4">
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="text-lg font-medium text-gray-900">Festival de Música de Verano</h3>
-              <p className="text-sm text-gray-600 mt-1">Un evento de música al aire libre fantástico con artistas locales e internacionales.</p>
-              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                <span>📅 15 Dic 2024</span>
-                <span>📍 Bogotá</span>
-                <span>👤 john@example.com</span>
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="text-gray-600">Cargando eventos inactivos...</div>
+        </div>
+      ) : events.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="text-gray-600">No hay eventos inactivos para revisar</div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {events.map((event) => (
+            editingEventId === event.id ? (
+              <div key={event.id} className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Editando Evento</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+                    <input
+                      type="text"
+                      value={editFormData.title || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
+                    <select
+                      value={editFormData.category || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    >
+                      <option value="">Seleccionar categoría</option>
+                      {CATEGORIES.filter(c => c.slug !== 'todos').map(cat => (
+                        <option key={cat.slug} value={cat.slug}>{cat.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
+                    <input
+                      type="date"
+                      value={editFormData.date || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Hora *</label>
+                    <input
+                      type="time"
+                      value={editFormData.time || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, time: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación *</label>
+                    <input
+                      type="text"
+                      value={editFormData.location || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, location: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dirección *</label>
+                    <input
+                      type="text"
+                      value={editFormData.address || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, address: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad *</label>
+                    <select
+                      value={editFormData.city || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, city: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    >
+                      <option value="">Seleccionar ciudad</option>
+                      {cities.map(city => (
+                        <option key={city.slug} value={city.slug}>{city.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Precio</label>
+                    <input
+                      type="number"
+                      value={editFormData.price || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, price: e.target.value ? parseFloat(e.target.value) : null }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Precio en COP"
+                      min="0"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                    <textarea
+                      rows={3}
+                      value={editFormData.description || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Imagen (URL)</label>
+                    <input
+                      type="url"
+                      value={editFormData.image || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, image: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://ejemplo.com/imagen.jpg"
+                      disabled={editLoading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">URL del Evento</label>
+                    <input
+                      type="url"
+                      value={editFormData.event_url || ''}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, event_url: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://evento.com"
+                      disabled={editLoading}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    disabled={editLoading}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveAndApprove}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Guardando...
+                      </>
+                    ) : (
+                      'Guardar y aprobar'
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-col space-y-2 ml-4">
-              <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full w-fit">Revisión Pendiente</span>
-              <div className="flex space-x-2">
-                <button className="px-3 py-1 bg-green-500 text-white text-sm rounded hover:bg-green-600">
-                  Aprobar
-                </button>
-                <button className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">
-                  Rechazar
-                </button>
-                <button className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">
-                  Editar
-                </button>
+            ) : (
+              <div key={event.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-4 flex-1">
+                    {event.image && (
+                      <div className="flex-shrink-0">
+                        <img
+                          src={event.image}
+                          alt={event.title}
+                          className="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{event.description}</p>
+                      <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
+                        <span>📅 {new Date(event.utcTimestamp).toLocaleDateString('es-CO', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        })}</span>
+                        <span>📍 {event.city}</span>
+                        <span>👤 {event.created_by || 'Sin organizador'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col space-y-2 ml-4">
+                    <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full w-fit">Revisión Pendiente</span>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEditEvent(event)}
+                        className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDeleteEvent(event)}
+                        className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600"
+                      >
+                        Rechazar
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            )
+          ))}
+        </div>
+      )}
+
+      {!loading && events.length > 0 && totalPages > 1 && (
+        <div className="mt-6 flex justify-center">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`px-3 py-1 rounded ${
+                  page === currentPage
+                    ? 'bg-blue-500 text-white'
+                    : 'border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
           </div>
         </div>
+      )}
 
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="text-lg font-medium text-gray-900">Conferencia de Tecnología 2024</h3>
-              <p className="text-sm text-gray-600 mt-1">Conferencia anual de tecnología con talleres y networking.</p>
-              <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                <span>📅 20 Nov 2024</span>
-                <span>📍 Medellín</span>
-                <span>👤 organizer@example.com</span>
-              </div>
-            </div>
-            <div className="flex flex-col space-y-2 ml-4">
-              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full w-fit">Aprobado</span>
-              <div className="flex space-x-2">
-                <button className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600">
-                  Ver
-                </button>
-                <button className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600">
-                  Editar
-                </button>
-                <button className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600">
-                  Eliminar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 flex justify-center">
-        <div className="flex space-x-2">
-          <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Anterior</button>
-          <button className="px-3 py-1 bg-blue-500 text-white rounded">1</button>
-          <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">2</button>
-          <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">3</button>
-          <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Siguiente</button>
-        </div>
-      </div>
+      {showDeleteModal && eventToDelete && (
+        <ConfirmationModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={confirmDeleteEvent}
+          isLoading={deleteLoading}
+          title="Eliminar Evento"
+          message={`¿Estás seguro de que quieres eliminar el evento "${eventToDelete.title}"? Esta acción no se puede deshacer.`}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          confirmButtonStyle="danger"
+        />
+      )}
     </div>
   )
 }
