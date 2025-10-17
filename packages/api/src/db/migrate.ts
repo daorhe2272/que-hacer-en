@@ -202,6 +202,10 @@ function getStatements(): string[] {
     `INSERT INTO categories (slug, label) VALUES ('deportes', 'Deportes') ON CONFLICT (slug) DO NOTHING;`,
     `INSERT INTO categories (slug, label) VALUES ('tecnologia', 'Tecnología') ON CONFLICT (slug) DO NOTHING;`,
     `INSERT INTO categories (slug, label) VALUES ('networking', 'Networking') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('cine', 'Cine') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('danza', 'Danza') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('teatro', 'Teatro') ON CONFLICT (slug) DO NOTHING;`,
+    `INSERT INTO categories (slug, label) VALUES ('negocios', 'Negocios') ON CONFLICT (slug) DO NOTHING;`,
     
     // Enable Row Level Security on cities table
     `ALTER TABLE cities ENABLE ROW LEVEL SECURITY;`,

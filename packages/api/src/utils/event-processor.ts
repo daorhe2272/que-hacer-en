@@ -24,6 +24,31 @@ export function convertExtractedEventToDbFormat(extractedEvent: ExtractedEvent):
 }
 
 /**
+ * Checks if an event date is in the past (before today in Colombia timezone)
+ * Ignores time and includes today's events
+ */
+function isEventInPast(eventDate: string): boolean {
+  try {
+    // Parse the event date (YYYY-MM-DD format)
+    const eventDateObj = new Date(eventDate + 'T00:00:00-05:00') // Colombia timezone (UTC-5)
+
+    // Get today's date in Colombia timezone
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const colombiaOffset = -5 * 60 // UTC-5 in minutes
+    const utc = today.getTime() + (today.getTimezoneOffset() * 60000)
+    const todayColombia = new Date(utc + (colombiaOffset * 60000))
+
+    // Compare dates (event date should be >= today)
+    return eventDateObj < todayColombia
+  } catch (error) {
+    // If date parsing fails, treat as invalid and skip
+    console.warn('[Procesador de Eventos] Formato de fecha inválido:', eventDate)
+    return true // Skip invalid dates
+  }
+}
+
+/**
  * Checks if an event already exists in the database (duplicate detection)
  */
 async function isDuplicateEvent(title: string, location: string): Promise<boolean> {
@@ -64,8 +89,32 @@ export async function createMinedEventDb(params: CreateEventParams, adminUserId:
   const categoryId = categoryRes.rows[0].id
 
   const eventId = crypto.randomUUID()
-  // Convert Colombian time to UTC for storage
-  const startsAt = `${date}T${time}:00-05:00`
+   // Default to 8:00 AM Colombia time if time is not provided or invalid
+   let colombiaTime = time || '08:00'
+
+   // Validate and fix time format
+   const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
+   if (!timeRegex.test(colombiaTime)) {
+     console.warn(`[Procesador de Eventos] Hora inválida '${colombiaTime}' para evento '${title}', usando 08:00 por defecto`)
+     colombiaTime = '08:00'
+   }
+
+   // Convert Colombia time to UTC using manual calculation (server-timezone-independent)
+   const [hours, minutes] = colombiaTime.split(':').map(Number)
+   let utcHours = hours + 5  // Colombia is UTC-5, so add 5 hours
+   let utcDate = date
+
+   // Handle day boundary (if hours >= 24, it's the next day)
+   if (utcHours >= 24) {
+     utcHours -= 24
+     // Add one day to the date
+     const dateObj = new Date(date + 'T00:00:00')
+     dateObj.setDate(dateObj.getDate() + 1)
+     utcDate = dateObj.toISOString().split('T')[0]
+   }
+
+   // Create UTC timestamp directly
+   const startsAt = `${utcDate}T${utcHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`
 
   // Insert event with active=false for mined events
   await query(
@@ -152,7 +201,6 @@ async function getEventByIdDb(eventId: string): Promise<EventDto | null> {
     price: r.price_cents,
     currency: r.currency,
     image: r.image ?? '',
-    organizer: '',
     tags: [],
     created_by: r.created_by ?? undefined,
     event_url: r.event_url ?? undefined,
@@ -169,22 +217,26 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
   const storedEvents: EventDto[] = []
   const skippedEvents: string[] = []
 
-  console.log(`[Event Processor] Processing ${extractedEvents.length} extracted events`)
+  console.log(`[Procesador de Eventos] Procesando ${extractedEvents.length} eventos extraídos`)
 
   for (const extractedEvent of extractedEvents) {
     try {
       // Validate required fields
       if (!extractedEvent.title || !extractedEvent.date || !extractedEvent.time || !extractedEvent.category_slug || !extractedEvent.city_slug) {
-        console.warn('[Event Processor] Skipping event due to missing required fields:', extractedEvent)
         skippedEvents.push(`${extractedEvent.title} - Missing required fields`)
+        continue
+      }
+
+      // Check if event is in the past (before today in Colombia timezone)
+      if (isEventInPast(extractedEvent.date)) {
+        skippedEvents.push(`${extractedEvent.title} - Evento pasado (${extractedEvent.date})`)
         continue
       }
 
       // Check for duplicates
       const isDuplicate = await isDuplicateEvent(extractedEvent.title, extractedEvent.location)
       if (isDuplicate) {
-        console.warn('[Event Processor] Skipping duplicate event:', extractedEvent.title)
-        skippedEvents.push(`${extractedEvent.title} - Duplicate`)
+        skippedEvents.push(`${extractedEvent.title} - Duplicado`)
         continue
       }
 
@@ -195,16 +247,16 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
       const storedEvent = await createMinedEventDb(eventData, adminUserId, extractedEvent.event_url)
       storedEvents.push(storedEvent)
       
-      console.log(`[Event Processor] Successfully stored event: ${extractedEvent.title}`)
+      console.log(`[Procesador de Eventos] Evento almacenado exitosamente: ${extractedEvent.title}`)
     } catch (error) {
-      console.error(`[Event Processor] Failed to process event: ${extractedEvent.title}`, error)
+      console.error(`[Procesador de Eventos] Error al procesar evento: ${extractedEvent.title}`, error)
       skippedEvents.push(`${extractedEvent.title} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
-  console.log(`[Event Processor] Processing complete. Stored: ${storedEvents.length}, Skipped: ${skippedEvents.length}`)
+  console.log(`[Procesador de Eventos] Procesamiento completado. Almacenados: ${storedEvents.length}, Omitidos: ${skippedEvents.length}`)
   if (skippedEvents.length > 0) {
-    console.log(`[Event Processor] Skipped events:`, skippedEvents)
+    console.log(`[Procesador de Eventos] Eventos omitidos:`, skippedEvents)
   }
 
   return storedEvents

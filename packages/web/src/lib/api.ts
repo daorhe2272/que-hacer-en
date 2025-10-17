@@ -501,3 +501,190 @@ export async function deleteEvent(eventId: string): Promise<void> {
   }
 }
 
+export interface MineUrlResult {
+  success: boolean
+  message?: string
+  eventsExtracted: number
+  eventsStored: number
+  eventsFailed: number
+  error?: string
+  details?: string
+}
+
+export async function mineUrl(url: string): Promise<MineUrlResult> {
+  try {
+    const headers = await buildAuthHeadersClient() as Record<string, string>
+    headers['Content-Type'] = 'application/json'
+
+    const res = await fetch(`${CLIENT_API_URL}/api/admin/mine-url`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ url })
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      return {
+        success: false,
+        error: data.error || `Error del servidor (${res.status})`,
+        eventsExtracted: data.eventsExtracted || 0,
+        eventsStored: data.eventsStored || 0,
+        eventsFailed: data.eventsFailed || 0
+      }
+    }
+
+    return {
+      success: true,
+      message: data.message,
+      eventsExtracted: data.eventsExtracted || 0,
+      eventsStored: data.eventsStored || 0,
+      eventsFailed: data.eventsFailed || 0,
+      details: data.details
+    }
+  } catch (err) {
+    console.error('mineUrl error:', err)
+    return {
+      success: false,
+      error: 'Error de conexión. Por favor intenta de nuevo.',
+      eventsExtracted: 0,
+      eventsStored: 0,
+      eventsFailed: 0
+    }
+  }
+}
+
+export type MiningProgressCallback = (data: { status: string; message?: string; eventsExtracted?: number; eventsStored?: number; eventsFailed?: number }) => void
+
+export async function mineUrlStreaming(url: string, onProgress: MiningProgressCallback): Promise<MineUrlResult> {
+  return new Promise((resolve) => {
+    let finalResult: MineUrlResult = {
+      success: false,
+      error: 'Unknown error',
+      eventsExtracted: 0,
+      eventsStored: 0,
+      eventsFailed: 0
+    }
+
+    const startMining = async () => {
+      try {
+        const headers = await buildAuthHeadersClient() as Record<string, string>
+        headers['Content-Type'] = 'application/json'
+
+        const res = await fetch(`${CLIENT_API_URL}/api/admin/mine-url`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ url, stream: true })
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json()
+          finalResult = {
+            success: false,
+            error: errorData.error || `Error del servidor (${res.status})`,
+            eventsExtracted: 0,
+            eventsStored: 0,
+            eventsFailed: 0
+          }
+          resolve(finalResult)
+          return
+        }
+
+        const reader = res.body?.getReader()
+        const decoder = new TextDecoder()
+
+        if (!reader) {
+          finalResult = {
+            success: false,
+            error: 'No se pudo establecer conexión de streaming',
+            eventsExtracted: 0,
+            eventsStored: 0,
+            eventsFailed: 0
+          }
+          resolve(finalResult)
+          return
+        }
+
+        let buffer = ''
+
+        const processStream = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+
+              if (done) {
+                resolve(finalResult)
+                return
+              }
+
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split('\n')
+              buffer = lines.pop() || '' // Keep incomplete line in buffer
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  try {
+                    const data = JSON.parse(line.slice(6)) // Remove 'data: ' prefix
+
+                    if (data.status === 'end') {
+                      resolve(finalResult)
+                      return
+                    }
+
+                    onProgress(data)
+
+                    if (data.status === 'completed') {
+                      finalResult = {
+                        success: true,
+                        message: data.message,
+                        eventsExtracted: data.eventsExtracted || 0,
+                        eventsStored: data.eventsStored || 0,
+                        eventsFailed: data.eventsFailed || 0,
+                        details: data.details
+                      }
+                    } else if (data.status === 'failed') {
+                      finalResult = {
+                        success: false,
+                        error: data.message || 'Error durante la minería',
+                        eventsExtracted: data.eventsExtracted || 0,
+                        eventsStored: data.eventsStored || 0,
+                        eventsFailed: data.eventsFailed || 0
+                      }
+                    }
+                  } catch (parseErr) {
+                    console.error('Failed to parse SSE data:', parseErr)
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Stream processing error:', err)
+            finalResult = {
+              success: false,
+              error: 'Error procesando el stream de datos',
+              eventsExtracted: 0,
+              eventsStored: 0,
+              eventsFailed: 0
+            }
+            resolve(finalResult)
+          }
+        }
+
+        processStream()
+      } catch (err) {
+        console.error('mineUrlStreaming error:', err)
+        finalResult = {
+          success: false,
+          error: 'Error de conexión. Por favor intenta de nuevo.',
+          eventsExtracted: 0,
+          eventsStored: 0,
+          eventsFailed: 0
+        }
+        resolve(finalResult)
+      }
+    }
+
+    startMining()
+  })
+}
+

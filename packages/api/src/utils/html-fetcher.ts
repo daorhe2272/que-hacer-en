@@ -45,12 +45,36 @@ export async function fetchHtmlContent(url: string, options: FetchOptions = {}):
 
     // If static fetch succeeds and content looks complete, return it
     if (staticResult.success && isContentComplete(staticResult.fullHtml || staticResult.content || '')) {
+      // Clean HTML content for static fetches too
+      const rawHtml = staticResult.fullHtml || staticResult.content || ''
+      const cleanedHtml = cleanHtmlString(rawHtml)
+
+      // Log content stats BEFORE cleanup
+      const rawWordCount = rawHtml.split(/\s+/).length
+      const rawCharCount = rawHtml.length
+      const rawEstimatedTokens = Math.ceil(rawCharCount / 4)
+      console.log(`[HTML Fetcher] Content stats BEFORE cleanup for static fetch:`)
+      console.log(`  - Characters: ${rawCharCount.toLocaleString()}`)
+      console.log(`  - Words: ${rawWordCount.toLocaleString()}`)
+      console.log(`  - Estimated tokens: ${rawEstimatedTokens.toLocaleString()}`)
+
+      // Log content stats AFTER cleanup
+      const cleanedWordCount = cleanedHtml.split(/\s+/).length
+      const cleanedCharCount = cleanedHtml.length
+      const cleanedEstimatedTokens = Math.ceil(cleanedCharCount / 4)
+      console.log(`[HTML Fetcher] Content stats AFTER cleanup for static fetch:`)
+      console.log(`  - Characters: ${cleanedCharCount.toLocaleString()}`)
+      console.log(`  - Words: ${cleanedWordCount.toLocaleString()}`)
+      console.log(`  - Estimated tokens: ${cleanedEstimatedTokens.toLocaleString()}`)
+
       // Log the first 200 characters of the cleaned static HTML
-      const preview = (staticResult.fullHtml || staticResult.content || '').substring(0, 300)
-      console.log(`[HTML Fetcher] First 300 characters: ${preview}${preview.length < (staticResult.fullHtml || staticResult.content || '').length ? '...' : ''}`)
+      const preview = cleanedHtml.substring(0, 200)
+      console.log(`[HTML Fetcher] First 200 characters of cleaned static HTML: ${preview}${cleanedHtml.length > 200 ? '...' : ''}`)
 
       return {
-        ...staticResult,
+        success: true,
+        content: preview,
+        fullHtml: cleanedHtml,
         method: 'static'
       }
     }
@@ -133,6 +157,28 @@ async function cleanPageContent(page: Page): Promise<string> {
 }
 
 /**
+ * Cleans HTML string content by removing JavaScript and styling elements using regex
+ * For use with static HTML fetches that don't go through Puppeteer
+ */
+function cleanHtmlString(html: string): string {
+  let cleanedHtml = html
+
+  // Remove script tags and their content
+  cleanedHtml = cleanedHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+
+  // Remove style tags and their content
+  cleanedHtml = cleanedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+
+  // Remove link tags with rel="stylesheet"
+  cleanedHtml = cleanedHtml.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '')
+
+  // Remove style attributes from elements
+  cleanedHtml = cleanedHtml.replace(/\s+style=["'][^"']*["']/gi, '')
+
+  return cleanedHtml
+}
+
+/**
  * Checks if the static content appears to be complete
  * Simple heuristic: if content has substantial body text and no loading indicators
  */
@@ -144,20 +190,20 @@ function isContentComplete(html: string): boolean {
     'please wait',
     'espere por favor'
   ]
-  
+
   const hasLoadingIndicator = loadingIndicators.some(indicator =>
     html.toLowerCase().includes(indicator.toLowerCase())
   )
-  
+
   // Check if there's substantial content (more than 1000 characters to be more certain)
   const hasSubstantialContent = html.length > 1000
   const hasVerySubstantialContent = html.length > 50000
-  
+
   // Check for empty React/Vue/Angular app containers
   const hasEmptyReactRoot = html.includes('<div id="root"></div>') || html.includes('<div id="root"></div>')
   const hasEmptyVueRoot = html.includes('<div id="app"></div>')
   const hasEmptyAngularRoot = html.includes('<ng-app></ng-app>')
-  
+
   // If there are empty app containers, it's likely a dynamic SPA
   if (hasEmptyReactRoot || hasEmptyVueRoot || hasEmptyAngularRoot) {
     return false
@@ -406,6 +452,16 @@ async function tryDynamicFetch(url: string, options: {
     // Get the HTML content (attempt even if page validation failed)
     let html: string
     try {
+      // Log content stats BEFORE cleanup
+      const rawHtml = await page.evaluate(() => document.documentElement.outerHTML);
+      const rawWordCount = rawHtml.split(/\s+/).length;
+      const rawCharCount = rawHtml.length;
+      const rawEstimatedTokens = Math.ceil(rawCharCount / 4);
+      console.log(`[HTML Fetcher] Content stats BEFORE cleanup for ${url}:`);
+      console.log(`  - Characters: ${rawCharCount.toLocaleString()}`);
+      console.log(`  - Words: ${rawWordCount.toLocaleString()}`);
+      console.log(`  - Estimated tokens: ${rawEstimatedTokens.toLocaleString()}`);
+
       // Always clean HTML content for data mining purposes
       html = await cleanPageContent(page)
     } catch (contentError) {

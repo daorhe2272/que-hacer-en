@@ -10,17 +10,19 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
   error?: string;
 }> {
   try {
+
     // Initialize the Google GenAI client
     const ai = new GoogleGenAI({});
 
     // Create the prompt for extracting events
-    const prompt = `Extract all distinct events from the following HTML content. 
+    const prompt = `Extract all distinct events from the following HTML content.
     The source URL is: ${sourceUrl}
-    
+
     HTML content:
     ${html}
-    
+
     Please extract all events and return them in the specified JSON format. If no events are found, return an empty array.`;
+
 
     // Generate content with structured output
     const response = await ai.models.generateContent({
@@ -53,9 +55,6 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
       };
     }
 
-    // Log the structured output
-    console.log("[Event Extractor] Successfully extracted events:");
-    console.log(JSON.stringify(parsedResponse, null, 2));
 
     // Validate the response structure
     if (!parsedResponse.events || !Array.isArray(parsedResponse.events)) {
