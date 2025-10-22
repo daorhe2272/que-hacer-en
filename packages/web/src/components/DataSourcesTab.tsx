@@ -138,13 +138,38 @@ export default function DataSourcesTab() {
     // Close modal immediately
     setShowDialog(false)
 
+    // Update mining status at the start
+    setMiningStatus({
+      isActive: true,
+      status: 'running',
+      message: 'Iniciando minería de datos...',
+      startTime: new Date()
+    })
+
     try {
       // Trigger mining for all selected sources
       const promises = Array.from(selectedSources).map(id => triggerDataSourceMining(id))
       await Promise.all(promises)
+
+      // Update mining status on successful completion
+      setMiningStatus({
+        isActive: false,
+        status: 'completed',
+        message: 'Minería completada exitosamente',
+        startTime: new Date()
+      })
+
       setSelectedSources(new Set())
       loadDataSources()
     } catch (err) {
+      // Update mining status on failure
+      setMiningStatus({
+        isActive: false,
+        status: 'failed',
+        message: 'Error durante la minería',
+        startTime: new Date()
+      })
+
       setError(err instanceof Error ? err.message : 'Error al iniciar minería')
     }
   }
@@ -212,18 +237,15 @@ export default function DataSourcesTab() {
 
     try {
       const result = await mineUrlStreaming(oneTimeUrl.trim(), (progress: { status: string; message?: string; eventsExtracted?: number; eventsStored?: number; eventsFailed?: number }) => {
-        // Update mining status based on progress
-        const truncatedMessage = progress.message && progress.message.length > 100
-          ? progress.message.substring(0, 100) + '...'
-          : progress.message || 'Procesando...'
-
-        setMiningStatus(prev => ({
-          ...prev,
-          status: progress.status === 'completed' ? 'completed' :
-                  progress.status === 'failed' ? 'failed' : 'running',
-          message: truncatedMessage,
-          isActive: progress.status !== 'completed' && progress.status !== 'failed'
-        }))
+        // Only update for completion/failure messages
+        if (progress.status === 'completed' || progress.status === 'failed') {
+          setMiningStatus(prev => ({
+            ...prev,
+            status: progress.status === 'completed' ? 'completed' : 'failed',
+            message: progress.message || (progress.status === 'completed' ? 'Completado' : 'Error'),
+            isActive: false
+          }))
+        }
       })
 
       if (result.success) {

@@ -9,6 +9,7 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
   events?: EventExtractionResponse["events"];
   error?: string;
 }> {
+  const currentYear = new Date().getFullYear();
   try {
 
     // Initialize the Google GenAI client
@@ -17,6 +18,7 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
     // Create the prompt for extracting events
     const prompt = `Extract all distinct events from the following HTML content.
     The source URL is: ${sourceUrl}
+    The current year is ${currentYear}. For events that have a defined date but no year specified, assume the year is ${currentYear}.
 
     HTML content:
     ${html}

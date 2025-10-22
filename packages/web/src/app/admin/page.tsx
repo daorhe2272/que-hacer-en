@@ -422,11 +422,25 @@ function EventsTab() {
   }
 
   const handleEditEvent = (event: Event) => {
+    // Open the event URL in a new tab
+    if (event.event_url) {
+      window.open(event.event_url, '_blank')
+    }
+
     setEditingEventId(event.id)
     // Parse the UTC timestamp to get date and time
     const eventDate = new Date(event.utcTimestamp)
     const dateStr = eventDate.toISOString().split('T')[0]
     const timeStr = eventDate.toTimeString().slice(0, 5) // HH:MM format
+
+    // Normalize string for comparison (remove accents and convert to lowercase)
+    const normalizeString = (str: string) => {
+      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    }
+
+    const categorySlug = CATEGORIES.find(c =>
+      normalizeString(c.label) === normalizeString(event.category)
+    )?.slug || ''
 
     setEditFormData({
       title: event.title,
@@ -435,7 +449,7 @@ function EventsTab() {
       time: timeStr,
       location: event.location,
       address: event.address,
-      category: event.category,
+      category: categorySlug,
       city: event.city,
       price: event.price,
       image: event.image || '',

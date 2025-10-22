@@ -116,15 +116,10 @@ export async function getUserProfile(): Promise<UserProfile | null> {
 export async function getUserFavorites(): Promise<{ events: Event[], pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
   try {
     const headers = await buildAuthHeadersClient()
-    console.log('Favorites API call - headers:', headers)
-    console.log('Favorites API call - URL:', `${CLIENT_API_URL}/api/users/favorites`)
-
     const res = await fetch(`${CLIENT_API_URL}/api/users/favorites`, { cache: 'no-store', headers })
-    console.log('Favorites API response status:', res.status)
 
     if (!res.ok) {
       const errorText = await res.text()
-      console.log('Favorites API error response:', errorText)
       throw new Error(`Error al cargar favoritos (${res.status}): ${errorText}`)
     }
     const data = await res.json()

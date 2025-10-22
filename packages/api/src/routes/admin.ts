@@ -1,7 +1,7 @@
 import { Router, Request } from 'express'
 import { authenticate } from '../middleware/auth'
 import { getAdminStatsDb, listInactiveEventsDb } from '../db/repository'
-import { mineUrlDirectly } from '../utils/mining-utils'
+import { mineUrlDirectly, mineUrlDirectlyStreaming } from '../utils/mining-utils'
 
 // Type helper for authenticated requests where user.id and role are guaranteed to exist
 interface AuthenticatedAdminRequest extends Request {
@@ -126,12 +126,9 @@ adminRouter.post('/mine-url', authenticate, async (req, res) => {
         'Access-Control-Allow-Headers': 'Cache-Control',
       })
 
-      // Send initial status
-      res.write(`data: ${JSON.stringify({ status: 'started', message: 'Iniciando proceso de minería...' })}\n\n`)
-
       console.log(`[Admin Mine URL] Starting streaming mining for URL: ${url}`)
 
-      // Create a progress callback function
+      // Create a progress callback function that sends updates to the client
       const sendProgress = (message: string) => {
         try {
           res.write(`data: ${JSON.stringify({ status: 'progress', message })}\n\n`)
