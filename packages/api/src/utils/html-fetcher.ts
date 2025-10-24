@@ -4,6 +4,7 @@
  */
 
 import puppeteer, { HTTPRequest, Browser, Page } from 'puppeteer'
+import { Agent, fetch as undiciFetch } from 'undici'
 
 export interface FetchHtmlResult {
   success: boolean
@@ -98,6 +99,7 @@ export async function fetchHtmlContent(url: string, options: FetchOptions = {}):
       method: 'dynamic'
     }
   } catch (error) {
+    // Handle invalid URL errors
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ERR_INVALID_URL') {
       console.error(`[HTML Fetcher] Invalid URL: ${url}`)
       return {
@@ -105,27 +107,14 @@ export async function fetchHtmlContent(url: string, options: FetchOptions = {}):
         error: 'Invalid URL format'
       }
     }
-    
-    if (error instanceof Error) {
-      if (error.message.includes('ECONNREFUSED') || error.message.includes('ENOTFOUND')) {
-        console.error(`[HTML Fetcher] Connection error for URL: ${url}`, error.message)
-        return {
-          success: false,
-          error: 'Connection failed - domain not reachable'
-        }
-      }
-      
-      console.error(`[HTML Fetcher] Unexpected error for URL: ${url}`, error)
-      return {
-        success: false,
-        error: error.message
-      }
-    }
-    
-    console.error(`[HTML Fetcher] Unknown error for URL: ${url}`, error)
+
+    // All other errors should be handled by tryStaticFetch/tryDynamicFetch
+    // This is a safety net for unexpected errors in the main function body
+    const errorMessage = error instanceof Error ? error.message : 'Unexpected error occurred'
+    console.error(`[HTML Fetcher] Unexpected error for URL: ${url}`, error)
     return {
       success: false,
-      error: 'Unknown error occurred'
+      error: errorMessage
     }
   }
 }
@@ -240,17 +229,26 @@ function isContentComplete(html: string): boolean {
 }
 
 /**
- * Attempts a static fetch using Node.js fetch
+ * Attempts a static fetch using undici with custom SSL handling
  */
 async function tryStaticFetch(url: string, userAgent: string): Promise<FetchHtmlResult> {
   try {
     // Create AbortController for timeout
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout for static
-    
-    // Fetch the HTML content
-    const response = await fetch(url, {
+
+    // Create custom agent with relaxed SSL verification
+    // This allows fetching from sites with self-signed or incomplete certificate chains
+    const agent = new Agent({
+      connect: {
+        rejectUnauthorized: false // Allow self-signed certificates
+      }
+    })
+
+    // Fetch the HTML content using undici
+    const response = await undiciFetch(url, {
       signal: controller.signal,
+      dispatcher: agent,
       headers: {
         'User-Agent': userAgent,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',

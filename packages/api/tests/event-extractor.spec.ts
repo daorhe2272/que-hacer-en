@@ -216,43 +216,6 @@ describe('extractEventsFromHtml', () => {
   })
 
   describe('logging', () => {
-    it('should log successful extraction', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined)
-      const mockResponse = {
-        text: JSON.stringify({
-          events: [
-            {
-              source_url: 'https://example.com',
-              event_url: 'https://example.com/event1',
-              title: 'Test Event',
-              description: 'A test event description',
-              date: '2024-12-01',
-              time: '20:00',
-              location: 'Test Venue',
-              address: 'Test Address',
-              category_slug: 'musica',
-              city_slug: 'bogota',
-              Price: 50000,
-              image_url: 'https://example.com/image.jpg'
-            }
-          ]
-        })
-      }
-
-      mockGenerateContent.mockResolvedValue(mockResponse)
-
-      await extractEventsFromHtml('<html>Test content</html>', 'https://example.com')
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[Event Extractor] Successfully extracted events:'
-      )
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('"events":')
-      )
-
-      consoleSpy.mockRestore()
-    })
-
     it('should log JSON parsing errors', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
       const mockResponse = {

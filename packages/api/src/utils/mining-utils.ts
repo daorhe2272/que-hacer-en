@@ -27,7 +27,6 @@ export async function mineUrlDirectly(url: string, userId: string): Promise<Mini
  */
 export async function mineUrlDirectlyStreaming(url: string, userId: string, onProgress?: ProgressCallback): Promise<MiningResult> {
   try {
-    const urlDomain = new URL(url).hostname.replace('www.', '')
     console.log(`[Direct Mining] Starting mining process for URL: ${url}`)
     onProgress?.('Iniciando minería de datos...')
 

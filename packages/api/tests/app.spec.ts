@@ -1,5 +1,20 @@
 import { jest } from '@jest/globals'
 import request from 'supertest'
+
+// Mock Puppeteer before importing app to prevent filesystem access
+jest.mock('puppeteer', () => ({
+  __esModule: true,
+  default: {
+    launch: jest.fn(),
+  },
+}))
+
+// Mock the mining utilities to prevent puppeteer initialization
+jest.mock('../src/utils/mining-utils', () => ({
+  mineUrlDirectly: jest.fn(() => Promise.resolve({ success: true, eventsExtracted: 0, eventsStored: 0, eventsFailed: 0 })),
+  mineUrlDirectlyStreaming: jest.fn(() => Promise.resolve({ success: true, eventsExtracted: 0, eventsStored: 0, eventsFailed: 0 }))
+}))
+
 import app from '../src/index'
 import { query } from '../src/db/client'
 import { createMockQuery } from './test-helpers/mock-database'

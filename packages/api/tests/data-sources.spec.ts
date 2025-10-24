@@ -29,6 +29,27 @@ jest.mock('../src/middleware/auth', () => ({
   }
 }))
 
+// Mock HTML fetcher
+jest.mock('../src/utils/html-fetcher', () => ({
+  fetchHtmlContent: jest.fn(() => Promise.resolve({
+    success: true,
+    fullHtml: '<html><body>Mock HTML content</body></html>'
+  }))
+}))
+
+// Mock event extractor
+jest.mock('../src/utils/event-extractor', () => ({
+  extractEventsFromHtml: jest.fn(() => Promise.resolve({
+    success: true,
+    events: []
+  }))
+}))
+
+// Mock event processor
+jest.mock('../src/utils/event-processor', () => ({
+  processExtractedEvents: jest.fn(() => Promise.resolve([]))
+}))
+
 // Mock database client
 const mockQuery = createMockQuery()
 jest.mocked(query).mockImplementation(mockQuery)
@@ -364,8 +385,10 @@ describe('Data Sources Router', () => {
 
       expect(response.body).toHaveProperty('message')
       expect(response.body).toHaveProperty('data_source_id', 'ds-001')
-      expect(response.body).toHaveProperty('success')
-      expect(response.body).toHaveProperty('error')
+      expect(response.body).toHaveProperty('success', true)
+      expect(response.body).toHaveProperty('events_extracted', 0)
+      expect(response.body).toHaveProperty('events_stored', 0)
+      expect(response.body).toHaveProperty('events_failed', 0)
     })
 
     it('should return 404 for non-existent data source', async () => {

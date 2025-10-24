@@ -17,7 +17,6 @@ export const mockEvents: EventDto[] = [
     price: 0,
     currency: 'COP',
     image: 'https://example.com/rock-al-parque.jpg',
-    organizer: 'IDARTES',
     tags: ['rock', 'festival', 'gratis', 'aire libre'],
     
   },
@@ -33,7 +32,6 @@ export const mockEvents: EventDto[] = [
     price: 85000,
     currency: 'COP',
     image: 'https://example.com/avaro-teatro.jpg',
-    organizer: 'Teatro Colón',
     tags: ['teatro', 'clásico', 'comedia'],
     
   },
@@ -50,7 +48,6 @@ export const mockEvents: EventDto[] = [
     price: 0,
     currency: 'COP',
     image: 'https://example.com/festival-flores.jpg',
-    organizer: 'Alcaldía de Medellín',
     tags: ['tradición', 'flores', 'silleteros', 'gratis'],
     
   },
@@ -67,7 +64,6 @@ export const mockEvents: EventDto[] = [
     price: 50000,
     currency: 'COP',
     image: 'https://example.com/tie-test-a.jpg',
-    organizer: 'Tie Test Organizer A',
     tags: ['tie-test', 'sorting'],
     
   },
@@ -83,7 +79,6 @@ export const mockEvents: EventDto[] = [
     price: 50000,
     currency: 'COP',
     image: 'https://example.com/tie-test-b.jpg',
-    organizer: 'Tie Test Organizer B',
     tags: ['tie-test', 'sorting'],
     
   }

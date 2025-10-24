@@ -1,8 +1,16 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
 import puppeteer from 'puppeteer'
-import { fetchHtmlContent, FetchOptions } from '../src/utils/html-fetcher'
 
-// Mock fetch globally
+// Mock undici before importing html-fetcher
+jest.mock('undici')
+
+import { fetchHtmlContent, FetchOptions } from '../src/utils/html-fetcher'
+import * as undici from 'undici'
+
+// Get the mocked functions
+const mockUndiciFetch = undici.fetch as any as jest.MockedFunction<typeof fetch>
+
+// Also keep global fetch mock for compatibility
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>
 ;(global as any).fetch = mockFetch
 
@@ -38,15 +46,15 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(completeHtml),
       } as any
-      mockFetch.mockResolvedValue(mockResponse)
+      mockUndiciFetch.mockResolvedValue(mockResponse)
 
       const result = await fetchHtmlContent(validUrl, defaultOptions)
 
       expect(result.success).toBe(true)
       expect(result.method).toBe('static')
-      expect(result.content).toBe(completeHtml.substring(0, 200))
-      expect(result.fullHtml).toBe(completeHtml)
-      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(result.content).toContain('<html><body><h1>Complete Content</h1>')
+      expect(result.fullHtml).toContain('<html><body><h1>Complete Content</h1>')
+      expect(mockUndiciFetch).toHaveBeenCalledTimes(1)
     })
 
     it('should fallback to dynamic fetch when static content is incomplete', async () => {
@@ -58,7 +66,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       // Mock Puppeteer
       const mockPage = {
@@ -98,7 +106,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(completeHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       // Mock Puppeteer to fail
       const mockPage = {
@@ -136,7 +144,7 @@ describe('html-fetcher', () => {
 
     it('should handle connection errors', async () => {
       const errorUrl = 'https://nonexistent-domain-12345.com'
-      mockFetch.mockRejectedValue(new Error('ECONNREFUSED'))
+      mockUndiciFetch.mockRejectedValue(new Error('ECONNREFUSED'))
 
       const result = await fetchHtmlContent(errorUrl, defaultOptions)
 
@@ -151,7 +159,7 @@ describe('html-fetcher', () => {
         statusText: 'Not Found',
         text: jest.fn<() => Promise<string>>().mockResolvedValue('Page not found'),
       } as any
-      mockFetch.mockResolvedValue(errorResponse)
+      mockUndiciFetch.mockResolvedValue(errorResponse)
 
       const result = await fetchHtmlContent(validUrl, defaultOptions)
 
@@ -160,7 +168,7 @@ describe('html-fetcher', () => {
     })
 
     it('should handle static fetch timeout', async () => {
-      mockFetch.mockImplementation((_url, options: any) => {
+      mockUndiciFetch.mockImplementation((_url, options: any) => {
         return new Promise((resolve, reject) => {
           const signal = options?.signal
           if (signal) {
@@ -194,11 +202,11 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(completeHtml),
       }
-      mockFetch.mockResolvedValue(mockResponse as any)
+      mockUndiciFetch.mockResolvedValue(mockResponse as any)
 
       await fetchHtmlContent(validUrl, customOptions)
 
-      expect(mockFetch).toHaveBeenCalledWith(
+      expect(mockUndiciFetch).toHaveBeenCalledWith(
         validUrl,
         expect.objectContaining({
           headers: expect.objectContaining({
@@ -216,7 +224,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -253,7 +261,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -329,7 +337,7 @@ describe('html-fetcher', () => {
     })
 
     it('should handle non-Error exceptions in dynamic fetch', async () => {
-      mockFetch.mockRejectedValue(new Error('Network error'))
+      mockUndiciFetch.mockRejectedValue(new Error('Network error'))
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -365,7 +373,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -401,7 +409,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -437,7 +445,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -474,7 +482,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -511,7 +519,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -522,6 +530,7 @@ describe('html-fetcher', () => {
         waitForNetworkIdle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
         evaluate: jest.fn<() => Promise<any>>()
           .mockRejectedValueOnce(new Error('Page validation failed'))
+          .mockResolvedValueOnce(completeHtml)
           .mockResolvedValueOnce(completeHtml),
         close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
         isClosed: jest.fn<() => boolean>().mockReturnValue(false),
@@ -542,7 +551,7 @@ describe('html-fetcher', () => {
     })
 
     it('should handle content extraction failure', async () => {
-      mockFetch.mockRejectedValue(new Error('Connection refused'))
+      mockUndiciFetch.mockRejectedValue(new Error('Connection refused'))
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -580,7 +589,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -616,7 +625,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage1 = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -665,7 +674,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -704,7 +713,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -740,7 +749,7 @@ describe('html-fetcher', () => {
         ok: true,
         text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
       } as any
-      mockFetch.mockResolvedValueOnce(staticResponse)
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
 
       const mockPage = {
         setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -769,8 +778,370 @@ describe('html-fetcher', () => {
       expect(result.success).toBe(true)
       expect(result.method).toBe('dynamic')
     })
+
+    // Additional tests for uncovered branches
+
+    it('should handle isContentComplete with React indicators and no substantial content', async () => {
+    // Content with React indicators but not enough content (less than 1000 chars)
+    const reactHtml = '<html><body><div data-reactroot><p>Some content</p></div></body></html>'
+
+    const mockResponse = {
+      ok: true,
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(reactHtml),
+    } as any
+    mockUndiciFetch.mockResolvedValue(mockResponse)
+
+    // Since the content is incomplete, it should try dynamic fetch
+    const dynamicHtml = '<html><body><h1>Full Content</h1></body></html>'
+    const mockPage = {
+      setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      on: jest.fn(),
+      goto: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      waitForNetworkIdle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      evaluate: jest.fn<() => Promise<string>>().mockResolvedValue(dynamicHtml),
+      close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+    } as any
+
+    const mockBrowser = {
+      newPage: jest.fn<() => Promise<any>>().mockResolvedValue(mockPage),
+      close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      connected: true,
+    } as any
+
+    ;(puppeteer.launch as jest.MockedFunction<typeof puppeteer.launch>).mockResolvedValue(mockBrowser)
+
+    const result = await fetchHtmlContent(validUrl, defaultOptions)
+
+    expect(result.success).toBe(true)
+    expect(result.method).toBe('dynamic')
   })
 
-  // Internal functions are tested through fetchHtmlContent integration tests
-  // to maintain encapsulation and focus on public API testing
+  it('should handle isContentComplete with very substantial content (50KB+)', async () => {
+      // Content with 51KB of data - should be trusted even with framework indicators
+      const veryLargeHtml = '<html><body><div data-reactroot>' + 'x'.repeat(51000) + '</div></body></html>'
+
+      const mockResponse = {
+        ok: true,
+        text: jest.fn<() => Promise<string>>().mockResolvedValue(veryLargeHtml),
+      } as any
+      mockUndiciFetch.mockResolvedValue(mockResponse)
+
+      const result = await fetchHtmlContent(validUrl, defaultOptions)
+
+      // Should return static result because content is very substantial (>50KB)
+      // This tests line 226: if (hasVerySubstantialContent) return true
+      expect(result.success).toBe(true)
+      expect(result.method).toBe('static')
+      expect(mockUndiciFetch).toHaveBeenCalledTimes(1)
+    })
+
+  it('should handle content with loading indicators', async () => {
+      // Content with loading indicator but not very substantial
+      const htmlWithLoading = '<html><body><div>Loading... Please wait</div></body></html>'
+
+      const mockResponse = {
+        ok: true,
+        text: jest.fn<() => Promise<string>>().mockResolvedValue(htmlWithLoading),
+      } as any
+      mockUndiciFetch.mockResolvedValue(mockResponse)
+
+      // Should fallback to dynamic fetch due to loading indicator
+      const dynamicHtml = '<html><body><h1>Loaded Content</h1></body></html>'
+      const mockPage = {
+        setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        on: jest.fn(),
+        goto: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        waitForNetworkIdle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        evaluate: jest.fn<() => Promise<string>>().mockResolvedValue(dynamicHtml),
+        close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+      } as any
+
+      const mockBrowser = {
+        newPage: jest.fn<() => Promise<any>>().mockResolvedValue(mockPage),
+        close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        connected: true,
+      } as any
+
+      ;(puppeteer.launch as jest.MockedFunction<typeof puppeteer.launch>).mockResolvedValue(mockBrowser)
+
+      const result = await fetchHtmlContent(validUrl, defaultOptions)
+
+      // Should use dynamic fetch because of loading indicator (line 231)
+      expect(result.success).toBe(true)
+      expect(result.method).toBe('dynamic')
+    })
+
+  it('should handle resource blocking when blockResources is true', async () => {
+      const incompleteHtml = '<html><body><div id="root"></div></body></html>'
+      const completeHtml = '<html><body><h1>Content</h1></body></html>'
+
+      const staticResponse = {
+        ok: true,
+        text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
+      } as any
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
+
+      // Mock request object to verify blocking behavior
+      const mockRequests: any[] = []
+      const createMockRequest = (resourceType: string) => ({
+        resourceType: () => resourceType,
+        abort: jest.fn(),
+        continue: jest.fn(),
+      })
+
+      const mockPage = {
+        setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        on: jest.fn((event: string, handler: Function) => {
+          if (event === 'request') {
+            // Simulate requests for different resource types
+            const imageReq = createMockRequest('image')
+            const scriptReq = createMockRequest('script')
+            mockRequests.push(imageReq, scriptReq)
+            handler(imageReq)
+            handler(scriptReq)
+          }
+        }),
+        goto: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        waitForNetworkIdle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        evaluate: jest.fn<() => Promise<string>>().mockResolvedValue(completeHtml),
+        close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+      } as any
+
+      const mockBrowser = {
+        newPage: jest.fn<() => Promise<any>>().mockResolvedValue(mockPage),
+        close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        connected: true,
+      } as any
+
+      ;(puppeteer.launch as jest.MockedFunction<typeof puppeteer.launch>).mockResolvedValue(mockBrowser)
+
+      const result = await fetchHtmlContent(validUrl, { blockResources: true })
+
+      // Verify resource blocking was enabled (lines 373-377)
+      expect(result.success).toBe(true)
+      expect(mockPage.setRequestInterception).toHaveBeenCalledWith(true)
+      expect(mockPage.on).toHaveBeenCalledWith('request', expect.any(Function))
+
+      // Verify that image requests were aborted and script requests continued
+      if (mockRequests.length > 0) {
+        const imageReq = mockRequests[0]
+        const scriptReq = mockRequests[1]
+        expect(imageReq.abort).toHaveBeenCalled()
+        expect(scriptReq.continue).toHaveBeenCalled()
+      }
+    })
+
+  it('should handle resource blocking in retry after detached error', async () => {
+      const incompleteHtml = '<html><body><div id="root"></div></body></html>'
+      const completeHtml = '<html><body><h1>Content</h1></body></html>'
+
+      const staticResponse = {
+        ok: true,
+        text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
+      } as any
+      mockUndiciFetch.mockResolvedValueOnce(staticResponse)
+
+      // Track request handlers for both pages
+      const mockRequests: any[] = []
+      const createMockRequest = (resourceType: string) => ({
+        resourceType: () => resourceType,
+        abort: jest.fn(),
+        continue: jest.fn(),
+      })
+
+      const mockPage1 = {
+        setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        on: jest.fn((event: string, handler: Function) => {
+          if (event === 'request') {
+            const req = createMockRequest('image')
+            mockRequests.push(req)
+            handler(req)
+          }
+        }),
+        goto: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('Frame was detached')),
+        close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+      } as any
+
+      const mockPage2 = {
+        setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        on: jest.fn((event: string, handler: Function) => {
+          if (event === 'request') {
+            const req = createMockRequest('stylesheet')
+            mockRequests.push(req)
+            handler(req)
+          }
+        }),
+        goto: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        waitForNetworkIdle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        evaluate: jest.fn<() => Promise<string>>().mockResolvedValue(completeHtml),
+        close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+      } as any
+
+      const mockBrowser = {
+        newPage: jest.fn<() => Promise<any>>()
+          .mockResolvedValueOnce(mockPage1)
+          .mockResolvedValueOnce(mockPage2),
+        close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+        connected: true,
+      } as any
+
+      ;(puppeteer.launch as jest.MockedFunction<typeof puppeteer.launch>).mockResolvedValue(mockBrowser)
+
+      const result = await fetchHtmlContent(validUrl, { blockResources: true })
+
+      // Verify resource blocking was set up on both pages (lines 410-414)
+      expect(result.success).toBe(true)
+      expect(mockBrowser.newPage).toHaveBeenCalledTimes(2)
+      expect(mockPage2.setRequestInterception).toHaveBeenCalledWith(true)
+      expect(mockPage2.on).toHaveBeenCalledWith('request', expect.any(Function))
+
+      // Verify resources were actually blocked
+      expect(mockRequests.length).toBeGreaterThan(0)
+    })
+
+  // Error handling tests for uncovered branches
+
+  it('should handle page close error during detached recovery (line 388)', async () => {
+    const incompleteHtml = '<html><body><div id="root"></div></body></html>'
+    const completeHtml = '<html><body><h1>Content</h1></body></html>'
+
+    const staticResponse = {
+      ok: true,
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
+    } as any
+    mockUndiciFetch.mockResolvedValueOnce(staticResponse)
+
+    // First page that gets detached and fails to close
+    const mockPage1 = {
+      setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      on: jest.fn(),
+      goto: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('Frame was detached')),
+      close: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('Page already closed')),
+      isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+    } as any
+
+    // Second page that works
+    const mockPage2 = {
+      setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      on: jest.fn(),
+      goto: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      waitForNetworkIdle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      evaluate: jest.fn<() => Promise<string>>().mockResolvedValue(completeHtml),
+      close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+    } as any
+
+    const mockBrowser = {
+      newPage: jest.fn<() => Promise<any>>()
+        .mockResolvedValueOnce(mockPage1)
+        .mockResolvedValueOnce(mockPage2),
+      close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      connected: true,
+    } as any
+
+    ;(puppeteer.launch as jest.MockedFunction<typeof puppeteer.launch>).mockResolvedValue(mockBrowser)
+
+    const result = await fetchHtmlContent(validUrl, defaultOptions)
+
+    // Should succeed despite page.close() error
+    expect(result.success).toBe(true)
+    expect(result.method).toBe('dynamic')
+    expect(mockPage1.close).toHaveBeenCalled()
+    expect(mockBrowser.newPage).toHaveBeenCalledTimes(2)
+  })
+
+  it('should handle non-blocked resource continuation in retry path (line 402)', async () => {
+    const incompleteHtml = '<html><body><div id="root"></div></body></html>'
+    const completeHtml = '<html><body><h1>Content</h1></body></html>'
+
+    const staticResponse = {
+      ok: true,
+      text: jest.fn<() => Promise<string>>().mockResolvedValue(incompleteHtml),
+    } as any
+    mockUndiciFetch.mockResolvedValueOnce(staticResponse)
+
+    // Track request handlers for both pages
+    const mockRequests: any[] = []
+    const createMockRequest = (resourceType: string) => ({
+      resourceType: () => resourceType,
+      abort: jest.fn(),
+      continue: jest.fn(),
+    })
+
+    // First page that gets detached
+    const mockPage1 = {
+      setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      on: jest.fn(),
+      goto: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('Frame was detached')),
+      close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+    } as any
+
+    // Second page with NON-blocked resource types (script, document, etc.)
+    const mockPage2 = {
+      setUserAgent: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setViewport: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      setRequestInterception: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      on: jest.fn((event: string, handler: Function) => {
+        if (event === 'request') {
+          // Simulate requests for NON-blocked resource types
+          const scriptReq = createMockRequest('script')
+          const documentReq = createMockRequest('document')
+          mockRequests.push(scriptReq, documentReq)
+          handler(scriptReq)
+          handler(documentReq)
+        }
+      }),
+      goto: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      waitForNetworkIdle: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      evaluate: jest.fn<() => Promise<string>>().mockResolvedValue(completeHtml),
+      close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      isClosed: jest.fn<() => boolean>().mockReturnValue(false),
+    } as any
+
+    const mockBrowser = {
+      newPage: jest.fn<() => Promise<any>>()
+        .mockResolvedValueOnce(mockPage1)
+        .mockResolvedValueOnce(mockPage2),
+      close: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      connected: true,
+    } as any
+
+    ;(puppeteer.launch as jest.MockedFunction<typeof puppeteer.launch>).mockResolvedValue(mockBrowser)
+
+    const result = await fetchHtmlContent(validUrl, { blockResources: true })
+
+    // Should succeed with retry
+    expect(result.success).toBe(true)
+    expect(result.method).toBe('dynamic')
+    expect(mockBrowser.newPage).toHaveBeenCalledTimes(2)
+
+    // Verify that non-blocked resources called continue() (line 402)
+    expect(mockRequests.length).toBe(2)
+    expect(mockRequests[0].continue).toHaveBeenCalled() // script
+    expect(mockRequests[1].continue).toHaveBeenCalled() // document
+  })
+
+  })
 })

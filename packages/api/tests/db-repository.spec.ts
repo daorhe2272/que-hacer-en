@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals'
-import { 
-  listEventsDb, 
-  getEventByLegacyIdDb, 
+import {
+  listEventsDb,
+  getEventByLegacyIdDb,
   listEventsByCityDb,
   createEventDb,
   updateEventDb,
@@ -11,7 +11,10 @@ import {
   addToFavoritesDb,
   removeFromFavoritesDb,
   getUserFavoritesDb,
-  isEventFavoritedDb
+  isEventFavoritedDb,
+  getEventForEditDb,
+  getAdminStatsDb,
+  listInactiveEventsDb
 } from '../src/db/repository'
 import { query } from '../src/db/client'
 import { mockEvents, createMockQuery } from './test-helpers/mock-database'
@@ -205,10 +208,7 @@ describe('Repository Functions', () => {
         price: 50000,
         currency: 'COP',
         image: 'test.jpg',
-        organizer: '',
-        tags: [],
-        
-        created_by: undefined
+        tags: []
       })
     })
 
@@ -249,10 +249,7 @@ describe('Repository Functions', () => {
         price: 50000,
         currency: 'COP',
         image: '',     // Should be empty string due to null coalescing
-        organizer: '',
-        tags: [],
-        
-        created_by: undefined
+        tags: []
       })
       // This test should cover lines 174, 175, and 179
     })
@@ -312,10 +309,7 @@ describe('Repository Functions', () => {
         price: 50000,
         currency: 'COP',
         image: '',     // Should be empty string due to null coalescing
-        organizer: '',
-        tags: [],
-        
-        created_by: undefined
+        tags: []
       }))
       // This test should cover lines 214, 215, and 219 in listEventsByCityDb
     })
@@ -909,10 +903,7 @@ describe('Repository Functions', () => {
         price: 50000,
         currency: 'COP',
         image: '',     // Should be empty string due to null coalescing
-        organizer: '',
-        tags: ['rock'],
-        
-        created_by: undefined
+        tags: ['rock']
       }))
       // This test should cover lines 471, 472, and 476 in getEventByIdDb
     })
@@ -1288,6 +1279,435 @@ describe('Repository Functions', () => {
         expect.anything()
       )
       // This test should cover line 516: if (sort === 'price') orderSql = `ORDER BY e.price_cents ${order === 'desc' ? 'DESC' : 'ASC'}, e.id ASC`
+    })
+  })
+
+  describe('updateEventDb - date/time branch', () => {
+    it('should update event with both date and time parameters', async () => {
+      const updateDataWithDateTime = {
+        id: 'test-event-id',
+        date: '2024-12-25',
+        time: '19:30'
+      }
+
+      // Mock ownership check
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ created_by: 'organizer-id', user_role: 'organizer' }],
+        rowCount: 1
+      }))
+      // Mock update query (covers lines 362-364)
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 1 }))
+      // Mock getEventByIdDb
+      mockQuery.mockImplementationOnce(() => ({ rows: [mockEvents[0]], rowCount: 1 }))
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 0 }))
+
+      const result = await updateEventDb(updateDataWithDateTime, 'organizer-id')
+
+      expect(result).not.toBeNull()
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('starts_at = $1'),
+        expect.arrayContaining(['2024-12-25T19:30:00-05:00', 'test-event-id'])
+      )
+    })
+  })
+
+  describe('updateEventDb - active field', () => {
+    it('should update event active field to true', async () => {
+      const updateDataWithActive = {
+        id: 'test-event-id',
+        active: true
+      }
+
+      // Mock ownership check
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ created_by: 'organizer-id', user_role: 'organizer' }],
+        rowCount: 1
+      }))
+      // Mock update query (covers lines 392-393)
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 1 }))
+      // Mock getEventByIdDb
+      mockQuery.mockImplementationOnce(() => ({ rows: [mockEvents[0]], rowCount: 1 }))
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 0 }))
+
+      const result = await updateEventDb(updateDataWithActive, 'organizer-id')
+
+      expect(result).not.toBeNull()
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('active = $1'),
+        expect.arrayContaining([true, 'test-event-id'])
+      )
+    })
+
+    it('should update event active field to false', async () => {
+      const updateDataWithActive = {
+        id: 'test-event-id',
+        active: false
+      }
+
+      // Mock ownership check
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ created_by: 'organizer-id', user_role: 'organizer' }],
+        rowCount: 1
+      }))
+      // Mock update query (covers lines 392-393)
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 1 }))
+      // Mock getEventByIdDb
+      mockQuery.mockImplementationOnce(() => ({ rows: [mockEvents[0]], rowCount: 1 }))
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 0 }))
+
+      const result = await updateEventDb(updateDataWithActive, 'organizer-id')
+
+      expect(result).not.toBeNull()
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('active = $1'),
+        expect.arrayContaining([false, 'test-event-id'])
+      )
+    })
+  })
+
+  describe('getEventForEditDb', () => {
+    it('should return event with category slug for owner', async () => {
+      // Mock ownership check (covers lines 504-523)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ created_by: 'organizer-id', user_role: 'organizer', category_slug: 'musica' }],
+        rowCount: 1
+      }))
+      // Mock getEventByIdDb
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{...mockEvents[0], category: 'Música' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 0 }))
+
+      const result = await getEventForEditDb('test-event-id', 'organizer-id')
+
+      expect(result).not.toBeNull()
+      expect(result?.category).toBe('musica') // Should return slug, not label
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT e.created_by, u.role as user_role, ct.slug as category_slug'),
+        ['test-event-id', 'organizer-id']
+      )
+    })
+
+    it('should return event with category slug for admin', async () => {
+      // Mock ownership check - admin accessing someone else's event (covers line 520)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ created_by: 'other-user', user_role: 'admin', category_slug: 'deportes' }],
+        rowCount: 1
+      }))
+      // Mock getEventByIdDb
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{...mockEvents[0], category: 'Deportes' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 0 }))
+
+      const result = await getEventForEditDb('test-event-id', 'admin-id')
+
+      expect(result).not.toBeNull()
+      expect(result?.category).toBe('deportes') // Should return slug, not label
+    })
+
+    it('should return null for non-existent event', async () => {
+      // Mock ownership check returning no rows (covers lines 513-515)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [],
+        rowCount: 0
+      }))
+
+      const result = await getEventForEditDb('non-existent-id', 'organizer-id')
+
+      expect(result).toBeNull()
+    })
+
+    it('should return null for unauthorized user', async () => {
+      // Mock ownership check - user doesn't own event and isn't admin (covers lines 520-523)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ created_by: 'other-user', user_role: 'organizer', category_slug: 'musica' }],
+        rowCount: 1
+      }))
+
+      const result = await getEventForEditDb('test-event-id', 'wrong-user')
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('getAdminStatsDb', () => {
+    it('should return admin stats with all counts', async () => {
+      // Mock total users query (covers lines 771-774)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '42' }],
+        rowCount: 1
+      }))
+      // Mock active events query (covers lines 777-785)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '15' }],
+        rowCount: 1
+      }))
+      // Mock pending reviews query (covers lines 788-791)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '8' }],
+        rowCount: 1
+      }))
+      // Mock last mining time query (covers lines 794-797)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ last_mined: '2024-12-01T10:30:00.000Z' }],
+        rowCount: 1
+      }))
+
+      const result = await getAdminStatsDb()
+
+      expect(result).toEqual({
+        totalUsers: 42,
+        activeEvents: 15,
+        pendingReviews: 8,
+        lastMiningTime: '2024-12-01T10:30:00.000Z'
+      })
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT COUNT(*)::text AS count FROM users')
+      )
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE (e.starts_at AT TIME ZONE')
+      )
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE active = false')
+      )
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT last_mined FROM data_sources WHERE last_mined IS NOT NULL')
+      )
+    })
+
+    it('should return zero counts when no data exists', async () => {
+      // Mock queries returning '0' or empty arrays (covers fallback in lines 774, 785, 791)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '0' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '0' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '0' }],
+        rowCount: 1
+      }))
+      // Mock last mining time query returning no rows (covers line 797 fallback)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [],
+        rowCount: 0
+      }))
+
+      const result = await getAdminStatsDb()
+
+      expect(result).toEqual({
+        totalUsers: 0,
+        activeEvents: 0,
+        pendingReviews: 0,
+        lastMiningTime: null
+      })
+    })
+
+    it('should handle database errors gracefully', async () => {
+      // Mock query throwing error (covers lines 800-801 catch block)
+      mockQuery.mockImplementationOnce(() => {
+        throw new Error('Database connection error')
+      })
+
+      const result = await getAdminStatsDb()
+
+      expect(result).toEqual({
+        totalUsers: 0,
+        activeEvents: 0,
+        pendingReviews: 0,
+        lastMiningTime: null
+      })
+    })
+
+    it('should return lastMiningTime when data_sources exist', async () => {
+      // Mock successful queries with mining time (covers line 797 success path)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '10' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '5' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '3' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ last_mined: '2024-12-15T14:20:00.000Z' }],
+        rowCount: 1
+      }))
+
+      const result = await getAdminStatsDb()
+
+      expect(result.lastMiningTime).toBe('2024-12-15T14:20:00.000Z')
+    })
+
+    it('should return null lastMiningTime when no mining has occurred', async () => {
+      // Mock successful queries but no mining data (covers line 797 with null)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '10' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '5' }],
+        rowCount: 1
+      }))
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '3' }],
+        rowCount: 1
+      }))
+      // No mining records found
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [],
+        rowCount: 0
+      }))
+
+      const result = await getAdminStatsDb()
+
+      expect(result.lastMiningTime).toBeNull()
+    })
+  })
+
+  describe('listInactiveEventsDb', () => {
+    it('should list inactive events with pagination', async () => {
+      const mockInactiveEvent = {
+        ...mockEvents[0],
+        active: false,
+        organizer_email: 'organizer@example.com'
+      }
+
+      // Mock count query (covers lines 830-837)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '5' }],
+        rowCount: 1
+      }))
+      // Mock events query (covers lines 839-862)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [mockInactiveEvent],
+        rowCount: 1
+      }))
+
+      const result = await listInactiveEventsDb({ page: 1, limit: 20 })
+
+      expect(result.total).toBe(5)
+      expect(result.events).toHaveLength(1)
+      expect(result.events[0].active).toBe(false)
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE e.active = false'),
+        []
+      )
+    })
+
+    it('should filter inactive events by city', async () => {
+      const mockInactiveEvent = {
+        ...mockEvents[0],
+        active: false,
+        organizer_email: 'organizer@example.com'
+      }
+
+      // Mock count query (covers line 811)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '3' }],
+        rowCount: 1
+      }))
+      // Mock events query
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [mockInactiveEvent],
+        rowCount: 1
+      }))
+
+      const result = await listInactiveEventsDb({ city: 'bogota' })
+
+      expect(result.total).toBe(3)
+      expect(result.events).toHaveLength(1)
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('c.slug = $1'),
+        ['bogota']
+      )
+    })
+
+    it('should filter inactive events by search query', async () => {
+      const mockInactiveEvent = {
+        ...mockEvents[0],
+        active: false,
+        organizer_email: 'organizer@example.com'
+      }
+
+      // Mock count query (covers lines 812-824)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '2' }],
+        rowCount: 1
+      }))
+      // Mock events query
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [mockInactiveEvent],
+        rowCount: 1
+      }))
+
+      const result = await listInactiveEventsDb({ q: 'festival' })
+
+      expect(result.total).toBe(2)
+      expect(result.events).toHaveLength(1)
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringMatching(/title_norm LIKE.*description_norm LIKE.*venue_norm LIKE.*EXISTS/s),
+        ['%festival%']
+      )
+    })
+
+    it('should handle empty results', async () => {
+      // Mock count query returning zero (covers line 837)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '0' }],
+        rowCount: 1
+      }))
+      // Mock events query returning empty array
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [],
+        rowCount: 0
+      }))
+
+      const result = await listInactiveEventsDb({})
+
+      expect(result.total).toBe(0)
+      expect(result.events).toHaveLength(0)
+    })
+
+    it('should include organizer email in results', async () => {
+      const mockInactiveEvent = {
+        ...mockEvents[0],
+        active: false,
+        organizer_email: 'test@organizer.com'
+      }
+
+      // Mock count query
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [{ count: '1' }],
+        rowCount: 1
+      }))
+      // Mock events query (covers lines 854, 877)
+      mockQuery.mockImplementationOnce(() => ({
+        rows: [mockInactiveEvent],
+        rowCount: 1
+      }))
+
+      const result = await listInactiveEventsDb({})
+
+      expect(result.events).toHaveLength(1)
+      expect(result.events[0].created_by).toBe('test@organizer.com')
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('u.email as organizer_email'),
+        []
+      )
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('LEFT JOIN users u ON u.id = e.created_by'),
+        []
+      )
     })
   })
 })

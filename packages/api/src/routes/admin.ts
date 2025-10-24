@@ -164,6 +164,7 @@ adminRouter.post('/mine-url', authenticate, async (req, res) => {
       // End the stream
       res.write(`data: ${JSON.stringify({ status: 'end' })}\n\n`)
       res.end()
+      return
     } else {
       // Original synchronous behavior for backward compatibility
       console.log(`[Admin Mine URL] Starting one-time mining for URL: ${url}`)
@@ -200,11 +201,13 @@ adminRouter.post('/mine-url', authenticate, async (req, res) => {
         res.write(`data: ${JSON.stringify({ status: 'failed', message: 'Error interno del servidor' })}\n\n`)
         res.write(`data: ${JSON.stringify({ status: 'end' })}\n\n`)
         res.end()
+        return
       } catch (streamErr) {
         console.error('Failed to send error through stream:', streamErr)
+        return
       }
     } else {
-      res.status(500).json({
+      return res.status(500).json({
         error: 'Internal server error',
         success: false,
         eventsExtracted: 0,

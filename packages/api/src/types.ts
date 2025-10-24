@@ -10,7 +10,6 @@ export interface Event {
   price: number | null
   currency: string
   image: string
-  organizer: string
   tags: string[]
   created_by?: string
   event_url?: string

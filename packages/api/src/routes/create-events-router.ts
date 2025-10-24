@@ -255,9 +255,8 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           price: parsed.data.price || null,
           currency: parsed.data.currency || 'COP',
           image: parsed.data.image || 'test-image.jpg',
-          organizer: '',
           tags: parsed.data.tags || [],
-          
+
         }
       }
       
@@ -306,9 +305,8 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
           price: 50000,
           currency: 'COP',
           image: 'test-image.jpg',
-          organizer: 'Test Organizer',
           tags: ['test'],
-          
+
         }
         events = [mockEvent]
         total = 1
@@ -350,9 +348,8 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             price: 50000,
             currency: 'COP',
             image: 'test-image.jpg',
-            organizer: 'Test Organizer',
             tags: ['test'],
-            
+
           }
         } else {
           event = null
@@ -398,9 +395,8 @@ export function createEventsRouter(options?: CreateEventsRouterOptions): Router 
             price: parsed.data.price || null,
             currency: parsed.data.currency || 'COP',
             image: parsed.data.image || 'test-image.jpg',
-            organizer: '',
             tags: parsed.data.tags || [],
-            
+
           }
         } else {
           event = null

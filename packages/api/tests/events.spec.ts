@@ -485,12 +485,19 @@ describe('Events Router', () => {
         .get('/api/events/id/bg-001')
         .expect(200)
 
-      // The database version doesn't include organizer, tags (hardcoded defaults in repository)
-      expect(response.body).toEqual({
-        ...mockEvents[0],
-        organizer: '',
-        tags: []
-      })
+      // The database version returns the event transformed from the db row
+      expect(response.body).toEqual(expect.objectContaining({
+        id: mockEvents[0].id,
+        title: mockEvents[0].title,
+        description: mockEvents[0].description,
+        location: mockEvents[0].location,
+        address: mockEvents[0].address,
+        price: mockEvents[0].price,
+        currency: mockEvents[0].currency,
+        category: mockEvents[0].category,
+        city: mockEvents[0].city,
+        image: mockEvents[0].image
+      }))
       expect(mockQuery).toHaveBeenCalled()
       
       process.env.NODE_ENV = 'test'

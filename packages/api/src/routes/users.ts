@@ -151,9 +151,8 @@ usersRouter.get('/favorites', authenticate, async (req, res) => {
         price: 50000,
         currency: 'COP',
         image: 'test-image.jpg',
-        organizer: 'Test Organizer',
         tags: ['test'],
-        
+
       }
       events = [mockEvent]
       total = 1

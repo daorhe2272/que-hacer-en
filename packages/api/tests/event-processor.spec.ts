@@ -116,7 +116,6 @@ describe('event-processor', () => {
         price: 50000,
         currency: 'COP',
         image: 'https://example.com/image.jpg',
-        organizer: '',
         tags: [],
         created_by: adminUserId,
         event_url: 'https://example.com/event',
@@ -260,12 +259,14 @@ describe('event-processor', () => {
 
   describe('processExtractedEvents', () => {
     const adminUserId = 'admin-user-id'
+    // Use a date far in the future to avoid any timezone issues
+    const futureDate = '2027-06-15'
     const validExtractedEvent: ExtractedEvent = {
       source_url: 'https://example.com',
       event_url: 'https://example.com/event1',
       title: 'Valid Event',
       description: 'A valid event',
-      date: '2024-12-01',
+      date: futureDate,
       time: '20:00',
       location: 'Test Venue',
       address: 'Test Address',
@@ -302,7 +303,7 @@ describe('event-processor', () => {
         address: 'Test Address',
         price_cents: 50000,
         currency: 'COP',
-        starts_at: '2024-12-01T01:00:00.000Z',
+        starts_at: '2027-06-15T01:00:00.000Z',
         label: 'Música',
         slug: 'bogota',
         image: 'https://example.com/image.jpg',
@@ -320,11 +321,7 @@ describe('event-processor', () => {
     it('should skip events with missing required fields', async () => {
       const invalidEvent: ExtractedEvent = {
         ...validExtractedEvent,
-        title: '', // Missing title
-        date: '2024-12-01',
-        time: '20:00',
-        category_slug: 'musica' as const,
-        city_slug: 'bogota' as const
+        title: ''
       }
 
       const result = await processExtractedEvents([invalidEvent], adminUserId)
@@ -373,7 +370,7 @@ describe('event-processor', () => {
         address: 'Test Address',
         price_cents: 50000,
         currency: 'COP',
-        starts_at: '2024-12-01T01:00:00.000Z',
+        starts_at: '2027-06-15T01:00:00.000Z',
         label: 'Música',
         slug: 'bogota',
         image: 'https://example.com/image.jpg',
@@ -417,7 +414,7 @@ describe('event-processor', () => {
         address: 'Test Address',
         price_cents: 50000,
         currency: 'COP',
-        starts_at: '2024-12-01T01:00:00.000Z',
+        starts_at: '2027-06-15T01:00:00.000Z',
         label: 'Música',
         slug: 'bogota',
         image: 'https://example.com/image.jpg',
@@ -454,7 +451,7 @@ describe('event-processor', () => {
         address: 'Test Address',
         price_cents: 50000,
         currency: 'COP',
-        starts_at: '2024-12-01T01:00:00.000Z',
+        starts_at: '2027-06-15T01:00:00.000Z',
         label: 'Música',
         slug: 'bogota',
         image: 'https://example.com/image.jpg',
@@ -465,9 +462,9 @@ describe('event-processor', () => {
 
       await processExtractedEvents(extractedEvents, adminUserId)
 
-      expect(logSpy).toHaveBeenCalledWith('[Event Processor] Processing 1 extracted events')
-      expect(logSpy).toHaveBeenCalledWith('[Event Processor] Successfully stored event: Valid Event')
-      expect(logSpy).toHaveBeenCalledWith('[Event Processor] Processing complete. Stored: 1, Skipped: 0')
+      expect(logSpy).toHaveBeenCalledWith('[Procesador de Eventos] Procesando 1 eventos extraídos')
+      expect(logSpy).toHaveBeenCalledWith('[Procesador de Eventos] Evento almacenado exitosamente: Valid Event')
+      expect(logSpy).toHaveBeenCalledWith('[Procesador de Eventos] Procesamiento completado. Almacenados: 1, Omitidos: 0')
     })
 
     it('should log skipped events when there are failures', async () => {
@@ -477,9 +474,9 @@ describe('event-processor', () => {
 
       await processExtractedEvents([invalidEvent], adminUserId)
 
-      expect(logSpy).toHaveBeenCalledWith('[Event Processor] Processing 1 extracted events')
-      expect(logSpy).toHaveBeenCalledWith('[Event Processor] Processing complete. Stored: 0, Skipped: 1')
-      expect(logSpy).toHaveBeenCalledWith('[Event Processor] Skipped events:', [' - Missing required fields'])
+      expect(logSpy).toHaveBeenCalledWith('[Procesador de Eventos] Procesando 1 eventos extraídos')
+      expect(logSpy).toHaveBeenCalledWith('[Procesador de Eventos] Procesamiento completado. Almacenados: 0, Omitidos: 1')
+      expect(logSpy).toHaveBeenCalledWith('[Procesador de Eventos] Eventos omitidos:', [' - Missing required fields'])
     })
   })
 })

@@ -53,6 +53,9 @@ importers:
       puppeteer:
         specifier: ^24.24.1
         version: 24.24.1(typescript@5.8.3)
+      undici:
+        specifier: ^7.16.0
+        version: 7.16.0
       zod:
         specifier: ^4.0.16
         version: 4.0.16
@@ -13018,6 +13021,11 @@ packages:
   /undici@6.21.3:
     resolution: {integrity: sha512-gBLkYIlEnSp8pFbT64yFgGE6UIB9tAkhukC23PmMDCe5Nd+cRqKxSjw5y54MK2AZMgZfJWMaNE4nYUHgi1XEOw==}
     engines: {node: '>=18.17'}
+    dev: false
+
+  /undici@7.16.0:
+    resolution: {integrity: sha512-QEg3HPMll0o3t2ourKwOeUAZ159Kn9mx5pnzHRQO8+Wixmh88YdZRiIwat0iNzNNXn0yoEtXJqFpyW7eM8BV7g==}
+    engines: {node: '>=20.18.1'}
     dev: false
 
   /unicode-canonical-property-names-ecmascript@2.0.1:

@@ -201,24 +201,22 @@ describe('Validation Schemas', () => {
 
     it('should validate complete valid event', () => {
       const result = eventSchema.safeParse(validEvent)
-      
+
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.tags).toEqual([])
-        expect(result.data.status).toBe('active')
       }
     })
 
     it('should apply default values for optional fields', () => {
       const minimalEvent = { ...validEvent }
       delete (minimalEvent as any).image
-      
+
       const result = eventSchema.safeParse(minimalEvent)
-      
+
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.tags).toEqual([])
-        expect(result.data.status).toBe('active')
       }
     })
 
@@ -414,22 +412,6 @@ describe('Validation Schemas', () => {
       })
     })
 
-
-    describe('status validation', () => {
-      it('should accept all valid status values', () => {
-        const validStatuses = ['active', 'cancelled', 'postponed', 'sold_out']
-        
-        validStatuses.forEach(status => {
-          const result = eventSchema.safeParse({ ...validEvent, status })
-          expect(result.success).toBe(true)
-        })
-      })
-
-      it('should reject invalid status values', () => {
-        const result = eventSchema.safeParse({ ...validEvent, status: 'invalid' })
-        expect(result.success).toBe(false)
-      })
-    })
 
     describe('tags validation', () => {
       it('should accept array of strings', () => {
