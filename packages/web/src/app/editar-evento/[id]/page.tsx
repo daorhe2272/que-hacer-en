@@ -36,8 +36,7 @@ export default function EditarEventoPage() {
     price: null,  // Start with unknown price
     currency: 'COP',
     image: '',
-    tags: [],
-    status: 'active'
+    tags: []
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -88,8 +87,7 @@ export default function EditarEventoPage() {
         price: event.price,
         currency: event.currency,
         image: event.image || '',
-        tags: event.tags,
-        status: event.status
+        tags: event.tags
       })
     } catch (err) {
       console.error('Error fetching event:', err)

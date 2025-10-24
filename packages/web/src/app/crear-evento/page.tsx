@@ -34,8 +34,7 @@ export default function CrearEventoPage() {
     price: null,  // Start with unknown price
     currency: 'COP',
     image: '',
-    tags: [],
-    status: 'active'
+    tags: []
   })
   
   const [errors, setErrors] = useState<Record<string, string>>({})

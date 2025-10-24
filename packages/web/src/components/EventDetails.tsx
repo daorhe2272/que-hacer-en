@@ -370,20 +370,7 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Detalles del evento</h3>
                 <div className="space-y-3">
-                  <div className="flex items-center">
-                    <span className="text-gray-600 font-medium w-24">Estado:</span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      event.status === 'active' ? 'bg-green-100 text-green-800' :
-                      event.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                      event.status === 'postponed' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {event.status === 'active' ? 'Activo' :
-                       event.status === 'cancelled' ? 'Cancelado' :
-                       event.status === 'postponed' ? 'Pospuesto' :
-                       'Agotado'}
-                    </span>
-                  </div>
+                  {/* Status field removed */}
                 </div>
               </div>
 
