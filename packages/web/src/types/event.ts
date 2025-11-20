@@ -14,6 +14,7 @@ export interface Event {
   created_by?: string
   event_url?: string
   active?: boolean
+  moderation_reason?: string
 }
 
 export interface EventsData {

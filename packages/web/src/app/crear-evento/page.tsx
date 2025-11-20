@@ -42,6 +42,8 @@ export default function CrearEventoPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [isPendingModeration, setIsPendingModeration] = useState(false)
+  const [moderationReason, setModerationReason] = useState<string | undefined>(undefined)
 
   useEffect(() => {
     if (!sessionLoading && !isAuthenticated) {
@@ -101,11 +103,16 @@ export default function CrearEventoPage() {
       const result = await createEvent(formData)
       
       if (result.success) {
-        setSubmitSuccess(true)
-        // Redirect to event management or home after 2 seconds
-        setTimeout(() => {
-          router.push('/')
-        }, 2000)
+        if (result.event?.active === false) {
+          setIsPendingModeration(true)
+          setModerationReason(result.event.moderation_reason)
+        } else {
+          setSubmitSuccess(true)
+          // Redirect to event management or home after 2 seconds
+          setTimeout(() => {
+            router.push('/')
+          }, 2000)
+        }
       } else {
         if (result.validationErrors) {
           // Handle server validation errors
@@ -152,9 +159,9 @@ export default function CrearEventoPage() {
   }
 
   // Show success message
-  if (submitSuccess) {
+  if (submitSuccess || isPendingModeration) {
     return (
-      <div 
+      <div
         className="min-h-screen bg-cover bg-center bg-no-repeat relative"
         style={{
           backgroundImage: "url('/hero-background.jpeg')"
@@ -163,14 +170,45 @@ export default function CrearEventoPage() {
         <div className="absolute inset-0 bg-hero-gradient opacity-80 min-h-full"></div>
         <div className="container mx-auto px-4 py-12 relative z-10">
           <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">¡Evento creado exitosamente!</h1>
-            <p className="text-gray-600 mb-6">Tu evento ha sido publicado y estará disponible para todos los usuarios.</p>
-            <p className="text-sm text-gray-500">Redirigiendo...</p>
+            {isPendingModeration ? (
+              <>
+                <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">Evento en revisión</h1>
+                <p className="text-gray-600 mb-2">
+                  Tu evento ha sido creado, pero nuestro sistema de moderación lo ha marcado para revisión manual.
+                </p>
+                {moderationReason && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-left">
+                    <p className="text-sm text-yellow-800 font-medium">Razón detectada:</p>
+                    <p className="text-sm text-yellow-700">{moderationReason}</p>
+                  </div>
+                )}
+                <p className="text-gray-600 mb-6">
+                  Te notificaremos cuando sea aprobado y publicado.
+                </p>
+                <button
+                  onClick={() => router.push('/mis-eventos')}
+                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Ir a mis eventos
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h1 className="text-2xl font-bold text-gray-900 mb-4">¡Evento creado exitosamente!</h1>
+                <p className="text-gray-600 mb-6">Tu evento ha sido publicado y estará disponible para todos los usuarios.</p>
+                <p className="text-sm text-gray-500">Redirigiendo...</p>
+              </>
+            )}
           </div>
         </div>
       </div>

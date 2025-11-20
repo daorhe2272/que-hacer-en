@@ -1,4 +1,5 @@
 import { query } from './client'
+import { moderateEventContent } from '../utils/event-moderator'
 
 export type ListParams = {
   city?: string
@@ -51,6 +52,7 @@ export interface EventDto {
   created_by?: string
   event_url?: string
   active?: boolean
+  moderation_reason?: string
 }
 
 export async function listEventsDb(params: ListParams): Promise<{ events: EventDto[], total: number }>{
@@ -277,10 +279,14 @@ export async function createEventDb(params: CreateEventParams, organizerId: stri
   // Convert Colombian time to UTC for storage
   const startsAt = `${date}T${time}:00-05:00`
 
+  // Moderate content before creating
+  const moderationResult = await moderateEventContent(title, description, location)
+  const active = moderationResult.safe
+
   await query(
     `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency, image, created_by, active)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency, image, organizerId, true]
+    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency, image, organizerId, active]
   )
 
   if (tags.length > 0) {
@@ -303,6 +309,12 @@ export async function createEventDb(params: CreateEventParams, organizerId: stri
   if (!event) {
     throw new Error('Error al crear el evento')
   }
+  
+  // Attach moderation reason if unsafe
+  if (!active && moderationResult.reason) {
+    event.moderation_reason = moderationResult.reason
+  }
+  
   return event
 }
 
@@ -463,7 +475,8 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
             ct.label as category,
             c.slug as city,
             e.image,
-            e.created_by
+            e.created_by,
+            e.active
      FROM events e
      JOIN cities c ON c.id = e.city_id
      JOIN categories ct ON ct.id = e.category_id
