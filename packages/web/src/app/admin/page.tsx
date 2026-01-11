@@ -428,10 +428,25 @@ function EventsTab() {
     }
 
     setEditingEventId(event.id)
-    // Parse the UTC timestamp to get date and time
-    const eventDate = new Date(event.utcTimestamp)
-    const dateStr = eventDate.toISOString().split('T')[0]
-    const timeStr = eventDate.toTimeString().slice(0, 5) // HH:MM format
+    // Convert UTC timestamp to Colombia timezone
+    const timestamp = event.utcTimestamp;
+    const dateInColombia = new Date(timestamp);
+
+    // Extract date in YYYY-MM-DD format for date input
+    const dateStr = dateInColombia.toLocaleString('en-CA', {
+      timeZone: 'America/Bogota',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+
+    // Extract time in HH:MM format for time input
+    const timeStr = dateInColombia.toLocaleString('en-GB', {
+      timeZone: 'America/Bogota',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
 
     // Normalize string for comparison (remove accents and convert to lowercase)
     const normalizeString = (str: string) => {
