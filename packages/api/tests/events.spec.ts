@@ -48,7 +48,7 @@ jest.mock('fs', () => ({
         id: 'bg-001',
         title: 'Test Event Bogotá',
         description: 'Test event in Bogotá',
-        utcTimestamp: '2025-12-15T19:00:00.000Z',
+        utcTimestamp: '2030-12-15T19:00:00.000Z',
         location: 'Test Location',
         address: 'Test Address',
         category: 'Música',
@@ -64,7 +64,7 @@ jest.mock('fs', () => ({
         id: 'bg-002',
         title: 'Expensive Event',
         description: 'High price event',
-        utcTimestamp: '2025-12-01T23:00:00.000Z',
+        utcTimestamp: '2030-12-01T23:00:00.000Z',
         location: 'Premium Location',
         address: 'Premium Address',
         category: 'Teatro',
@@ -80,7 +80,7 @@ jest.mock('fs', () => ({
         id: 'bg-003',
         title: 'Free Event',
         description: 'Free event for everyone',
-        utcTimestamp: '2025-12-20T20:00:00.000Z',
+        utcTimestamp: '2030-12-20T20:00:00.000Z',
         location: 'Park',
         address: 'Park Address',
         category: 'Cultural',
@@ -261,7 +261,7 @@ describe('Events Router', () => {
       process.env.NODE_ENV = 'test'
       
       const response = await request(app)
-        .get('/api/events?from=2024-07-01&to=2024-07-31')
+        .get('/api/events?from=2030-07-01&to=2030-07-31')
         .expect(200)
 
       expect(response.body).toHaveProperty('events')
@@ -590,7 +590,7 @@ describe('Events Router', () => {
     const validEventData = {
       title: 'New Test Event',
       description: 'This is a test event with detailed description for testing purposes.',
-      date: '2024-12-01',
+      date: '2030-12-01',
       time: '20:00',
       location: 'Test Venue',
       address: 'Test Address, Test City',
@@ -677,7 +677,7 @@ describe('Events Router', () => {
       const minimalEventData = {
         title: 'Minimal Test Event',
         description: 'This is a minimal event to test default values for optional fields.',
-        date: '2024-12-15',
+        date: '2030-12-15',
         time: '18:30',
         location: 'Test Venue',
         address: 'Valid Address',  // Required by validation
@@ -945,7 +945,7 @@ describe('Events Router', () => {
           id: '550e8400-e29b-41d4-a716-446655440000',
           title: updateData.title,
           description: 'Updated description',
-          utcTimestamp: '2024-12-01T20:00:00-05:00',
+          utcTimestamp: '2030-12-01T20:00:00-05:00',
           location: 'Updated Location',
           address: 'Updated Address',
           category: 'musica',
@@ -1079,7 +1079,7 @@ describe('Events Router', () => {
         const validEventData = {
           title: 'Test Event',
           description: 'Test Description that is long enough to pass validation',
-          date: '2024-12-01',
+          date: '2030-12-01',
           time: '20:00',
           location: 'Test Location',
           address: 'Test Address 123',
@@ -1171,7 +1171,7 @@ describe('Events Router', () => {
             id: 'test-event-id',
             title: 'Test Event',
             description: 'Test Description',
-            date: '2024-12-01',
+            date: '2030-12-01',
             time: '20:00',
             location: 'Test Location',
             address: 'Test Address', 
@@ -1231,7 +1231,7 @@ describe('Events Router', () => {
         const updateData = {
           title: 'Updated Event',
           description: 'Updated Description that meets minimum length',
-          date: '2024-12-01',
+          date: '2030-12-01',
           time: '20:00',
           location: 'Updated Location',
           address: 'Updated Address',
@@ -1353,7 +1353,7 @@ describe('Events Router', () => {
             address: 'Test Address',
             price: 50000,
             currency: 'COP',
-            utc_timestamp: '2024-12-02T01:00:00.000Z',
+            utc_timestamp: '2030-12-02T01:00:00.000Z',
             category: 'Música',
             city: 'bogota',
             image: 'test-image.jpg',
@@ -1474,7 +1474,7 @@ describe('Events Router', () => {
             id: 'bg-tie-1',
             title: 'Tie Breaking Test Event A',
             description: 'Event with identical date/time as another event to test tie-breaking logic.',
-            utcTimestamp: '2025-12-31T04:59:00.000Z',
+            utcTimestamp: '2030-12-31T04:59:00.000Z',
             location: 'Test Location A',
             address: 'Test Address A',
             category: 'Música',
@@ -1490,7 +1490,7 @@ describe('Events Router', () => {
             id: 'bg-tie-2',
             title: 'Tie Breaking Test Event B',
             description: 'Event with identical date/time as another event to test tie-breaking logic.',
-            utcTimestamp: '2025-12-31T04:59:00.000Z',
+            utcTimestamp: '2030-12-31T04:59:00.000Z',
             location: 'Test Location B',
             address: 'Test Address B',
             category: 'Música',
@@ -1536,7 +1536,7 @@ describe('Events Router', () => {
 
         // Find events with identical utcTimestamp (our tie-breaking test events)
         const tieBreakerEvents = events.filter((e: any) =>
-          e.utcTimestamp === '2025-12-31T04:59:00.000Z'
+          e.utcTimestamp === '2030-12-31T04:59:00.000Z'
         )
 
         // Should have exactly 2 tie-breaking events
@@ -1566,7 +1566,7 @@ describe('Events Router', () => {
             id: 'bg-price-tie-1',
             title: 'Price Tie Breaking Test Event A',
             description: 'Event with identical price as another event to test tie-breaking logic.',
-            utcTimestamp: '2025-12-30T23:00:00.000Z',
+            utcTimestamp: '2030-12-30T23:00:00.000Z',
             location: 'Test Location A',
             address: 'Test Address A',
             category: 'Música',
@@ -1582,7 +1582,7 @@ describe('Events Router', () => {
             id: 'bg-price-tie-2',
             title: 'Price Tie Breaking Test Event B',
             description: 'Event with identical price as another event to test tie-breaking logic.',
-            utcTimestamp: '2025-12-31T00:00:00.000Z',
+            utcTimestamp: '2030-12-31T00:00:00.000Z',
             location: 'Test Location B',
             address: 'Test Address B',
             category: 'Música',
@@ -1677,7 +1677,7 @@ describe('Events Router', () => {
             id: 'bg-null-price-1',
             title: 'Event with null price A',
             description: 'Event with null price to test null handling in price sorting.',
-            utcTimestamp: '2025-12-30T23:00:00.000Z',
+            utcTimestamp: '2030-12-30T23:00:00.000Z',
             location: 'Test Location A',
             address: 'Test Address A',
             category: 'Música',
@@ -1693,7 +1693,7 @@ describe('Events Router', () => {
             id: 'bg-null-price-2',
             title: 'Event with null price B',
             description: 'Event with null price to test null handling in price sorting.',
-            utcTimestamp: '2025-12-31T00:00:00.000Z',
+            utcTimestamp: '2030-12-31T00:00:00.000Z',
             location: 'Test Location B',
             address: 'Test Address B',
             category: 'Música',
@@ -1709,7 +1709,7 @@ describe('Events Router', () => {
             id: 'bg-numeric-price',
             title: 'Event with numeric price',
             description: 'Event with numeric price for comparison.',
-            utcTimestamp: '2025-12-29T22:00:00.000Z',
+            utcTimestamp: '2030-12-29T22:00:00.000Z',
             location: 'Test Location C',
             address: 'Test Address C',
             category: 'Música',
