@@ -49,16 +49,44 @@ function isEventInPast(eventDate: string): boolean {
 }
 
 /**
+ * Checks if an event date is more than 60 days in the future (Colombia timezone)
+ */
+function isEventTooFarInFuture(eventDate: string): boolean {
+  try {
+    // Parse the event date (YYYY-MM-DD format)
+    const eventDateObj = new Date(eventDate + 'T00:00:00-05:00') // Colombia timezone (UTC-5)
+
+    // Get today's date in Colombia timezone
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const colombiaOffset = -5 * 60 // UTC-5 in minutes
+    const utc = today.getTime() + (today.getTimezoneOffset() * 60000)
+    const todayColombia = new Date(utc + (colombiaOffset * 60000))
+
+    // Calculate the cutoff date (60 days from today)
+    const cutoffDate = new Date(todayColombia)
+    cutoffDate.setDate(todayColombia.getDate() + 60)
+
+    // Compare dates (event date should be <= cutoff)
+    return eventDateObj > cutoffDate
+  } catch (error) {
+    console.warn('[Procesador de Eventos] Formato de fecha inválido:', eventDate)
+    return true // Skip invalid dates
+  }
+}
+
+/**
  * Checks if an event already exists in the database (duplicate detection)
  */
-async function isDuplicateEvent(title: string, location: string): Promise<boolean> {
+async function isDuplicateEvent(title: string, location: string, date: string): Promise<boolean> {
   try {
     const result = await query(
       `SELECT 1 FROM events
        WHERE LOWER(title_norm) = LOWER(normalize_text($1))
        AND LOWER(venue_norm) = LOWER(normalize_text($2))
+       AND (starts_at AT TIME ZONE 'America/Bogota')::date = $3::date
        LIMIT 1`,
-      [title, location]
+      [title, location, date]
     )
     return result.rows.length > 0
   } catch (error) {
@@ -233,8 +261,14 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
         continue
       }
 
+      // Check if event is more than 60 days in the future
+      if (isEventTooFarInFuture(extractedEvent.date)) {
+        skippedEvents.push(`${extractedEvent.title} - Evento muy lejano (${extractedEvent.date})`)
+        continue
+      }
+
       // Check for duplicates
-      const isDuplicate = await isDuplicateEvent(extractedEvent.title, extractedEvent.location)
+      const isDuplicate = await isDuplicateEvent(extractedEvent.title, extractedEvent.location, extractedEvent.date)
       if (isDuplicate) {
         skippedEvents.push(`${extractedEvent.title} - Duplicado`)
         continue

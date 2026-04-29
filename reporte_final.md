@@ -82,7 +82,7 @@ La Inteligencia Artificial no solo es un componente del producto final, sino que
 
 ### C. Tecnologías de IA y Minería de Datos
 
-El núcleo de procesamiento utiliza la API de **Google Gemini** (`gemini-2.5-flash`). Una característica clave empleada es la **Salida Estructurada** (*Structured Output*), que fuerza al modelo a responder estrictamente en formato **JSON** (un formato de texto estándar para organizar e intercambiar datos), garantizando que la información extraída sea computable y consistente.
+El núcleo de procesamiento utiliza la API de **Google Gemini** (`gemini-3-flash-preview`). Una característica clave empleada es la **Salida Estructurada** (*Structured Output*), que fuerza al modelo a responder estrictamente en formato **JSON** (un formato de texto estándar para organizar e intercambiar datos), garantizando que la información extraída sea computable y consistente.
 
 Esta capacidad es fundamental para la estabilidad del sistema. En el desarrollo de software tradicional, las funciones esperan entradas predecibles; sin embargo, los modelos de lenguaje tienden a ser creativos y variados en sus respuestas. Al imponer un esquema estricto, transformamos la salida probabilística del modelo en datos deterministas que el backend puede procesar, validar y almacenar en la base de datos sin necesidad de parsers complejos o intervención manual. A continuación se presenta un ejemplo de cómo se configura esta funcionalidad:
 
@@ -110,7 +110,7 @@ const eventSchema = {
 
 // Configuración de la llamada a Gemini
 const response = await ai.models.generateContent({
-  model: "gemini-2.5-flash",
+  model: "gemini-3-flash-preview",
   contents: prompt,
   config: {
     responseMimeType: "application/json",

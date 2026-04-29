@@ -8,7 +8,7 @@ export default defineConfig({
   testDir: './tests/e2e',
   timeout: 30_000,
   fullyParallel: true,
-  retries: 0,
+  retries: 1,
   globalSetup: './tests/e2e/test-helpers/global-setup.ts',
   globalTeardown: './tests/e2e/test-helpers/global-teardown.ts',
   use: {

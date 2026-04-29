@@ -259,8 +259,16 @@ describe('event-processor', () => {
 
   describe('processExtractedEvents', () => {
     const adminUserId = 'admin-user-id'
-    // Use a date far in the future to avoid any timezone issues
-    const futureDate = '2027-06-15'
+
+    // Helper to compute a future date N days from now (YYYY-MM-DD)
+    function getFutureDate(days: number): string {
+      const date = new Date()
+      date.setDate(date.getDate() + days)
+      return date.toISOString().split('T')[0]
+    }
+
+    // Use a date within the 60-day window so existing tests stay valid
+    const futureDate = getFutureDate(30)
     const validExtractedEvent: ExtractedEvent = {
       source_url: 'https://example.com',
       event_url: 'https://example.com/event1',
@@ -431,6 +439,78 @@ describe('event-processor', () => {
 
       expect(result).toHaveLength(1)
       expect(result[0].title).toBe('Valid Event 2')
+    })
+
+    it('should skip events more than 60 days in the future', async () => {
+      const farFutureEvent = { ...validExtractedEvent, date: getFutureDate(61) }
+
+      const result = await processExtractedEvents([farFutureEvent], adminUserId)
+
+      expect(result).toHaveLength(0)
+    })
+
+    it('should accept events exactly 60 days in the future', async () => {
+      const boundaryEvent = { ...validExtractedEvent, date: getFutureDate(60) }
+
+      // Mock isDuplicateEvent (no duplicate)
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // Mock createMinedEventDb calls
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([{ id: 1 }]))
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([{ id: 1 }]))
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([{
+        id: 'test-event-id',
+        title: 'Valid Event',
+        description: 'A valid event',
+        venue: 'Test Venue',
+        address: 'Test Address',
+        price_cents: 50000,
+        currency: 'COP',
+        starts_at: '2027-06-15T01:00:00.000Z',
+        label: 'Música',
+        slug: 'bogota',
+        image: 'https://example.com/image.jpg',
+        created_by: adminUserId,
+        event_url: 'https://example.com/event1',
+        active: false
+      }]))
+
+      const result = await processExtractedEvents([boundaryEvent], adminUserId)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].title).toBe('Valid Event')
+    })
+
+    it('should accept events 1 day in the future', async () => {
+      const nearFutureEvent = { ...validExtractedEvent, date: getFutureDate(1) }
+
+      // Mock isDuplicateEvent (no duplicate)
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // Mock createMinedEventDb calls
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([{ id: 1 }]))
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([{ id: 1 }]))
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([{
+        id: 'test-event-id',
+        title: 'Valid Event',
+        description: 'A valid event',
+        venue: 'Test Venue',
+        address: 'Test Address',
+        price_cents: 50000,
+        currency: 'COP',
+        starts_at: '2027-06-15T01:00:00.000Z',
+        label: 'Música',
+        slug: 'bogota',
+        image: 'https://example.com/image.jpg',
+        created_by: adminUserId,
+        event_url: 'https://example.com/event1',
+        active: false
+      }]))
+
+      const result = await processExtractedEvents([nearFutureEvent], adminUserId)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].title).toBe('Valid Event')
     })
 
     it('should log processing summary', async () => {
