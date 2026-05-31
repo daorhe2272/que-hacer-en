@@ -170,15 +170,16 @@ describe('html-fetcher', () => {
     it('should handle static fetch timeout', async () => {
       mockUndiciFetch.mockImplementation((_url, options: any) => {
         return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => resolve({ ok: true, text: () => Promise.resolve('timeout') } as any), 6000)
           const signal = options?.signal
           if (signal) {
             signal.addEventListener('abort', () => {
+              clearTimeout(timer)
               const abortError = new Error('The operation was aborted')
               abortError.name = 'AbortError'
               reject(abortError)
             })
           }
-          setTimeout(() => resolve({ ok: true, text: () => Promise.resolve('timeout') } as any), 6000)
         })
       })
 

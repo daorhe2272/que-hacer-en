@@ -29,16 +29,16 @@ jest.mock('../src/db/repository', () => ({
 // Mock mining utils
 jest.mock('../src/utils/mining-utils', () => ({
   mineUrlDirectly: jest.fn(),
-  mineUrlDirectlyStreaming: jest.fn()
+  mineUrlDirectlyStreaming: jest.fn(),
+  mineUrlsDirectlyStreaming: jest.fn()
 }))
 
 import { getAdminStatsDb, listInactiveEventsDb } from '../src/db/repository'
-import { mineUrlDirectly, mineUrlDirectlyStreaming } from '../src/utils/mining-utils'
+import { mineUrlsDirectlyStreaming } from '../src/utils/mining-utils'
 
 const mockGetAdminStatsDb = getAdminStatsDb as jest.MockedFunction<typeof getAdminStatsDb>
 const mockListInactiveEventsDb = listInactiveEventsDb as jest.MockedFunction<typeof listInactiveEventsDb>
-const mockMineUrlDirectly = mineUrlDirectly as jest.MockedFunction<typeof mineUrlDirectly>
-const mockMineUrlDirectlyStreaming = mineUrlDirectlyStreaming as jest.MockedFunction<typeof mineUrlDirectlyStreaming>
+const mockMineUrlsDirectlyStreaming = mineUrlsDirectlyStreaming as jest.MockedFunction<typeof mineUrlsDirectlyStreaming>
 
 describe('Admin Router', () => {
   let app: express.Application
@@ -294,8 +294,8 @@ describe('Admin Router', () => {
     const testUrl = 'https://example.com/events'
 
     describe('Non-streaming mode', () => {
-      it('should successfully mine URL', async () => {
-        mockMineUrlDirectly.mockResolvedValue({
+      it('should successfully mine URL with single url field', async () => {
+        mockMineUrlsDirectlyStreaming.mockResolvedValue({
           success: true,
           eventsExtracted: 5,
           eventsStored: 4,
@@ -318,11 +318,33 @@ describe('Admin Router', () => {
           details: 'Successfully mined 4 events'
         })
 
-        expect(mockMineUrlDirectly).toHaveBeenCalledWith(testUrl, 'admin-id')
+        expect(mockMineUrlsDirectlyStreaming).toHaveBeenCalledWith([testUrl], 'admin-id')
+      })
+
+      it('should successfully mine multiple URLs with urls array', async () => {
+        mockMineUrlsDirectlyStreaming.mockResolvedValue({
+          success: true,
+          eventsExtracted: 10,
+          eventsStored: 8,
+          eventsFailed: 2,
+          details: 'Successfully mined 8 events from 2 sources'
+        })
+
+        const response = await request(app)
+          .post('/api/admin/mine-url')
+          .set('Authorization', 'Bearer admin-token')
+          .send({ urls: [testUrl, 'https://example.com/events2'] })
+          .expect(200)
+
+        expect(response.body.success).toBe(true)
+        expect(response.body.eventsExtracted).toBe(10)
+        expect(mockMineUrlsDirectlyStreaming).toHaveBeenCalledWith(
+          [testUrl, 'https://example.com/events2'], 'admin-id'
+        )
       })
 
       it('should handle mining failure', async () => {
-        mockMineUrlDirectly.mockResolvedValue({
+        mockMineUrlsDirectlyStreaming.mockResolvedValue({
           success: false,
           eventsExtracted: 0,
           eventsStored: 0,
@@ -345,7 +367,7 @@ describe('Admin Router', () => {
         })
       })
 
-      it('should return 400 without URL', async () => {
+      it('should return 400 without url or urls', async () => {
         const response = await request(app)
           .post('/api/admin/mine-url')
           .set('Authorization', 'Bearer admin-token')
@@ -353,7 +375,19 @@ describe('Admin Router', () => {
           .expect(400)
 
         expect(response.body).toEqual({
-          error: 'URL is required'
+          error: 'Se requiere una URL o un array de URLs'
+        })
+      })
+
+      it('should return 400 for empty urls array', async () => {
+        const response = await request(app)
+          .post('/api/admin/mine-url')
+          .set('Authorization', 'Bearer admin-token')
+          .send({ urls: [] })
+          .expect(400)
+
+        expect(response.body).toEqual({
+          error: 'Se requiere una URL o un array de URLs'
         })
       })
 
@@ -364,9 +398,17 @@ describe('Admin Router', () => {
           .send({ url: 'not-a-url' })
           .expect(400)
 
-        expect(response.body).toEqual({
-          error: 'Invalid URL format'
-        })
+        expect(response.body.error).toContain('Formato de URL inválido')
+      })
+
+      it('should return 400 for invalid URL in urls array', async () => {
+        const response = await request(app)
+          .post('/api/admin/mine-url')
+          .set('Authorization', 'Bearer admin-token')
+          .send({ urls: [testUrl, 'not-a-url'] })
+          .expect(400)
+
+        expect(response.body.error).toContain('Formato de URL inválido')
       })
 
       it('should return 403 for non-admin user', async () => {
@@ -393,7 +435,7 @@ describe('Admin Router', () => {
       })
 
       it('should handle unexpected errors', async () => {
-        mockMineUrlDirectly.mockRejectedValue(new Error('Unexpected error'))
+        mockMineUrlsDirectlyStreaming.mockRejectedValue(new Error('Unexpected error'))
 
         const response = await request(app)
           .post('/api/admin/mine-url')
@@ -413,7 +455,7 @@ describe('Admin Router', () => {
 
     describe('Streaming mode', () => {
       it('should successfully mine URL with streaming', async () => {
-        mockMineUrlDirectlyStreaming.mockImplementation(async (_url, _userId, callback) => {
+        mockMineUrlsDirectlyStreaming.mockImplementation(async (_urls, _userId, callback) => {
           if (callback) {
             callback('Starting mining...')
             callback('Processing events...')
@@ -433,19 +475,18 @@ describe('Admin Router', () => {
           .send({ url: testUrl, stream: true })
           .expect(200)
 
-        // Verify streaming response
         expect(response.text).toContain('"status":"completed"')
         expect(response.text).toContain('"eventsStored":3')
         expect(response.text).toContain('"status":"end"')
-        expect(mockMineUrlDirectlyStreaming).toHaveBeenCalledWith(
-          testUrl,
+        expect(mockMineUrlsDirectlyStreaming).toHaveBeenCalledWith(
+          [testUrl],
           'admin-id',
           expect.any(Function)
         )
       })
 
       it('should handle mining failure with streaming', async () => {
-        mockMineUrlDirectlyStreaming.mockResolvedValue({
+        mockMineUrlsDirectlyStreaming.mockResolvedValue({
           success: false,
           eventsExtracted: 0,
           eventsStored: 0,
@@ -465,7 +506,7 @@ describe('Admin Router', () => {
       })
 
       it('should handle unexpected errors in streaming mode', async () => {
-        mockMineUrlDirectlyStreaming.mockRejectedValue(new Error('Unexpected error'))
+        mockMineUrlsDirectlyStreaming.mockRejectedValue(new Error('Unexpected error'))
 
         const response = await request(app)
           .post('/api/admin/mine-url')

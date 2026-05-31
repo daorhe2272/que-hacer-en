@@ -18,6 +18,9 @@ build/
 .next/
 out/
 
+# Local data
+.kilo/
+
 # Runtime data
 pids
 *.pid

@@ -1,7 +1,7 @@
 import { Router, Request } from 'express'
 import { authenticate } from '../middleware/auth'
 import { getAdminStatsDb, listInactiveEventsDb } from '../db/repository'
-import { mineUrlDirectly, mineUrlDirectlyStreaming } from '../utils/mining-utils'
+import { mineUrlsDirectlyStreaming } from '../utils/mining-utils'
 
 // Type helper for authenticated requests where user.id and role are guaranteed to exist
 interface AuthenticatedAdminRequest extends Request {
@@ -103,17 +103,20 @@ adminRouter.post('/mine-url', authenticate, async (req, res) => {
       return
     }
 
-    const { url, stream = false } = req.body
+    const { url, urls, stream = false } = req.body
 
-    if (!url) {
-      return res.status(400).json({ error: 'URL is required' })
+    const targetUrls: string[] =
+      Array.isArray(urls) && urls.length > 0 ? urls :
+      typeof url === 'string' && url ? [url] : []
+
+    if (targetUrls.length === 0) {
+      return res.status(400).json({ error: 'Se requiere una URL o un array de URLs' })
     }
 
-    // Validate URL format
-    try {
-      new URL(url)
-    } catch {
-      return res.status(400).json({ error: 'Invalid URL format' })
+    for (const u of targetUrls) {
+      try { new URL(u) } catch {
+        return res.status(400).json({ error: `Formato de URL inválido: ${u}` })
+      }
     }
 
     if (stream) {
@@ -126,7 +129,7 @@ adminRouter.post('/mine-url', authenticate, async (req, res) => {
         'Access-Control-Allow-Headers': 'Cache-Control',
       })
 
-      console.log(`[Admin Mine URL] Starting streaming mining for URL: ${url}`)
+      console.log(`[Admin Mine URL] Starting streaming mining for ${targetUrls.length} URL(s)`)
 
       // Create a progress callback function that sends updates to the client
       const sendProgress = (message: string) => {
@@ -138,7 +141,7 @@ adminRouter.post('/mine-url', authenticate, async (req, res) => {
       }
 
       // Use the streaming mining logic
-      const result = await mineUrlDirectlyStreaming(url, authReq.user.id, sendProgress)
+      const result = await mineUrlsDirectlyStreaming(targetUrls, authReq.user.id, sendProgress)
 
       if (result.success) {
         console.log(`[Admin Mine URL] Successfully mined ${result.eventsStored} events from ${url}`)
@@ -167,10 +170,10 @@ adminRouter.post('/mine-url', authenticate, async (req, res) => {
       return
     } else {
       // Original synchronous behavior for backward compatibility
-      console.log(`[Admin Mine URL] Starting one-time mining for URL: ${url}`)
+      console.log(`[Admin Mine URL] Starting one-time mining for ${targetUrls.length} URL(s)`)
 
       // Use the extracted mining logic
-      const result = await mineUrlDirectly(url, authReq.user.id)
+      const result = await mineUrlsDirectlyStreaming(targetUrls, authReq.user.id)
 
       if (result.success) {
         console.log(`[Admin Mine URL] Successfully mined ${result.eventsStored} events from ${url}`)

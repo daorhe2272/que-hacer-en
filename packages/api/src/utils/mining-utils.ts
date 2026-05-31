@@ -1,6 +1,7 @@
 import { fetchHtmlContent } from './html-fetcher'
 import { extractEventsFromHtml } from './event-extractor'
 import { processExtractedEvents } from './event-processor'
+import { ExtractedEvent } from '../event-schema'
 
 export interface MiningResult {
   success: boolean
@@ -13,92 +14,75 @@ export interface MiningResult {
 
 export type ProgressCallback = (message: string) => void
 
-/**
- * Core mining logic extracted from data source mining
- * Mines a URL directly without requiring database records
- */
-export async function mineUrlDirectly(url: string, userId: string): Promise<MiningResult> {
-  return mineUrlDirectlyStreaming(url, userId, () => {}) // No progress callback for non-streaming
-}
-
-/**
- * Streaming version of mining logic with progress updates
- * Mines a URL directly without requiring database records
- */
-export async function mineUrlDirectlyStreaming(url: string, userId: string, onProgress?: ProgressCallback): Promise<MiningResult> {
+async function fetchAndExtract(url: string, onProgress?: ProgressCallback): Promise<ExtractedEvent[]> {
   try {
-    console.log(`[Direct Mining] Starting mining process for URL: ${url}`)
-    onProgress?.('Iniciando minería de datos...')
+    onProgress?.(`Obteniendo contenido de ${url}...`)
 
-    // Step 1: Fetch HTML content from the URL
     const fetchResult = await fetchHtmlContent(url)
 
-    if (!fetchResult.success) {
-      console.error(`[Direct Mining] Failed to fetch content from ${url}: ${fetchResult.error}`)
-      return {
-        success: false,
-        eventsExtracted: 0,
-        eventsStored: 0,
-        eventsFailed: 0,
-        error: fetchResult.error || 'Failed to fetch URL content'
-      }
-    }
-
-    if (!fetchResult.fullHtml) {
-      console.error(`[Direct Mining] No HTML content received from ${url}`)
-      return {
-        success: false,
-        eventsExtracted: 0,
-        eventsStored: 0,
-        eventsFailed: 0,
-        error: 'No content received from URL'
-      }
+    if (!fetchResult.success || !fetchResult.fullHtml) {
+      console.error(`[Direct Mining] Failed to fetch content from ${url}: ${fetchResult.error || 'No HTML content'}`)
+      return []
     }
 
     console.log(`[Direct Mining] Successfully fetched content from ${url}`)
 
-    // Step 2: Extract events from the HTML content using AI
-    console.log(`[Direct Mining] Starting event extraction from HTML content`)
     const extractionResult = await extractEventsFromHtml(fetchResult.fullHtml, url)
 
     if (!extractionResult.success) {
-      console.error(`[Direct Mining] Failed to extract events: ${extractionResult.error}`)
-      return {
-        success: false,
-        eventsExtracted: 0,
-        eventsStored: 0,
-        eventsFailed: 0,
-        error: extractionResult.error || 'Failed to extract events from content'
-      }
+      console.error(`[Direct Mining] Failed to extract events from ${url}: ${extractionResult.error}`)
+      return []
     }
 
     if (!extractionResult.events || extractionResult.events.length === 0) {
       console.log(`[Direct Mining] No events found in content from ${url}`)
+      return []
+    }
+
+    console.log(`[Direct Mining] Successfully extracted ${extractionResult.events.length} events from ${url}`)
+    return extractionResult.events
+  } catch (error) {
+    console.error(`[Direct Mining] Error fetching/extracting from ${url}:`, error)
+    throw error
+  }
+}
+
+export async function mineUrlsDirectlyStreaming(
+  urls: string[],
+  userId: string,
+  onProgress?: ProgressCallback
+): Promise<MiningResult> {
+  try {
+    onProgress?.('Iniciando minería de datos...')
+
+    const allEvents = (await Promise.all(
+      urls.map(url => fetchAndExtract(url, onProgress))
+    )).flat()
+
+    if (allEvents.length === 0) {
       return {
         success: true,
         eventsExtracted: 0,
         eventsStored: 0,
         eventsFailed: 0,
-        details: 'No events found in the provided URL'
+        details: `No events found in the provided URL${urls.length > 1 ? 's' : ''}`
       }
     }
 
-    console.log(`[Direct Mining] Successfully extracted ${extractionResult.events.length} events`)
+    onProgress?.(`Extraídos ${allEvents.length} eventos de ${urls.length} fuente${urls.length > 1 ? 's' : ''}. Procesando...`)
 
-    // Step 3: Process and store events in database
-    const storedEvents = await processExtractedEvents(extractionResult.events, userId)
-    const failedCount = extractionResult.events.length - storedEvents.length
+    const storedEvents = await processExtractedEvents(allEvents, userId)
+    const failedCount = allEvents.length - storedEvents.length
 
     console.log(`[Direct Mining] Successfully stored ${storedEvents.length} events in database (${failedCount} failed)`)
 
     return {
       success: true,
-      eventsExtracted: extractionResult.events.length,
+      eventsExtracted: allEvents.length,
       eventsStored: storedEvents.length,
       eventsFailed: failedCount,
-      details: `Successfully mined ${storedEvents.length} events from ${url}`
+      details: `Successfully mined ${storedEvents.length} events from ${urls.length} source${urls.length > 1 ? 's' : ''}`
     }
-
   } catch (error) {
     console.error('[Direct Mining] Unexpected error:', error)
     return {
@@ -109,4 +93,12 @@ export async function mineUrlDirectlyStreaming(url: string, userId: string, onPr
       error: error instanceof Error ? error.message : 'Unexpected error during mining'
     }
   }
+}
+
+export async function mineUrlDirectly(url: string, userId: string): Promise<MiningResult> {
+  return mineUrlsDirectlyStreaming([url], userId)
+}
+
+export async function mineUrlDirectlyStreaming(url: string, userId: string, onProgress?: ProgressCallback): Promise<MiningResult> {
+  return mineUrlsDirectlyStreaming([url], userId, onProgress)
 }

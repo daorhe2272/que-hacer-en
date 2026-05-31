@@ -1,11 +1,15 @@
 import { query } from '../db/client'
 import { ExtractedEvent } from '../event-schema'
 import { CreateEventParams, EventDto } from '../db/repository'
+import { ExistingEventSummary, checkSemanticDuplicates } from './event-deduplicator'
+import { enrichEventFromHtml } from './event-enricher'
+import { fetchHtmlContent } from './html-fetcher'
 import crypto from 'crypto'
 
-/**
- * Converts an extracted event to database format
- */
+function normalize(text: string): string {
+  return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
 export function convertExtractedEventToDbFormat(extractedEvent: ExtractedEvent): CreateEventParams {
   return {
     title: extractedEvent.title,
@@ -23,61 +27,28 @@ export function convertExtractedEventToDbFormat(extractedEvent: ExtractedEvent):
   }
 }
 
-/**
- * Checks if an event date is in the past (before today in Colombia timezone)
- * Ignores time and includes today's events
- */
 function isEventInPast(eventDate: string): boolean {
   try {
-    // Parse the event date (YYYY-MM-DD format)
-    const eventDateObj = new Date(eventDate + 'T00:00:00-05:00') // Colombia timezone (UTC-5)
-
-    // Get today's date in Colombia timezone
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const colombiaOffset = -5 * 60 // UTC-5 in minutes
-    const utc = today.getTime() + (today.getTimezoneOffset() * 60000)
-    const todayColombia = new Date(utc + (colombiaOffset * 60000))
-
-    // Compare dates (event date should be >= today)
-    return eventDateObj < todayColombia
+    const todayStr = new Date().toISOString().split('T')[0]
+    return eventDate < todayStr
   } catch (error) {
-    // If date parsing fails, treat as invalid and skip
     console.warn('[Procesador de Eventos] Formato de fecha inválido:', eventDate)
-    return true // Skip invalid dates
+    return true
   }
 }
 
-/**
- * Checks if an event date is more than 60 days in the future (Colombia timezone)
- */
 function isEventTooFarInFuture(eventDate: string): boolean {
   try {
-    // Parse the event date (YYYY-MM-DD format)
-    const eventDateObj = new Date(eventDate + 'T00:00:00-05:00') // Colombia timezone (UTC-5)
-
-    // Get today's date in Colombia timezone
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const colombiaOffset = -5 * 60 // UTC-5 in minutes
-    const utc = today.getTime() + (today.getTimezoneOffset() * 60000)
-    const todayColombia = new Date(utc + (colombiaOffset * 60000))
-
-    // Calculate the cutoff date (60 days from today)
-    const cutoffDate = new Date(todayColombia)
-    cutoffDate.setDate(todayColombia.getDate() + 60)
-
-    // Compare dates (event date should be <= cutoff)
-    return eventDateObj > cutoffDate
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() + 60)
+    const cutoffStr = cutoffDate.toISOString().split('T')[0]
+    return eventDate > cutoffStr
   } catch (error) {
     console.warn('[Procesador de Eventos] Formato de fecha inválido:', eventDate)
-    return true // Skip invalid dates
+    return true
   }
 }
 
-/**
- * Checks if an event already exists in the database (duplicate detection)
- */
 async function isDuplicateEvent(title: string, location: string, date: string): Promise<boolean> {
   try {
     const result = await query(
@@ -91,14 +62,53 @@ async function isDuplicateEvent(title: string, location: string, date: string): 
     return result.rows.length > 0
   } catch (error) {
     console.error('Error checking for duplicate event:', error)
-    return false // If check fails, allow event to be created
+    return false
   }
 }
 
-/**
- * Creates a mined event in the database with inactive status
- */
-export async function createMinedEventDb(params: CreateEventParams, adminUserId: string, eventUrl?: string): Promise<EventDto> {
+async function fetchExistingEventsForCity(citySlug: string): Promise<ExistingEventSummary[]> {
+  try {
+    const result = await query<{
+      id: string
+      title: string
+      venue: string | null
+      date: string
+    }>(
+      `SELECT e.id, e.title, e.venue,
+              (e.starts_at AT TIME ZONE 'America/Bogota')::date::text AS date
+       FROM events e
+       JOIN cities c ON c.id = e.city_id
+       WHERE c.slug = $1
+         AND (e.starts_at AT TIME ZONE 'America/Bogota')::date >= CURRENT_DATE
+       ORDER BY e.starts_at ASC`,
+      [citySlug]
+    )
+    return result.rows.map(r => ({
+      id: r.id,
+      title: r.title,
+      location: r.venue ?? '',
+      date: r.date,
+    }))
+  } catch (error) {
+    console.error('[Procesador de Eventos] Error fetching existing events for city:', error)
+    return []
+  }
+}
+
+export function deduplicateWithinBatch(events: ExtractedEvent[]): ExtractedEvent[] {
+  const seen = new Set<string>()
+  const result: ExtractedEvent[] = []
+  for (const event of events) {
+    const key = `${normalize(event.title)}|${event.city_slug}|${event.date}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push(event)
+    }
+  }
+  return result
+}
+
+export async function createMinedEventDb(params: CreateEventParams, adminUserId: string, eventUrl?: string, active: boolean = false): Promise<EventDto> {
   const {
     title, description, date, time, location, address,
     category, city, price, currency, image, tags = []
@@ -117,38 +127,31 @@ export async function createMinedEventDb(params: CreateEventParams, adminUserId:
   const categoryId = categoryRes.rows[0].id
 
   const eventId = crypto.randomUUID()
-   // Default to 8:00 AM Colombia time if time is not provided or invalid
    let colombiaTime = time || '08:00'
 
-   // Validate and fix time format
    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
    if (!timeRegex.test(colombiaTime)) {
      console.warn(`[Procesador de Eventos] Hora inválida '${colombiaTime}' para evento '${title}', usando 08:00 por defecto`)
      colombiaTime = '08:00'
    }
 
-   // Convert Colombia time to UTC using manual calculation (server-timezone-independent)
    const [hours, minutes] = colombiaTime.split(':').map(Number)
-   let utcHours = hours + 5  // Colombia is UTC-5, so add 5 hours
+   let utcHours = hours + 5
    let utcDate = date
 
-   // Handle day boundary (if hours >= 24, it's the next day)
    if (utcHours >= 24) {
      utcHours -= 24
-     // Add one day to the date
      const dateObj = new Date(date + 'T00:00:00')
      dateObj.setDate(dateObj.getDate() + 1)
      utcDate = dateObj.toISOString().split('T')[0]
    }
 
-   // Create UTC timestamp directly
    const startsAt = `${utcDate}T${utcHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00.000Z`
 
-  // Insert event with active=false for mined events
   await query(
     `INSERT INTO events (id, city_id, category_id, title, description, venue, address, starts_at, price_cents, currency, image, created_by, active, event_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, $13)`,
-    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency, image, adminUserId, eventUrl]
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+    [eventId, cityId, categoryId, title, description, location, address, startsAt, price, currency, image, adminUserId, active, eventUrl]
   )
 
   if (tags.length > 0) {
@@ -174,9 +177,6 @@ export async function createMinedEventDb(params: CreateEventParams, adminUserId:
   return event
 }
 
-/**
- * Gets an event by ID from database
- */
 async function getEventByIdDb(eventId: string): Promise<EventDto | null> {
   const res = await query<{
     id: string
@@ -237,54 +237,120 @@ async function getEventByIdDb(eventId: string): Promise<EventDto | null> {
   return event
 }
 
-/**
- * Processes extracted events and stores them in the database
- * Returns array of successfully stored events
- */
 export async function processExtractedEvents(extractedEvents: ExtractedEvent[], adminUserId: string): Promise<EventDto[]> {
   const storedEvents: EventDto[] = []
   const skippedEvents: string[] = []
 
   console.log(`[Procesador de Eventos] Procesando ${extractedEvents.length} eventos extraídos`)
 
+  // STEP 1: Validate required fields + date range filter
+  const validCandidates: ExtractedEvent[] = []
   for (const extractedEvent of extractedEvents) {
+    if (!extractedEvent.title || !extractedEvent.date || !extractedEvent.time || !extractedEvent.category_slug || !extractedEvent.city_slug) {
+      skippedEvents.push(`${extractedEvent.title} - Missing required fields`)
+      continue
+    }
+    if (isEventInPast(extractedEvent.date)) {
+      skippedEvents.push(`${extractedEvent.title} - Evento pasado (${extractedEvent.date})`)
+      continue
+    }
+    if (isEventTooFarInFuture(extractedEvent.date)) {
+      skippedEvents.push(`${extractedEvent.title} - Evento muy lejano (${extractedEvent.date})`)
+      continue
+    }
+    validCandidates.push(extractedEvent)
+  }
+
+  // STEP 2: Within-batch deduplication
+  const uniqueCandidates = deduplicateWithinBatch(validCandidates)
+
+  // STEP 3: DB exact-match duplicate check
+  const nonDbDuplicateCandidates: ExtractedEvent[] = []
+  for (const candidate of uniqueCandidates) {
+    const isDuplicate = await isDuplicateEvent(candidate.title, candidate.location, candidate.date)
+    if (isDuplicate) {
+      skippedEvents.push(`${candidate.title} - Duplicado`)
+      continue
+    }
+    nonDbDuplicateCandidates.push(candidate)
+  }
+
+  // STEP 4: Semantic deduplication via LLM (batched by city+date)
+  const citySlugs = [...new Set(nonDbDuplicateCandidates.map(e => e.city_slug))]
+  const existingByCity = new Map<string, ExistingEventSummary[]>()
+  for (const citySlug of citySlugs) {
+    const existing = await fetchExistingEventsForCity(citySlug)
+    existingByCity.set(citySlug, existing)
+  }
+
+  const duplicateIndices = new Set<number>()
+  // Group candidates by city+date
+  const groupsByCityDate = new Map<string, Array<{ index: number; event: ExtractedEvent }>>()
+  nonDbDuplicateCandidates.forEach((event, index) => {
+    const key = `${event.city_slug}|${event.date}`
+    if (!groupsByCityDate.has(key)) groupsByCityDate.set(key, [])
+    groupsByCityDate.get(key)!.push({ index, event })
+  })
+
+  for (const [key, group] of groupsByCityDate) {
+    const [citySlug] = key.split('|')
+    const existing = existingByCity.get(citySlug) ?? []
+    if (existing.length === 0) continue
+
+    const candidates = group.map(g => ({
+      index: g.index,
+      title: g.event.title,
+      location: g.event.location,
+      date: g.event.date,
+    }))
+
+    const results = await checkSemanticDuplicates(candidates, existing)
+    for (const result of results) {
+      if (result.isDuplicate) {
+        duplicateIndices.add(result.candidateIndex)
+        skippedEvents.push(`${nonDbDuplicateCandidates[result.candidateIndex].title} - Duplicado semántico`)
+      }
+    }
+  }
+
+  const semanticallyUniqueCandidates = nonDbDuplicateCandidates.filter(
+    (_, index) => !duplicateIndices.has(index)
+  )
+
+  // STEP 5: Enrichment (sequential per event)
+  for (const candidate of semanticallyUniqueCandidates) {
     try {
-      // Validate required fields
-      if (!extractedEvent.title || !extractedEvent.date || !extractedEvent.time || !extractedEvent.category_slug || !extractedEvent.city_slug) {
-        skippedEvents.push(`${extractedEvent.title} - Missing required fields`)
-        continue
+      const eventData = convertExtractedEventToDbFormat(candidate)
+      let active = false
+
+      if (candidate.event_url && candidate.event_url !== candidate.source_url) {
+        const fetchResult = await fetchHtmlContent(candidate.event_url)
+        if (fetchResult.success && fetchResult.fullHtml) {
+          const enrichResult = await enrichEventFromHtml(fetchResult.fullHtml, candidate, candidate.event_url)
+          if (enrichResult.success) {
+            if (enrichResult.enrichedFields.title) eventData.title = enrichResult.enrichedFields.title
+            if (enrichResult.enrichedFields.description) eventData.description = enrichResult.enrichedFields.description
+            if (enrichResult.enrichedFields.location) eventData.location = enrichResult.enrichedFields.location
+            if (enrichResult.enrichedFields.address) eventData.address = enrichResult.enrichedFields.address
+            if (enrichResult.enrichedFields.Price !== undefined) eventData.price = enrichResult.enrichedFields.Price
+            if (enrichResult.enrichedFields.image_url) eventData.image = enrichResult.enrichedFields.image_url
+            active = enrichResult.dateTimeConfirmed
+          } else {
+            console.warn(`[Procesador de Eventos] Enriquecimiento falló para "${candidate.title}": ${enrichResult.error}`)
+          }
+        } else {
+          console.warn(`[Procesador de Eventos] Fetch falló para evento URL "${candidate.event_url}": ${fetchResult.error}`)
+        }
       }
 
-      // Check if event is in the past (before today in Colombia timezone)
-      if (isEventInPast(extractedEvent.date)) {
-        skippedEvents.push(`${extractedEvent.title} - Evento pasado (${extractedEvent.date})`)
-        continue
-      }
-
-      // Check if event is more than 60 days in the future
-      if (isEventTooFarInFuture(extractedEvent.date)) {
-        skippedEvents.push(`${extractedEvent.title} - Evento muy lejano (${extractedEvent.date})`)
-        continue
-      }
-
-      // Check for duplicates
-      const isDuplicate = await isDuplicateEvent(extractedEvent.title, extractedEvent.location, extractedEvent.date)
-      if (isDuplicate) {
-        skippedEvents.push(`${extractedEvent.title} - Duplicado`)
-        continue
-      }
-
-      // Convert to database format
-      const eventData = convertExtractedEventToDbFormat(extractedEvent)
-
-      // Store in database
-      const storedEvent = await createMinedEventDb(eventData, adminUserId, extractedEvent.event_url)
+      // STEP 6: Store in database
+      const storedEvent = await createMinedEventDb(eventData, adminUserId, candidate.event_url, active)
       storedEvents.push(storedEvent)
-      
-      console.log(`[Procesador de Eventos] Evento almacenado exitosamente: ${extractedEvent.title}`)
+
+      console.log(`[Procesador de Eventos] Evento almacenado exitosamente: ${candidate.title} (active=${active})`)
     } catch (error) {
-      console.error(`[Procesador de Eventos] Error al procesar evento: ${extractedEvent.title}`, error)
-      skippedEvents.push(`${extractedEvent.title} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(`[Procesador de Eventos] Error al procesar evento: ${candidate.title}`, error)
+      skippedEvents.push(`${candidate.title} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
