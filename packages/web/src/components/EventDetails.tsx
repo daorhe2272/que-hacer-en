@@ -394,6 +394,19 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
+              {event.event_url && (
+                <a
+                  href={event.event_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 bg-accent-500 hover:bg-accent-600 text-white py-3 px-6 rounded-lg font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 text-center flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  Más información
+                </a>
+              )}
               <Link
                 href={`/eventos/${cityId}`}
                 className="flex-1 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-lg font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-center"

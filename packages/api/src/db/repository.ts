@@ -476,6 +476,7 @@ export async function getEventByIdDb(eventId: string): Promise<EventDto | null> 
             c.slug as city,
             e.image,
             e.created_by,
+            e.event_url,
             e.active
      FROM events e
      JOIN cities c ON c.id = e.city_id
