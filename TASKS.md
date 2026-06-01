@@ -24,9 +24,8 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
   The CI/CD pipeline has been successfully implemented using GitHub Actions, covering linting, testing, and building on pull requests, with integrated coverage reports. E2E tests are configured to run headlessly on Linux across multiple browsers (Chromium, Firefox, WebKit) against production builds, with artifact uploading for Playwright reports and traces on failure. The complete CI workflow utilizes pnpm and Node 22 with caching, triggered by pull requests and pushes to master, and includes concurrency and cancellation for obsolete PR executions.
 
 ## Tasks for immediate implementation:
-- [x] Incluir link original del evento en la página del evento detallada.
 - [ ] Cambiar logo de la página por uno que refleje el nuevo nombre "¿Qué Hay Pa' Hacer?"
-- [ ] Add social media sharing and viral features
+- [x] Add social media sharing
 - [ ] Filtro de eventos para hoy, mañana, esta semana, fin de semana, siguiente semana, este mes, próximo mes.
 - [ ] Revisión de eventos debe distinguir entre precio 0 ó nulo.
 
@@ -34,6 +33,8 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Mejorar UX de confirmación de email en registro
 - [ ] Página "Forgot Password" con reset por email
 - [ ] Agregar "Remember me" option para sesiones extendidas
+- [ ] Crear página "Acerca de nosotros"
+- [ ] Crear página de "Contacto" incluyendo un formulario de contacto
 - [ ] Event creation form para organizers (UI placeholder creado, form real pendiente)
 - [ ] Add role promotion/demotion functionality for admins
 - [ ] Add geolocation feature to auto-detect user's city

@@ -1,12 +1,13 @@
 'use client'
 
-import type { Event } from '@/types/event'
-import { formatEventDate, formatEventTime, formatEventPrice } from '@/lib/events'
-import { useSession } from '@/lib/session'
-import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
+import ShareButton from './ShareButton'
+import type { Event } from '@/types/event'
+import { useSession } from '@/lib/session'
 import { useRouter } from 'next/navigation'
 import ConfirmationModal from './ConfirmationModal'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { formatEventDate, formatEventTime, formatEventPrice } from '@/lib/events'
 
 interface EventDetailsProps {
   event: Event
@@ -240,37 +241,44 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
               </span>
             </div>
 
-            {/* Action Buttons - Favorite and Manage */}
-            {isAuthenticated && (
-              <div className="absolute top-6 right-6 flex items-center space-x-3">
-                {/* Favorite Button */}
-                <button
-                  onClick={toggleFavorite}
-                  disabled={isLoading}
-                  className={`p-3 rounded-full backdrop-blur-sm transition-all duration-200 hover:scale-110 ${
-                    isFavorited
-                      ? 'bg-red-500 text-white'
-                      : 'bg-white/80 text-gray-600 hover:bg-white/90'
-                  } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                  aria-label={isFavorited ? 'Remover de favoritos' : 'Agregar a favoritos'}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill={isFavorited ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                    />
-                  </svg>
-                </button>
+            {/* Action Buttons - Share, Favorite and Manage */}
+            <div className="absolute top-6 right-6 flex items-center space-x-3">
+              <ShareButton
+                title={event.title}
+                url={`${process.env.NEXT_PUBLIC_WEB_URL}/eventos/${cityId}/${event.id}`}
+                size="md"
+              />
 
-                {/* Event Management Dropdown - Only for owners/admins */}
-                {canManageEvent() && (
+              {isAuthenticated && (
+                <>
+                  {/* Favorite Button */}
+                  <button
+                    onClick={toggleFavorite}
+                    disabled={isLoading}
+                    className={`p-3 rounded-full backdrop-blur-sm transition-all duration-200 hover:scale-110 ${
+                      isFavorited
+                        ? 'bg-red-500 text-white'
+                        : 'bg-white/80 text-gray-600 hover:bg-white/90'
+                    } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    aria-label={isFavorited ? 'Remover de favoritos' : 'Agregar a favoritos'}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill={isFavorited ? 'currentColor' : 'none'}
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                      />
+                    </svg>
+                  </button>
+
+                  {/* Event Management Dropdown - Only for owners/admins */}
+                  {canManageEvent() && (
                   <div className="relative" ref={manageMenuRef}>
                     <button
                       onClick={() => setIsManageMenuOpen(!isManageMenuOpen)}
@@ -318,9 +326,10 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            )}
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
           {/* Event Content */}

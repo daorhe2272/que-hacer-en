@@ -1,27 +1,55 @@
 'use client'
 
-import type { Event } from '@/types/event'
-import { formatEventDate, formatEventTime, formatEventPrice } from '@/lib/events'
-import { useSession } from '@/lib/session'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import Toast from './Toast'
 import Link from 'next/link'
+import type { Event } from '@/types/event'
+import { useSession } from '@/lib/session'
 import { useRouter } from 'next/navigation'
 import ConfirmationModal from './ConfirmationModal'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { formatEventDate, formatEventTime, formatEventPrice } from '@/lib/events'
 
 interface EventCardProps {
   event: Event
 }
 
 export default function EventCard({ event }: EventCardProps) {
+  const [copied, setCopied] = useState(false)
   const { isAuthenticated, user } = useSession()
-  const [isFavorited, setIsFavorited] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isFavorited, setIsFavorited] = useState(false)
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false)
   const [isManageMenuOpen, setIsManageMenuOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [isDeletingEvent, setIsDeletingEvent] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+
   const manageMenuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  const shareUrl = `${process.env.NEXT_PUBLIC_WEB_URL}/eventos/${event.city}/${event.id}`
+
+  async function handleShare(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsManageMenuOpen(false)
+
+    if (navigator.share && navigator.canShare({ title: event.title, url: shareUrl })) {
+      try {
+        await navigator.share({ title: event.title, url: shareUrl })
+        return
+      } catch {
+        // User cancelled or share failed — fall through to clipboard
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard unavailable
+    }
+  }
 
   const getAccessToken = useCallback(async (): Promise<string> => {
     const { getSupabaseBrowserClient } = await import('@/lib/supabase/client')
@@ -284,6 +312,16 @@ export default function EventCard({ event }: EventCardProps) {
                 {isManageMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                     <button
+                      onClick={handleShare}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-700 flex items-center space-x-2 transition-colors duration-200"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 8l4 4-4 4M18 12H8a4 4 0 000 8" />
+                      </svg>
+                      <span>Compartir</span>
+                    </button>
+                    <hr className="my-1 border-gray-100" />
+                    <button
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
@@ -373,13 +411,25 @@ export default function EventCard({ event }: EventCardProps) {
           )}
         </div>
 
-        {/* Action Button */}
-        <Link
-          href={`/eventos/${event.city}/${event.id}`}
-          className="block w-full bg-primary-50 hover:bg-primary-100 text-primary-800 py-3 px-4 rounded-lg font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-center"
-        >
-          Ver detalles
-        </Link>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/eventos/${event.city}/${event.id}`}
+            className="flex-1 bg-primary-50 hover:bg-primary-100 text-primary-800 py-3 px-4 rounded-lg font-medium transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 text-center"
+          >
+            Ver detalles
+          </Link>
+          <button
+            onClick={handleShare}
+            className="flex-shrink-0 p-3 bg-primary-50 hover:bg-primary-100 text-primary-800 rounded-lg transition-colors duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            aria-label="Compartir evento"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 8l4 4-4 4M18 12H8a4 4 0 000 8" />
+            </svg>
+          </button>
+          <Toast message="¡Link copiado!" visible={copied} />
+        </div>
 
         {/* Delete Confirmation Modal */}
         <ConfirmationModal
