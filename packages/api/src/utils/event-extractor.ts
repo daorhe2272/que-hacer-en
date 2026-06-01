@@ -28,7 +28,7 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
 
     // Generate content with structured output
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-flash-lite",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

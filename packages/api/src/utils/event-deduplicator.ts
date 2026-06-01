@@ -65,7 +65,7 @@ ${candidateList}
 Para cada candidato, indica si es duplicado de algún evento existente. Si es duplicado, proporciona el ID del evento existente y una breve razón.`
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-flash-lite",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

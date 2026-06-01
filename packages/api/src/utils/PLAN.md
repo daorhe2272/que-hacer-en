@@ -31,7 +31,7 @@ URL → HTML Fetch → Gemini Extraction → DB Storage
 `extractEventsFromHtml(html, sourceUrl)` sends the cleaned HTML to Gemini and returns structured events.
 
 - Uses `@google/genai` SDK (`GoogleGenAI` class), initialized with `new GoogleGenAI({})` — relies on `GOOGLE_API_KEY` env var being set implicitly by the SDK.
-- **Model**: `gemini-3-flash-preview`
+- **Model**: `gemini-3.1-flash-lite`
 - **Structured output**: passes `responseMimeType: "application/json"` and `responseSchema: eventSchema` in the config, so Gemini is forced to return valid JSON conforming to the schema.
 - **Prompt**: tells the model the source URL, current year (for date inference), and asks it to extract all distinct events from the HTML.
 - **Schema** (`packages/api/src/event-schema.ts`): each extracted event must have:
@@ -65,7 +65,7 @@ Accepted events are converted via `convertExtractedEventToDbFormat()` (maps `cat
 
 ### Content Moderation (`packages/api/src/utils/event-moderator.ts`)
 
-A separate `moderateEventContent(title, description, location)` function also uses Gemini (`gemini-3-flash-preview`) with structured output to classify event content as `safe: boolean` with an optional `reason` (in Spanish). It checks for hate speech, violence, explicit content, political propaganda, religious proselytizing, and scams.
+A separate `moderateEventContent(title, description, location)` function also uses Gemini (`gemini-3.1-flash-lite`) with structured output to classify event content as `safe: boolean` with an optional `reason` (in Spanish). It checks for hate speech, violence, explicit content, political propaganda, religious proselytizing, and scams.
 - Requires `GOOGLE_API_KEY` env var explicitly; if missing, **defaults to safe (fail-open)**.
 - Also fails open on API errors (to avoid blocking legitimate users during outages).
 
@@ -181,7 +181,7 @@ export async function checkSemanticDuplicates(
 - One Gemini call per invocation, with a prompt listing all `N` existing events and `M` candidates.
 - Uses structured output (`responseSchema`) returning an array of `{ candidate_index, is_duplicate, duplicate_of_id?, reason? }`.
 - On failure (API error, timeout, quota) → returns empty array (fail-open: no candidates are marked as duplicates, all proceed to storage as inactive).
-- Model: `gemini-3-flash-preview`.
+- Model: `gemini-3.1-flash-lite`.
 
 **How it's called from `event-processor.ts`** (pre-loop, batched):
 1. After initial filtering, collect all valid candidates.
@@ -232,7 +232,7 @@ export async function enrichEventFromHtml(
   2. Check whether the date and time on the detail page **match** the originally extracted values.
   3. Return the improved fields + a `date_time_confirmed: boolean`.
 - Uses structured output with a schema derived from `ExtractedEvent` (all fields optional except `date_time_confirmed`).
-- Model: `gemini-3-flash-preview`.
+- Model: `gemini-3.1-flash-lite`.
 
 **Activation logic** (in `event-processor.ts`):
 - `dateTimeConfirmed = true` → store with `active = true` (no admin review needed).
@@ -346,7 +346,7 @@ export async function checkSemanticDuplicates(
    - Required: `["candidate_index", "is_duplicate"]`
 3. Parse response → return `SemanticDuplicateResult[]`.
 4. **On any failure** (API error, quota, timeout, parse error) → log warning, return `[]` (fail-open: no candidates blocked, they proceed to storage as `active = false`).
-5. Model: `gemini-3-flash-preview`. Initialize with `new GoogleGenAI({})` (same as `event-extractor.ts`).
+5. Model: `gemini-3.1-flash-lite`. Initialize with `new GoogleGenAI({})` (same as `event-extractor.ts`).
 6. Never called when `existingEvents.length === 0` or `candidates.length === 0` (caller guards).
 7. Max ~150 lines.
 
@@ -381,7 +381,7 @@ export async function enrichEventFromHtml(
    - Object with optional fields: `title`, `description`, `location`, `address`, `Price` (NUMBER nullable), `image_url` (STRING nullable), plus required `date_time_confirmed: BOOLEAN`.
 3. Merge only non-null returned fields onto `enrichedFields`.
 4. **On any failure** → return `{ success: false, enrichedFields: {}, dateTimeConfirmed: false, error }`. Caller keeps original data and stores `active = false`.
-5. Model: `gemini-3-flash-preview`. Initialize with `new GoogleGenAI({})`.
+5. Model: `gemini-3.1-flash-lite`. Initialize with `new GoogleGenAI({})`.
 6. Does NOT modify `date`, `time`, `city_slug`, or `category_slug` — those are structural.
 7. Max ~150 lines.
 

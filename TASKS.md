@@ -25,7 +25,6 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 
 ## Tasks for immediate implementation:
 - [ ] Cambiar logo de la página por uno que refleje el nuevo nombre "¿Qué Hay Pa' Hacer?"
-- [x] Add social media sharing
 - [ ] Filtro de eventos para hoy, mañana, esta semana, fin de semana, siguiente semana, este mes, próximo mes.
 - [ ] Revisión de eventos debe distinguir entre precio 0 ó nulo.
 

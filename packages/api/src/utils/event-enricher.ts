@@ -55,7 +55,7 @@ HTML de la página de detalle (${eventUrl}):
 ${html}`
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-flash-lite",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
