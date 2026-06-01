@@ -1,9 +1,10 @@
+import Image from 'next/image'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { fetchAllEventsServer } from '@/lib/api-server'
-import TopNavigation from '@/components/TopNavigation'
 import HeroSection from '@/components/HeroSection'
-import Image from 'next/image'
+import TopNavigation from '@/components/TopNavigation'
+import { fetchAllEventsServer } from '@/lib/api-server'
+import { resolveDateRange, type DateRangePreset } from '@/lib/date-range-utils'
 //
 import EventCard from '@/components/EventCard'
 //
@@ -86,9 +87,9 @@ export async function generateStaticParams() {
   }))
 }
 
-export default async function CityEventsPage({ params, searchParams }: { params: { city: string }, searchParams?: { q?: string, category?: string, page?: string, limit?: string, sort?: 'date' | 'price', order?: 'asc' | 'desc' } }) {
+export default async function CityEventsPage({ params, searchParams }: { params: { city: string }, searchParams?: { q?: string, category?: string, dateRange?: string, page?: string, limit?: string, sort?: 'date' | 'price', order?: 'asc' | 'desc' } }) {
   const { city } = params
-  
+
   if (!validCities.includes(city)) {
     notFound()
   }
@@ -96,11 +97,14 @@ export default async function CityEventsPage({ params, searchParams }: { params:
   const cityName = cityNames[city]
   const category = searchParams?.category || ''
   const q = searchParams?.q || ''
+  const dateRange = searchParams?.dateRange || ''
   const page = searchParams?.page ? Number(searchParams.page) : 1
   const sort = searchParams?.sort
   const order = searchParams?.order
   const limit = searchParams?.limit ? Number(searchParams.limit) : undefined
-  const { events, pagination, error } = await fetchAllEventsServer({ city, category: category || undefined, q: q || undefined, page, limit, sort, order })
+
+  const dateFilter = dateRange ? resolveDateRange(dateRange as DateRangePreset) : undefined
+  const { events, pagination, error } = await fetchAllEventsServer({ city, category: category || undefined, q: q || undefined, from: dateFilter?.from, to: dateFilter?.to, page, limit, sort, order })
 
   return (
     <>
@@ -140,7 +144,7 @@ export default async function CityEventsPage({ params, searchParams }: { params:
 
           {/* Category Filters */}
           {/* Client controller for query param navigation */}
-          <ClientFilters city={city} selectedCategory={category || 'todos'} />
+          <ClientFilters city={city} selectedCategory={category || 'todos'} selectedRange={dateRange} />
 
           {/* Events Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-12">
