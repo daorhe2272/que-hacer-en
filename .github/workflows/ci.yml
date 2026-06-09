@@ -161,6 +161,9 @@ jobs:
             --name test-container \
             ${{ env.IMAGE }}:latest
 
+          # Ensure container is stopped on exit (success or failure)
+          trap 'docker logs test-container; docker stop test-container' EXIT
+
           # Wait for both services to be ready
           for i in $(seq 1 30); do
             if curl -sf http://localhost:8080/api/health > /dev/null && curl -sf http://localhost:8080 > /dev/null; then
@@ -170,9 +173,6 @@ jobs:
             echo "Waiting for services... attempt $i"
             sleep 3
           done
-
-          docker logs test-container
-          docker stop test-container
 
           curl -f http://localhost:8080/api/health || exit 1
           curl -f http://localhost:8080 || exit 1
