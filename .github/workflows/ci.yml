@@ -163,11 +163,14 @@ jobs:
 
           sleep 30
 
-          curl -f http://localhost:8080/api/health || exit 1
-          curl -f http://localhost:8080 || exit 1
+          curl -f http://localhost:8080/api/health || true
+          curl -f http://localhost:8080 || true
 
           docker logs test-container
           docker stop test-container
+
+          curl -f http://localhost:8080/api/health || exit 1
+          curl -f http://localhost:8080 || exit 1
 
   deploy:
     name: Deploy to Cloud Run
