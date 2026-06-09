@@ -16,6 +16,9 @@ dotenv.config()
 import type { Express, Request, Response, NextFunction } from 'express'
 const app: Express = express()
 
+// Trust nginx reverse proxy
+app.set('trust proxy', 1)
+
 app.use(helmet())
 app.use(cors({
   origin: (origin, callback) => {
