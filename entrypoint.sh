@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+echo "=== Locating Next.js server.js ==="
+find /app -name "server.js" -not -path "*/node_modules/*" 2>/dev/null
+
 # Start API
 node /app/packages/api/dist/index.js &
 
