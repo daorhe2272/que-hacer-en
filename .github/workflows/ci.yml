@@ -166,6 +166,7 @@ jobs:
           curl -f http://localhost:8080/api/health || exit 1
           curl -f http://localhost:8080 || exit 1
 
+          docker logs test-container
           docker stop test-container
 
   deploy:
