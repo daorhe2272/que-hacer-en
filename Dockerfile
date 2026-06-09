@@ -32,6 +32,9 @@ RUN pnpm --filter @que-hacer-en/shared run build
 RUN pnpm --filter @que-hacer-en/api run build
 RUN pnpm --filter @que-hacer-en/web run build
 
+# Debug: show standalone output structure
+RUN find packages/web/.next/standalone -maxdepth 4 -type f -name "*.js" | head -30
+
 # Stage 3: production image
 FROM nginx:alpine AS production
 
