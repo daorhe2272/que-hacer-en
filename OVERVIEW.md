@@ -104,7 +104,6 @@ The project will be developed in phases:
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (shared with web)
   - `NEXT_PUBLIC_WEB_URL` (URL of web app for revalidation requests)
   - `REVALIDATE_SECRET` (secret token for on-demand revalidation, must match web)
-  - `ENABLE_AUTH` (`true` to require auth for protected routes)
 
 - App (`packages/app`)
   - `EXPO_PUBLIC_API_URL`
