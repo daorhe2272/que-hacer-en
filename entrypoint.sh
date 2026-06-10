@@ -5,7 +5,7 @@ set -e
 node /app/packages/api/dist/index.js &
 
 # Start Next.js — unset HOSTNAME so it binds to 0.0.0.0 instead of the container IP
-env -u HOSTNAME PORT=4000 node /app/packages/web/packages/web/server.js &
+env -u HOSTNAME PORT=4000 node /app/packages/web/server.js &
 
 # Wait for both to start then show listening ports
 sleep 10
