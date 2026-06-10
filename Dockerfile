@@ -50,8 +50,8 @@ COPY --from=builder /app/packages/api/node_modules ./packages/api/node_modules
 
 # Next.js standalone output (self-contained, no node_modules needed)
 COPY --from=builder /app/packages/web/.next/standalone ./packages/web
-COPY --from=builder /app/packages/web/.next/static ./packages/web/.next/static
-COPY --from=builder /app/packages/web/public ./packages/web/public
+COPY --from=builder /app/packages/web/.next/static ./packages/web/packages/web/.next/static
+COPY --from=builder /app/packages/web/public ./packages/web/packages/web/public
 
 # nginx config and entrypoint
 COPY nginx.conf /etc/nginx/nginx.conf
