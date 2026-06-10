@@ -1,14 +1,6 @@
 #!/bin/sh
 set -e
 
-# Diagnostic: print static asset locations to verify standalone output structure
-echo "=== CSS files ==="
-find /app/packages/web -name "*.css" | head -20
-echo "=== server.js location ==="
-find /app/packages/web -name "server.js" | head -5
-echo "=== public dir ==="
-find /app/packages/web -name "public" -type d | head -5
-
 # Start API
 node /app/packages/api/dist/index.js &
 
