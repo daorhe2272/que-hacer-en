@@ -268,7 +268,44 @@ The project enforces quality via automated pipelines:
 - Error messaging in Spanish with localization
 - Session persistence and automatic logout handling
 
-## 12. Environment & Configuration Notes
+## 12. Deployment
+
+### Infrastructure
+
+The application runs on **Google Cloud Platform**:
+
+- **Container Registry**: GCP Artifact Registry (`us-east4-docker.pkg.dev/que-hay-pa-hacer-498202/que-hay-pa-hacer/pa-hacer`)
+- **Runtime**: Cloud Run (service name: `pa-hacer`, region: `us-east4`)
+- **CI/CD**: GitHub Actions builds and pushes the Docker image on every merge to `master`, then deploys the new revision to Cloud Run automatically
+
+### Container Architecture
+
+A single Docker container runs three processes:
+
+- **nginx** (port 8080) — reverse proxy, the only port exposed to Cloud Run
+  - Routes `/api/*` → Express at `localhost:4001`
+  - Routes everything else → Next.js at `localhost:4000`
+- **Next.js standalone** (port 4000) — web frontend
+- **Express API** (port 4001) — backend API
+
+The entrypoint (`entrypoint.sh`) starts Express and Next.js in the background, then runs nginx in the foreground as PID 1. `env -u HOSTNAME` is used when starting Next.js to prevent it from binding only to the container's internal IP (Docker injects `HOSTNAME` with the container IP; Next.js standalone reads it as the bind address, which would break nginx's loopback proxy).
+
+### Runtime Environment Variables (Cloud Run)
+
+| Variable | Purpose |
+|---|---|
+| `NODE_ENV` | Set to `production` |
+| `API_PORT` | Express listen port (4001) |
+| `WEB_PORT` | Next.js listen port (4000) |
+| `DATABASE_URL` | PostgreSQL Session Pooler connection string (Supabase, port 6543) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `NEXT_PUBLIC_API_URL` | Public API URL (proxied through nginx) |
+| `NEXT_PUBLIC_WEB_URL` | Public web URL |
+| `REVALIDATE_SECRET` | Shared secret for on-demand ISR revalidation |
+| `CORS_ORIGINS` | Allowed CORS origins for the API |
+
+## 13. Environment & Configuration Notes
 
 - Core variables include `NEXT_PUBLIC_API_URL`, `CORS_ORIGINS`, and `DATABASE_URL`, managed via `.env`
 - An optional `E2E` flag can be used in test environments to adjust runtime behavior (e.g., image optimization)

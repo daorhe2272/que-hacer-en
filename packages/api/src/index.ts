@@ -70,7 +70,7 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: 'Error interno del servidor' })
 })
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 4001
+const PORT = process.env.API_PORT ? Number(process.env.API_PORT) : 4001
 
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
