@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
-import puppeteer from 'puppeteer'
+import puppeteer from 'puppeteer-core'
 
 // Mock undici before importing html-fetcher
 jest.mock('undici')
@@ -15,7 +15,7 @@ const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>
 ;(global as any).fetch = mockFetch
 
 // Mock Puppeteer
-jest.mock('puppeteer', () => ({
+jest.mock('puppeteer-core', () => ({
   __esModule: true,
   default: {
     launch: jest.fn(),

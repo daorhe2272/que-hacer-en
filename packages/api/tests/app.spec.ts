@@ -2,7 +2,7 @@ import { jest } from '@jest/globals'
 import request from 'supertest'
 
 // Mock Puppeteer before importing app to prevent filesystem access
-jest.mock('puppeteer', () => ({
+jest.mock('puppeteer-core', () => ({
   __esModule: true,
   default: {
     launch: jest.fn(),
