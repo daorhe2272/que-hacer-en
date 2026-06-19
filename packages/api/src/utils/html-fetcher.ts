@@ -3,7 +3,7 @@
  * Uses Puppeteer for JavaScript-heavy sites and regular fetch for static sites
  */
 
-import puppeteer, { HTTPRequest, Browser, Page } from 'puppeteer'
+import puppeteer, { HTTPRequest, Browser, Page } from 'puppeteer-core'
 import { Agent, fetch as undiciFetch } from 'undici'
 
 export interface FetchHtmlResult {
@@ -325,8 +325,11 @@ async function tryDynamicFetch(url: string, options: {
   
   try {
     // Launch browser with optimizations
+    // Reason: puppeteer-core has no bundled Chromium; the binary is provided by
+    // the system (Alpine's chromium package in prod) via PUPPETEER_EXECUTABLE_PATH.
     browser = await puppeteer.launch({
       headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

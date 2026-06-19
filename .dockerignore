@@ -45,4 +45,5 @@ docs
 .github
 
 # Expo
-packages/app/.expo
+packages/app/*
+!packages/app/package.json
