@@ -38,8 +38,13 @@ async function fetchAndExtract(url: string, onProgress?: ProgressCallback): Prom
       console.log(`[Direct Mining] No events found in content from ${url}`)
       return []
     }
-
     console.log(`[Direct Mining] Successfully extracted ${extractionResult.events.length} events from ${url}`)
+
+    // Log first-extraction details (title, date, time) for each event before pipeline filtering
+    for (const e of extractionResult.events) {
+      console.log(`[Direct Mining] Primera extracción | título="${e.title}" | date=${e.date} | time=${e.time}`)
+    }
+
     return extractionResult.events
   } catch (error) {
     console.error(`[Direct Mining] Error fetching/extracting from ${url}:`, error)

@@ -479,7 +479,8 @@ describe('event-processor', () => {
         success: true, fullHtml: '<html>detail page</html>', method: 'static', content: ''
       })
       mockEnrichEventFromHtml.mockResolvedValueOnce({
-        success: true, enrichedFields: { description: 'Better description' }, dateTimeConfirmed: true
+        success: true, enrichedFields: { description: 'Better description' }, dateTimeConfirmed: true,
+        confirmationReason: 'Fecha y hora coinciden con los datos originales'
       })
 
       // isDuplicateEvent
@@ -502,7 +503,8 @@ describe('event-processor', () => {
         success: true, fullHtml: '<html>detail page</html>', method: 'static', content: ''
       })
       mockEnrichEventFromHtml.mockResolvedValueOnce({
-        success: true, enrichedFields: { description: 'Better description', address: 'New Address' }, dateTimeConfirmed: false
+        success: true, enrichedFields: { description: 'Better description', address: 'New Address' }, dateTimeConfirmed: false,
+        confirmationReason: 'La fecha de la página de detalle no coincide con la fecha original'
       })
 
       // isDuplicateEvent
@@ -523,7 +525,8 @@ describe('event-processor', () => {
         success: true, fullHtml: '<html>detail page</html>', method: 'static', content: ''
       })
       mockEnrichEventFromHtml.mockResolvedValueOnce({
-        success: false, enrichedFields: {}, dateTimeConfirmed: false, error: 'API error'
+        success: false, enrichedFields: {}, dateTimeConfirmed: false, error: 'API error',
+        confirmationReason: 'Error durante el enriquecimiento: API error'
       })
 
       // isDuplicateEvent

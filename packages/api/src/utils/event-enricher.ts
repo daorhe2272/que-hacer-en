@@ -5,6 +5,7 @@ export interface EnrichmentResult {
   success: boolean
   enrichedFields: Partial<Pick<ExtractedEvent, 'title' | 'description' | 'location' | 'address' | 'Price' | 'image_url'>>
   dateTimeConfirmed: boolean
+  confirmationReason: string
   error?: string
 }
 
@@ -18,8 +19,9 @@ const enrichmentSchema = {
     Price: { type: Type.NUMBER, nullable: true },
     image_url: { type: Type.STRING, nullable: true },
     date_time_confirmed: { type: Type.BOOLEAN },
+    confirmation_reason: { type: Type.STRING },
   },
-  required: ["date_time_confirmed"],
+  required: ["date_time_confirmed", "confirmation_reason"],
 }
 
 export async function enrichEventFromHtml(
@@ -37,7 +39,9 @@ export async function enrichEventFromHtml(
 Instrucciones:
 - Para los campos title, description, location, address, Price, image_url: devuelve el valor de la página de detalle SÓLO si es más específico o detallado que el original. Si el original ya es igual de bueno o no hay mejora, devuelve null.
 - NO modifiques date, time, city_slug, category_slug — son campos estructurales.
-- Para date_time_confirmed: devuelve true si la fecha y hora en la página de detalle coinciden con los datos originales (date: "${originalEvent.date}", time: "${originalEvent.time}"). Devuelve false si difieren o la página no tiene info de fecha/hora.
+- Verifica que el evento de la página de detalle sea el mismo evento que el original comparando los títulos. Los títulos no necesitan ser idénticos, pero deben referirse al mismo evento. Si no son el mismo evento, devuelve date_time_confirmed = false.
+- Para date_time_confirmed: devuelve true si la fecha de la página de detalle coincide con la fecha original (${originalEvent.date}) Y la hora de la página de detalle coincide con la hora original (${originalEvent.time}). Excepción: si la hora original es "08:00" o "00:00" (valores que indican que la primera extracción no tenía información de hora), asume que esa hora es desconocida — en ese caso, si la fecha coincide y la página de detalle proporciona una hora válida, devuelve true (la hora de la página se considera correcta). Devuelve false si las fechas difieren, los títulos no se refieren al mismo evento, o la página no tiene info de fecha/hora.
+- Para confirmation_reason: explica brevemente en español POR QUÉ estableciste date_time_confirmed en true o false. Indica si los títulos se refieren al mismo evento. Cita textualmente la fecha y hora que encontraste en la página de detalle (o indica "no se encontró fecha/hora en la página") y compárala con los datos originales. Si confirmaste usando la excepción de hora desconocida, menciónalo.
 
 Datos originales:
 ${JSON.stringify({
@@ -65,15 +69,14 @@ ${html}`
 
     const responseText = response.text
     if (!responseText) {
-      return { success: false, enrichedFields: {}, dateTimeConfirmed: false, error: 'No response from Gemini' }
+      return { success: false, enrichedFields: {}, dateTimeConfirmed: false, confirmationReason: 'No response from Gemini', error: 'No response from Gemini' }
     }
 
     let parsed: Record<string, unknown>
     try {
       parsed = JSON.parse(responseText)
     } catch (parseError) {
-      console.warn("[Event Enricher] Failed to parse JSON response:", parseError)
-      return { success: false, enrichedFields: {}, dateTimeConfirmed: false, error: 'Failed to parse JSON response' }
+      return { success: false, enrichedFields: {}, dateTimeConfirmed: false, confirmationReason: 'Failed to parse JSON response', error: 'Failed to parse JSON response' }
     }
 
     const enrichedFields: Record<string, unknown> = {}
@@ -85,11 +88,11 @@ ${html}`
     }
 
     const dateTimeConfirmed = parsed.date_time_confirmed === true
+    const confirmationReason = typeof parsed.confirmation_reason === 'string' ? parsed.confirmation_reason : 'El modelo no devolvió confirmation_reason'
 
-    return { success: true, enrichedFields: enrichedFields as EnrichmentResult['enrichedFields'], dateTimeConfirmed }
+    return { success: true, enrichedFields: enrichedFields as EnrichmentResult['enrichedFields'], dateTimeConfirmed, confirmationReason }
   } catch (error) {
-    console.warn("[Event Enricher] Error enriching event:", error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-    return { success: false, enrichedFields: {}, dateTimeConfirmed: false, error: errorMessage }
+    return { success: false, enrichedFields: {}, dateTimeConfirmed: false, confirmationReason: `Error durante el enriquecimiento: ${errorMessage}`, error: errorMessage }
   }
 }

@@ -10,10 +10,10 @@ function normalize(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-// '08:00' is the default time the extractor assigns when no time is found, so it is treated as
-// a wildcard on either side: an unknown time should not exclude an otherwise-matching event.
+// '08:00' and '00:00' are sentinel values the extractor assigns when no time is found, so they
+// are treated as wildcards: an unknown time should not exclude an otherwise-matching event.
 function timeMatches(candidateTime: string, existingTime: string): boolean {
-  if (candidateTime === '08:00' || existingTime === '08:00') return true
+  if (candidateTime === '08:00' || candidateTime === '00:00' || existingTime === '08:00' || existingTime === '00:00') return true
   return candidateTime === existingTime
 }
 
@@ -342,6 +342,8 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
         const fetchResult = await fetchHtmlContent(candidate.event_url)
         if (fetchResult.success && fetchResult.fullHtml) {
           const enrichResult = await enrichEventFromHtml(fetchResult.fullHtml, candidate, candidate.event_url)
+          // Permanent log: title, date, time, confirmation result, and the reason
+          console.log(`[Procesador de Eventos] "${candidate.title}" | date=${candidate.date} | time=${candidate.time} | confirmed=${enrichResult.dateTimeConfirmed} | razón: ${enrichResult.confirmationReason}`)
           if (enrichResult.success) {
             if (enrichResult.enrichedFields.title) eventData.title = enrichResult.enrichedFields.title
             if (enrichResult.enrichedFields.description) eventData.description = enrichResult.enrichedFields.description
