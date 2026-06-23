@@ -6,6 +6,7 @@ export interface ExistingEventSummary {
   title: string
   location: string
   date: string
+  time: string
 }
 
 export interface SemanticDuplicateResult {
@@ -36,7 +37,7 @@ const dedupSchema = {
 }
 
 export async function checkSemanticDuplicates(
-  candidates: Array<{ index: number; title: string; location: string; date: string }>,
+  candidates: Array<{ index: number; title: string; location: string; date: string; time: string }>,
   existingEvents: ExistingEventSummary[]
 ): Promise<SemanticDuplicateResult[]> {
   if (existingEvents.length === 0 || candidates.length === 0) return []
@@ -45,16 +46,16 @@ export async function checkSemanticDuplicates(
     const ai = new GoogleGenAI({})
 
     const existingList = existingEvents
-      .map(e => `  ID: ${e.id} | Título: "${e.title}" | Lugar: "${e.location}" | Fecha: ${e.date}`)
+      .map(e => `  ID: ${e.id} | Título: "${e.title}" | Lugar: "${e.location}" | Fecha: ${e.date} | Hora: ${e.time}`)
       .join("\n")
 
     const candidateList = candidates
-      .map(c => `  Índice: ${c.index} | Título: "${c.title}" | Lugar: "${c.location}" | Fecha: ${c.date}`)
+      .map(c => `  Índice: ${c.index} | Título: "${c.title}" | Lugar: "${c.location}" | Fecha: ${c.date} | Hora: ${c.time}`)
       .join("\n")
 
     const prompt = `Eres un juez de duplicados para una plataforma de eventos. Determina si cada evento candidato se refiere a algún evento existente.
 
-Considera duplicados los eventos que, aunque tengan títulos parafraseados o lugares abreviados, representan el mismo evento (misma fecha, misma ciudad y mismo tipo de actividad).
+Considera duplicados los eventos que, aunque tengan títulos ligeramente diferentes, representan el mismo evento (misma fecha, misma ciudad y misma actividad).
 
 Eventos existentes en la base de datos:
 ${existingList}

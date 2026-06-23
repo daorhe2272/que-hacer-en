@@ -18,8 +18,8 @@ const mockGenerateContent = __mockGenerateContent as jest.MockedFunction<typeof 
 
 describe('event-deduplicator', () => {
   const existingEvents: ExistingEventSummary[] = [
-    { id: 'evt-1', title: 'Concierto de Rock en Bogotá', location: 'Teatro Municipal', date: '2026-06-15' },
-    { id: 'evt-2', title: 'Feria Gastronómica Medellín', location: 'Plaza Mayor', date: '2026-06-20' },
+    { id: 'evt-1', title: 'Concierto de Rock en Bogotá', location: 'Teatro Municipal', date: '2026-06-15', time: '20:00' },
+    { id: 'evt-2', title: 'Feria Gastronómica Medellín', location: 'Plaza Mayor', date: '2026-06-20', time: '12:00' },
   ]
 
   beforeEach(() => {
@@ -38,8 +38,8 @@ describe('event-deduplicator', () => {
     })
 
     const candidates = [
-      { index: 0, title: 'Rock Concert Bogotá', location: 'Teatro Municipal', date: '2026-06-15' },
-      { index: 1, title: 'Arte Exposición', location: 'Museo Nacional', date: '2026-06-18' },
+      { index: 0, title: 'Rock Concert Bogotá', location: 'Teatro Municipal', date: '2026-06-15', time: '20:00' },
+      { index: 1, title: 'Arte Exposición', location: 'Museo Nacional', date: '2026-06-18', time: '18:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)
@@ -60,7 +60,7 @@ describe('event-deduplicator', () => {
     })
 
     const candidates = [
-      { index: 0, title: 'Completamente diferente', location: 'Otro lugar', date: '2026-07-01' },
+      { index: 0, title: 'Completamente diferente', location: 'Otro lugar', date: '2026-07-01', time: '19:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)
@@ -82,9 +82,9 @@ describe('event-deduplicator', () => {
     })
 
     const candidates = [
-      { index: 0, title: 'Feria de Comida Medellín', location: 'Plaza Mayor', date: '2026-06-20' },
-      { index: 1, title: 'Cine al aire libre', location: 'Parque Central', date: '2026-06-25' },
-      { index: 2, title: 'Concierto Rock Bog', location: 'Teatro Municipal', date: '2026-06-15' },
+      { index: 0, title: 'Feria de Comida Medellín', location: 'Plaza Mayor', date: '2026-06-20', time: '12:00' },
+      { index: 1, title: 'Cine al aire libre', location: 'Parque Central', date: '2026-06-25', time: '21:00' },
+      { index: 2, title: 'Concierto Rock Bog', location: 'Teatro Municipal', date: '2026-06-15', time: '20:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)
@@ -98,7 +98,7 @@ describe('event-deduplicator', () => {
     mockGenerateContent.mockRejectedValue(new Error('API error'))
 
     const candidates = [
-      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15' },
+      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15', time: '20:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)
@@ -112,7 +112,7 @@ describe('event-deduplicator', () => {
     })
 
     const candidates = [
-      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15' },
+      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15', time: '20:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)
@@ -124,7 +124,7 @@ describe('event-deduplicator', () => {
     mockGenerateContent.mockRejectedValue(new Error('API quota exceeded'))
 
     const candidates = [
-      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15' },
+      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15', time: '20:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)
@@ -134,7 +134,7 @@ describe('event-deduplicator', () => {
 
   it('should return empty array when no existing events', async () => {
     const candidates = [
-      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15' },
+      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15', time: '20:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, [])
@@ -154,7 +154,7 @@ describe('event-deduplicator', () => {
     mockGenerateContent.mockResolvedValue({ text: '' })
 
     const candidates = [
-      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15' },
+      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15', time: '20:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)
@@ -168,7 +168,7 @@ describe('event-deduplicator', () => {
     })
 
     const candidates = [
-      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15' },
+      { index: 0, title: 'Test Event', location: 'Venue', date: '2026-06-15', time: '20:00' },
     ]
 
     const result = await checkSemanticDuplicates(candidates, existingEvents)

@@ -10,6 +10,13 @@ function normalize(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
+// '08:00' is the default time the extractor assigns when no time is found, so it is treated as
+// a wildcard on either side: an unknown time should not exclude an otherwise-matching event.
+function timeMatches(candidateTime: string, existingTime: string): boolean {
+  if (candidateTime === '08:00' || existingTime === '08:00') return true
+  return candidateTime === existingTime
+}
+
 export function convertExtractedEventToDbFormat(extractedEvent: ExtractedEvent): CreateEventParams {
   return {
     title: extractedEvent.title,
@@ -73,9 +80,12 @@ async function fetchExistingEventsForCity(citySlug: string): Promise<ExistingEve
       title: string
       venue: string | null
       date: string
+      time: string
     }>(
+      // CURRENT_DATE returns the database server's local time, so it might not match Colombia's current date
       `SELECT e.id, e.title, e.venue,
-              (e.starts_at AT TIME ZONE 'America/Bogota')::date::text AS date
+              (e.starts_at AT TIME ZONE 'America/Bogota')::date::text AS date,
+              to_char((e.starts_at AT TIME ZONE 'America/Bogota'), 'HH24:MI') AS time
        FROM events e
        JOIN cities c ON c.id = e.city_id
        WHERE c.slug = $1
@@ -88,6 +98,7 @@ async function fetchExistingEventsForCity(citySlug: string): Promise<ExistingEve
       title: r.title,
       location: r.venue ?? '',
       date: r.date,
+      time: r.time,
     }))
   } catch (error) {
     console.error('[Procesador de Eventos] Error fetching existing events for city:', error)
@@ -275,7 +286,7 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
     nonDbDuplicateCandidates.push(candidate)
   }
 
-  // STEP 4: Semantic deduplication via LLM (batched by city+date)
+  // STEP 4: Semantic deduplication via LLM (gated by city+date+time)
   const citySlugs = [...new Set(nonDbDuplicateCandidates.map(e => e.city_slug))]
   const existingByCity = new Map<string, ExistingEventSummary[]>()
   for (const citySlug of citySlugs) {
@@ -284,27 +295,31 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
   }
 
   const duplicateIndices = new Set<number>()
-  // Group candidates by city+date
-  const groupsByCityDate = new Map<string, Array<{ index: number; event: ExtractedEvent }>>()
+  // Group candidates by city+date+time so each LLM call targets one exact collision bucket
+  const groupsByCityDateTime = new Map<string, Array<{ index: number; event: ExtractedEvent }>>()
   nonDbDuplicateCandidates.forEach((event, index) => {
-    const key = `${event.city_slug}|${event.date}`
-    if (!groupsByCityDate.has(key)) groupsByCityDate.set(key, [])
-    groupsByCityDate.get(key)!.push({ index, event })
+    const key = `${event.city_slug}|${event.date}|${event.time}`
+    if (!groupsByCityDateTime.has(key)) groupsByCityDateTime.set(key, [])
+    groupsByCityDateTime.get(key)!.push({ index, event })
   })
 
-  for (const [key, group] of groupsByCityDate) {
-    const [citySlug] = key.split('|')
-    const existing = existingByCity.get(citySlug) ?? []
-    if (existing.length === 0) continue
+  for (const [key, group] of groupsByCityDateTime) {
+    const [citySlug, date, time] = key.split('|')
+    const cityExisting = existingByCity.get(citySlug) ?? []
+    const matchingExisting = cityExisting.filter(
+      e => e.date === date && timeMatches(time, e.time)
+    )
+    if (matchingExisting.length === 0) continue
 
     const candidates = group.map(g => ({
       index: g.index,
       title: g.event.title,
       location: g.event.location,
       date: g.event.date,
+      time: g.event.time,
     }))
 
-    const results = await checkSemanticDuplicates(candidates, existing)
+    const results = await checkSemanticDuplicates(candidates, matchingExisting)
     for (const result of results) {
       if (result.isDuplicate) {
         duplicateIndices.add(result.candidateIndex)
