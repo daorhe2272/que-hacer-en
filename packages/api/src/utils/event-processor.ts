@@ -3,7 +3,7 @@ import { ExtractedEvent } from '../event-schema'
 import { CreateEventParams, EventDto } from '../db/repository'
 import { ExistingEventSummary, checkSemanticDuplicates } from './event-deduplicator'
 import { enrichEventFromHtml } from './event-enricher'
-import { fetchHtmlContent } from './html-fetcher'
+import { extractTextContent, fetchHtmlContent } from './html-fetcher'
 import crypto from 'crypto'
 
 function normalize(text: string): string {
@@ -341,7 +341,8 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
       if (candidate.event_url && candidate.event_url !== candidate.source_url) {
         const fetchResult = await fetchHtmlContent(candidate.event_url)
         if (fetchResult.success && fetchResult.fullHtml) {
-          const enrichResult = await enrichEventFromHtml(fetchResult.fullHtml, candidate, candidate.event_url)
+          const pageText = extractTextContent(fetchResult.fullHtml)
+          const enrichResult = await enrichEventFromHtml(pageText, candidate, candidate.event_url)
           // Permanent log: title, date, time, confirmation result, and the reason
           console.log(`[Procesador de Eventos] "${candidate.title}" | date=${candidate.date} | time=${candidate.time} | confirmed=${enrichResult.dateTimeConfirmed} | razón: ${enrichResult.confirmationReason}`)
           if (enrichResult.success) {
@@ -350,7 +351,6 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
             if (enrichResult.enrichedFields.location) eventData.location = enrichResult.enrichedFields.location
             if (enrichResult.enrichedFields.address) eventData.address = enrichResult.enrichedFields.address
             if (enrichResult.enrichedFields.Price !== undefined) eventData.price = enrichResult.enrichedFields.Price
-            if (enrichResult.enrichedFields.image_url) eventData.image = enrichResult.enrichedFields.image_url
             active = enrichResult.dateTimeConfirmed
           } else {
             console.warn(`[Procesador de Eventos] Enriquecimiento falló para "${candidate.title}": ${enrichResult.error}`)

@@ -4,7 +4,7 @@ import puppeteer from 'puppeteer-core'
 // Mock undici before importing html-fetcher
 jest.mock('undici')
 
-import { fetchHtmlContent, FetchOptions } from '../src/utils/html-fetcher'
+import { fetchHtmlContent, extractTextContent, FetchOptions } from '../src/utils/html-fetcher'
 import * as undici from 'undici'
 
 // Get the mocked functions
@@ -1144,5 +1144,27 @@ describe('html-fetcher', () => {
     expect(mockRequests[1].continue).toHaveBeenCalled() // document
   })
 
+  })
+
+  describe('extractTextContent', () => {
+    it('should strip tags and scripts/styles, keeping visible text', () => {
+      const html = '<html><head><style>.a{color:red}</style></head><body><script>alert(1)</script><h1>Concierto de Rock</h1><p>Detalles del evento</p></body></html>'
+
+      const result = extractTextContent(html)
+
+      expect(result).toBe('Concierto de Rock Detalles del evento')
+    })
+
+    it('should decode common HTML entities', () => {
+      const result = extractTextContent('<p>A &amp; B &lt;tag&gt; &quot;quoted&quot; &#39;single&#39;</p>')
+
+      expect(result).toBe('A & B <tag> "quoted" \'single\'')
+    })
+
+    it('should return an empty string for content with only tags', () => {
+      const result = extractTextContent('<div><span></span></div>')
+
+      expect(result).toBe('')
+    })
   })
 })

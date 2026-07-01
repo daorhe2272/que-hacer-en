@@ -3,7 +3,7 @@ import { ExtractedEvent } from "../event-schema"
 
 export interface EnrichmentResult {
   success: boolean
-  enrichedFields: Partial<Pick<ExtractedEvent, 'title' | 'description' | 'location' | 'address' | 'Price' | 'image_url'>>
+  enrichedFields: Partial<Pick<ExtractedEvent, 'title' | 'description' | 'location' | 'address' | 'Price'>>
   dateTimeConfirmed: boolean
   confirmationReason: string
   error?: string
@@ -17,7 +17,6 @@ const enrichmentSchema = {
     location: { type: Type.STRING, nullable: true },
     address: { type: Type.STRING, nullable: true },
     Price: { type: Type.NUMBER, nullable: true },
-    image_url: { type: Type.STRING, nullable: true },
     date_time_confirmed: { type: Type.BOOLEAN },
     confirmation_reason: { type: Type.STRING },
   },
@@ -25,7 +24,7 @@ const enrichmentSchema = {
 }
 
 export async function enrichEventFromHtml(
-  html: string,
+  pageText: string,
   originalEvent: ExtractedEvent,
   eventUrl: string
 ): Promise<EnrichmentResult> {
@@ -34,10 +33,10 @@ export async function enrichEventFromHtml(
 
     const prompt = `Eres un asistente que mejora datos de eventos. Se te proporciona:
 1. Los datos originales extraídos de una página de internet o un documento con información de eventos.
-2. El HTML de una página de internet con detalles del evento individual a mejorar.
+2. El texto visible de una página de internet con detalles del evento individual a mejorar.
 
 Instrucciones:
-- Para los campos title, description, location, address, Price, image_url: devuelve el valor de la página de detalle SÓLO si es más específico o detallado que el original. Si el original ya es igual de bueno o no hay mejora, devuelve null.
+- Para los campos title, description, location, address, Price: devuelve el valor de la página de detalle SÓLO si es más específico o detallado que el original. Si el original ya es igual de bueno o no hay mejora, devuelve null.
 - NO modifiques date, time, city_slug, category_slug — son campos estructurales.
 - Verifica que el evento de la página de detalle sea el mismo evento que el original comparando los títulos. Los títulos no necesitan ser idénticos, pero deben referirse al mismo evento. Si no son el mismo evento, devuelve date_time_confirmed = false.
 - Para date_time_confirmed: devuelve true si la fecha de la página de detalle coincide con la fecha original (${originalEvent.date}) Y la hora de la página de detalle coincide con la hora original (${originalEvent.time}). Excepción: si la hora original es "08:00" o "00:00" (valores que indican que la primera extracción no tenía información de hora), asume que esa hora es desconocida — en ese caso, si la fecha coincide y la página de detalle proporciona una hora válida, devuelve true (la hora de la página se considera correcta). Devuelve false si las fechas difieren, los títulos no se refieren al mismo evento, o la página no tiene info de fecha/hora.
@@ -50,13 +49,12 @@ ${JSON.stringify({
   location: originalEvent.location,
   address: originalEvent.address,
   Price: originalEvent.Price,
-  image_url: originalEvent.image_url,
   date: originalEvent.date,
   time: originalEvent.time,
 }, null, 2)}
 
-HTML de la página de detalle (${eventUrl}):
-${html}`
+Texto de la página de detalle (${eventUrl}):
+${pageText}`
 
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-lite",
@@ -80,7 +78,7 @@ ${html}`
     }
 
     const enrichedFields: Record<string, unknown> = {}
-    const fieldKeys = ['title', 'description', 'location', 'address', 'Price', 'image_url'] as const
+    const fieldKeys = ['title', 'description', 'location', 'address', 'Price'] as const
     for (const key of fieldKeys) {
       if (parsed[key] !== undefined && parsed[key] !== null) {
         enrichedFields[key] = parsed[key]

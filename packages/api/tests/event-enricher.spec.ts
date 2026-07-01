@@ -48,7 +48,6 @@ describe('event-enricher', () => {
         location: null,
         address: 'Calle 10 #5-20, Centro Histórico',
         Price: 55000,
-        image_url: 'https://example.com/concert-image.jpg',
         date_time_confirmed: true,
       }),
     })
@@ -60,7 +59,6 @@ describe('event-enricher', () => {
     expect(result.enrichedFields.description).toBe('Concierto de rock con artistas invitados especiales, puertas abren a las 19:00')
     expect(result.enrichedFields.address).toBe('Calle 10 #5-20, Centro Histórico')
     expect(result.enrichedFields.Price).toBe(55000)
-    expect(result.enrichedFields.image_url).toBe('https://example.com/concert-image.jpg')
     expect(result.enrichedFields.title).toBeUndefined()
     expect(result.enrichedFields.location).toBeUndefined()
   })
@@ -73,7 +71,6 @@ describe('event-enricher', () => {
         location: null,
         address: null,
         Price: null,
-        image_url: null,
         date_time_confirmed: true,
       }),
     })

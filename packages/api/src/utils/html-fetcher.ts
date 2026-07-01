@@ -146,6 +146,28 @@ async function cleanPageContent(page: Page): Promise<string> {
 }
 
 /**
+ * Extracts visible text from an HTML document, discarding all tags/attributes.
+ * Intended for LLM steps that only need page content, not markup — cuts token
+ * usage versus sending cleaned HTML.
+ */
+export function extractTextContent(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n')
+    .trim()
+}
+
+/**
  * Cleans HTML string content by removing JavaScript and styling elements using regex
  * For use with static HTML fetches that don't go through Puppeteer
  */

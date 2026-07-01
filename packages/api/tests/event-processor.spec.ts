@@ -18,7 +18,8 @@ jest.mock('../src/utils/event-enricher', () => ({
 }))
 
 jest.mock('../src/utils/html-fetcher', () => ({
-  fetchHtmlContent: jest.fn()
+  fetchHtmlContent: jest.fn(),
+  extractTextContent: jest.fn((html: string) => html.replace(/<[^>]+>/g, ''))
 }))
 
 import { checkSemanticDuplicates } from '../src/utils/event-deduplicator'
@@ -494,7 +495,7 @@ describe('event-processor', () => {
 
       expect(result).toHaveLength(1)
       expect(mockEnrichEventFromHtml).toHaveBeenCalledWith(
-        '<html>detail page</html>', enrichableEvent, enrichableEvent.event_url
+        'detail page', enrichableEvent, enrichableEvent.event_url
       )
     })
 
