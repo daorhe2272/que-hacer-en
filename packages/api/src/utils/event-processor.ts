@@ -342,6 +342,7 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
         const fetchResult = await fetchHtmlContent(candidate.event_url)
         if (fetchResult.success && fetchResult.fullHtml) {
           const pageText = extractTextContent(fetchResult.fullHtml)
+          console.log(`[Procesador de Eventos] Texto extraído para enriquecimiento: ${pageText.length.toLocaleString()} caracteres (~${Math.ceil(pageText.length / 4).toLocaleString()} tokens)`)
           const enrichResult = await enrichEventFromHtml(pageText, candidate, candidate.event_url)
           // Permanent log: title, date, time, confirmation result, and the reason
           console.log(`[Procesador de Eventos] "${candidate.title}" | date=${candidate.date} | time=${candidate.time} | confirmed=${enrichResult.dateTimeConfirmed} | razón: ${enrichResult.confirmationReason}`)
