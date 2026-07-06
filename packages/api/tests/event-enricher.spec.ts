@@ -1,21 +1,16 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-
-jest.mock('@google/genai', () => {
-  const mockGenerateContent = jest.fn()
-  return {
-    GoogleGenAI: jest.fn().mockImplementation(() => ({
-      models: { generateContent: mockGenerateContent },
-    })),
-    Type: { STRING: 'STRING', NUMBER: 'NUMBER', INTEGER: 'INTEGER', BOOLEAN: 'BOOLEAN', ARRAY: 'ARRAY', OBJECT: 'OBJECT' },
-    __mockGenerateContent: mockGenerateContent,
-  }
-})
-
+import OpenAI from 'openai'
+import { getKiloClient } from '../src/utils/llm-client'
 import { enrichEventFromHtml } from '../src/utils/event-enricher'
 import { ExtractedEvent } from '../src/event-schema'
 
-const { __mockGenerateContent } = require('@google/genai') as any
-const mockGenerateContent = __mockGenerateContent as jest.MockedFunction<typeof __mockGenerateContent>
+jest.mock('../src/utils/llm-client', () => ({
+  getKiloClient: jest.fn()
+}))
+
+function makeApiError(status: number, message: string) {
+  return OpenAI.APIError.generate(status, { error: { message } }, message, new Headers())
+}
 
 describe('event-enricher', () => {
   const originalEvent: ExtractedEvent = {
@@ -35,21 +30,39 @@ describe('event-enricher', () => {
 
   const detailHtml = '<html><body><h1>Concierto de Rock en Bogotá</h1><p>Descripción detallada</p></body></html>'
 
+  let mockCreate: jest.MockedFunction<any>
+
   beforeEach(() => {
     jest.clearAllMocks()
     jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+
+    mockCreate = jest.fn()
+    const mockClient = {
+      chat: {
+        completions: {
+          create: mockCreate
+        }
+      }
+    }
+
+    ;(getKiloClient as jest.MockedFunction<typeof getKiloClient>).mockReturnValue(mockClient as any)
   })
 
   it('should enrich fields when detail page has better data', async () => {
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({
-        title: null,
-        description: 'Concierto de rock con artistas invitados especiales, puertas abren a las 19:00',
-        location: null,
-        address: 'Calle 10 #5-20, Centro Histórico',
-        Price: 55000,
-        date_time_confirmed: true,
-      }),
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            title: null,
+            description: 'Concierto de rock con artistas invitados especiales, puertas abren a las 19:00',
+            location: null,
+            address: 'Calle 10 #5-20, Centro Histórico',
+            Price: 55000,
+            date_time_confirmed: true,
+            confirmation_reason: 'La fecha y hora coinciden',
+          })
+        }
+      }]
     })
 
     const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
@@ -64,15 +77,20 @@ describe('event-enricher', () => {
   })
 
   it('should omit fields when LLM returns null', async () => {
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({
-        title: null,
-        description: null,
-        location: null,
-        address: null,
-        Price: null,
-        date_time_confirmed: true,
-      }),
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            title: null,
+            description: null,
+            location: null,
+            address: null,
+            Price: null,
+            date_time_confirmed: true,
+            confirmation_reason: 'La fecha y hora coinciden',
+          })
+        }
+      }]
     })
 
     const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
@@ -83,10 +101,15 @@ describe('event-enricher', () => {
   })
 
   it('should set dateTimeConfirmed = true when LLM confirms match', async () => {
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({
-        date_time_confirmed: true,
-      }),
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            date_time_confirmed: true,
+            confirmation_reason: 'La fecha y hora coinciden',
+          })
+        }
+      }]
     })
 
     const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
@@ -96,11 +119,16 @@ describe('event-enricher', () => {
   })
 
   it('should set dateTimeConfirmed = false when LLM reports mismatch', async () => {
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({
-        date_time_confirmed: false,
-        description: 'Descripción mejorada',
-      }),
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            date_time_confirmed: false,
+            description: 'Descripción mejorada',
+            confirmation_reason: 'Las fechas no coinciden',
+          })
+        }
+      }]
     })
 
     const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
@@ -110,20 +138,77 @@ describe('event-enricher', () => {
     expect(result.enrichedFields.description).toBe('Descripción mejorada')
   })
 
-  it('should return success: false, dateTimeConfirmed: false on API error', async () => {
-    mockGenerateContent.mockRejectedValue(new Error('API error'))
+  describe('API error scenarios', () => {
+    it('should handle API key errors', async () => {
+      const authError = makeApiError(401, 'Invalid API key')
+      mockCreate.mockRejectedValue(authError)
 
-    const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+      const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
 
-    expect(result.success).toBe(false)
-    expect(result.dateTimeConfirmed).toBe(false)
-    expect(result.enrichedFields).toEqual({})
-    expect(result.error).toBe('API error')
+      expect(result.success).toBe(false)
+      expect(result.dateTimeConfirmed).toBe(false)
+      expect(result.enrichedFields).toEqual({})
+      expect(result.error).toBe('Invalid or missing API key for Kilo Gateway')
+    })
+
+    it('should handle quota exceeded errors', async () => {
+      const rateLimitError = makeApiError(429, 'Rate limit exceeded')
+      mockCreate.mockRejectedValue(rateLimitError)
+
+      const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+      expect(result.success).toBe(false)
+      expect(result.dateTimeConfirmed).toBe(false)
+      expect(result.error).toBe('API quota exceeded or rate limit reached')
+    })
+
+    it('should handle timeout errors', async () => {
+      const timeoutError = makeApiError(408, 'Request timeout')
+      mockCreate.mockRejectedValue(timeoutError)
+
+      const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+      expect(result.success).toBe(false)
+      expect(result.dateTimeConfirmed).toBe(false)
+      expect(result.error).toBe('Request timeout when calling Kilo Gateway')
+    })
+
+    it('should handle generic API errors', async () => {
+      const genericError = makeApiError(500, 'Some API error occurred')
+      mockCreate.mockRejectedValue(genericError)
+
+      const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+      expect(result.success).toBe(false)
+      expect(result.dateTimeConfirmed).toBe(false)
+      expect(result.error).toBe(`Error from Kilo Gateway: ${genericError.message}`)
+    })
+
+    it('should handle non-APIError Error exceptions', async () => {
+      mockCreate.mockRejectedValue(new Error('API error'))
+
+      const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+      expect(result.success).toBe(false)
+      expect(result.dateTimeConfirmed).toBe(false)
+      expect(result.enrichedFields).toEqual({})
+      expect(result.error).toBe('API error')
+    })
+
+    it('should handle non-Error exceptions', async () => {
+      mockCreate.mockRejectedValue('string error')
+
+      const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+      expect(result.success).toBe(false)
+      expect(result.dateTimeConfirmed).toBe(false)
+      expect(result.error).toBe('Unknown error')
+    })
   })
 
   it('should return success: false, dateTimeConfirmed: false on parse error', async () => {
-    mockGenerateContent.mockResolvedValue({
-      text: 'not valid json{{{',
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: 'not valid json{{{' } }]
     })
 
     const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
@@ -134,23 +219,15 @@ describe('event-enricher', () => {
     expect(result.error).toBe('Failed to parse JSON response')
   })
 
-  it('should return success: false when Gemini returns no text', async () => {
-    mockGenerateContent.mockResolvedValue({ text: '' })
+  it('should return success: false when Kilo Gateway returns no content', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: '' } }]
+    })
 
     const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
 
     expect(result.success).toBe(false)
     expect(result.dateTimeConfirmed).toBe(false)
-    expect(result.error).toBe('No response from Gemini')
-  })
-
-  it('should handle non-Error exceptions', async () => {
-    mockGenerateContent.mockRejectedValue('string error')
-
-    const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
-
-    expect(result.success).toBe(false)
-    expect(result.dateTimeConfirmed).toBe(false)
-    expect(result.error).toBe('Unknown error')
+    expect(result.error).toBe('No response from Kilo Gateway')
   })
 })

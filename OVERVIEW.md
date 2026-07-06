@@ -104,6 +104,8 @@ The project will be developed in phases:
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (shared with web)
   - `NEXT_PUBLIC_WEB_URL` (URL of web app for revalidation requests)
   - `REVALIDATE_SECRET` (secret token for on-demand revalidation, must match web)
+  - `GOOGLE_API_KEY` (Gemini, used by the mining pipeline's dedup/moderation steps)
+  - `KILO_API_KEY` (Kilo Gateway, used by the mining pipeline's extraction/enrichment steps, model `minimax/minimax-m3`)
 
 - App (`packages/app`)
   - `EXPO_PUBLIC_API_URL`
@@ -304,6 +306,8 @@ The entrypoint (`entrypoint.sh`) starts Express and Next.js in the background, t
 | `NEXT_PUBLIC_WEB_URL` | Public web URL |
 | `REVALIDATE_SECRET` | Shared secret for on-demand ISR revalidation |
 | `CORS_ORIGINS` | Allowed CORS origins for the API |
+| `GOOGLE_API_KEY` | Gemini API key (mining pipeline: dedup + moderation) |
+| `KILO_API_KEY` | Kilo Gateway API key (mining pipeline: extraction + enrichment, `minimax/minimax-m3`) |
 
 ## 13. Environment & Configuration Notes
 

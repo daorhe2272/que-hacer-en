@@ -1,4 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai"
+import OpenAI from "openai"
+import { getKiloClient } from "./llm-client"
 import { ExtractedEvent } from "../event-schema"
 
 export interface EnrichmentResult {
@@ -10,18 +11,28 @@ export interface EnrichmentResult {
 }
 
 const enrichmentSchema = {
-  type: Type.OBJECT,
+  type: "object",
   properties: {
-    title: { type: Type.STRING, nullable: true },
-    description: { type: Type.STRING, nullable: true },
-    location: { type: Type.STRING, nullable: true },
-    address: { type: Type.STRING, nullable: true },
-    Price: { type: Type.NUMBER, nullable: true },
-    date_time_confirmed: { type: Type.BOOLEAN },
-    confirmation_reason: { type: Type.STRING },
+    title: { type: ["string", "null"] },
+    description: { type: ["string", "null"] },
+    location: { type: ["string", "null"] },
+    address: { type: ["string", "null"] },
+    Price: { type: ["number", "null"] },
+    date_time_confirmed: { type: "boolean" },
+    confirmation_reason: { type: "string" },
   },
-  required: ["date_time_confirmed", "confirmation_reason"],
+  required: ["title", "description", "location", "address", "Price", "date_time_confirmed", "confirmation_reason"],
+  additionalProperties: false,
 }
+
+const enrichmentResponseFormat = {
+  type: "json_schema",
+  json_schema: {
+    name: "event_enrichment",
+    schema: enrichmentSchema,
+    strict: true,
+  },
+} as const
 
 export async function enrichEventFromHtml(
   pageHtml: string,
@@ -29,7 +40,7 @@ export async function enrichEventFromHtml(
   eventUrl: string
 ): Promise<EnrichmentResult> {
   try {
-    const ai = new GoogleGenAI({})
+    const kiloClient = getKiloClient()
 
     const prompt = `Eres un asistente que mejora datos de eventos. Se te proporciona:
 1. Los datos originales extraídos de una página de internet o un documento con información de eventos.
@@ -56,18 +67,15 @@ ${JSON.stringify({
 HTML de la página de detalle (${eventUrl}):
 ${pageHtml}`
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: enrichmentSchema,
-      },
+    const completion = await kiloClient.chat.completions.create({
+      model: "minimax/minimax-m3",
+      messages: [{ role: "user", content: prompt }],
+      response_format: enrichmentResponseFormat,
     })
 
-    const responseText = response.text
+    const responseText = completion.choices[0]?.message?.content
     if (!responseText) {
-      return { success: false, enrichedFields: {}, dateTimeConfirmed: false, confirmationReason: 'No response from Gemini', error: 'No response from Gemini' }
+      return { success: false, enrichedFields: {}, dateTimeConfirmed: false, confirmationReason: 'No response from Kilo Gateway', error: 'No response from Kilo Gateway' }
     }
 
     let parsed: Record<string, unknown>
@@ -90,6 +98,15 @@ ${pageHtml}`
 
     return { success: true, enrichedFields: enrichedFields as EnrichmentResult['enrichedFields'], dateTimeConfirmed, confirmationReason }
   } catch (error) {
+    if (error instanceof OpenAI.APIError) {
+      const errorMessage =
+        error.status === 401 ? 'Invalid or missing API key for Kilo Gateway' :
+        error.status === 429 ? 'API quota exceeded or rate limit reached' :
+        error.status === 408 || error.message.includes('timeout') ? 'Request timeout when calling Kilo Gateway' :
+        `Error from Kilo Gateway: ${error.message}`
+      return { success: false, enrichedFields: {}, dateTimeConfirmed: false, confirmationReason: `Error durante el enriquecimiento: ${errorMessage}`, error: errorMessage }
+    }
+
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return { success: false, enrichedFields: {}, dateTimeConfirmed: false, confirmationReason: `Error durante el enriquecimiento: ${errorMessage}`, error: errorMessage }
   }

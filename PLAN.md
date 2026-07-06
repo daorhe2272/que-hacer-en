@@ -1,12 +1,12 @@
-# PLAN: Migrate Extraction/Enrichment to Kilo Gateway (DeepSeek)
+# PLAN: Migrate Extraction/Enrichment to Kilo Gateway
 
 ## Goal
 
 Replace Gemini (`@google/genai`) with **Kilo Gateway** (OpenAI-compatible) in the
 mining pipeline:
 
-- **Event extraction** (`event-extractor.ts`) → `deepseek/deepseek-v4-pro`
-- **Event enrichment** (`event-enricher.ts`) → `deepseek/deepseek-v4-flash`
+- **Event extraction** (`event-extractor.ts`) → done, uses `minimax/minimax-m3`
+- **Event enrichment** (`event-enricher.ts`) → uses `minimax/minimax-m3`
 
 Two phases, done sequentially. Phase 2 does not start until Phase 1 is manually
 verified against real mining runs.
@@ -20,8 +20,8 @@ Gemini. Not part of this task.
 - Kilo Gateway base URL: `https://api.kilo.ai/api/gateway`
 - Chat completions endpoint: `POST /chat/completions`, standard OpenAI request/response shape
 - Auth header: `Authorization: Bearer $KILO_API_KEY`
-- Model slugs: `deepseek/deepseek-v4-pro`, `deepseek/deepseek-v4-flash` — both list
-  `response_format` in their supported parameters (structured outputs supported)
+- Model: `minimax/minimax-m3` — lists `response_format` in supported parameters
+  (structured outputs supported)
 - Structured output contract (OpenAI-style, strict mode):
 
   ```json
@@ -44,155 +44,106 @@ Gemini. Not part of this task.
   at every object level, and nullable fields expressed as `"type": ["string", "null"]`
   (no separate `nullable: true` flag like Gemini's schema format).
 
-- The `openai` npm SDK is the standard client for any OpenAI-compatible endpoint
-  (works against Kilo Gateway by overriding `baseURL`). It is **not** currently a
-  dependency of `packages/api` — needs adding.
+- The `openai` npm SDK (`^6.45.0`) is already a dependency of `packages/api` —
+  used as the client for Kilo Gateway by overriding `baseURL`.
 
-## Phase 1 — Event Extraction (DeepSeek V4 Pro)
+## Phase 1 — Event Extraction (done)
 
-### 1.1 Dependencies
+Implemented and shipped across commits `1dcc0eb`, `07283f4`, `6edebf0`:
 
-- `pnpm add --filter @que-hacer-en/api openai`
+- **Client**: `packages/api/src/utils/llm-client.ts` exports `getKiloClient()`,
+  a lazily-constructed singleton `OpenAI` client
+  (`baseURL: "https://api.kilo.ai/api/gateway"`, `apiKey: process.env.KILO_API_KEY`).
+  Shared by extraction now and enrichment in Phase 2.
+- **Schema**: `packages/api/src/event-schema.ts` exports `getCategorySlugs()` /
+  `getCitySlugs()` (cached DB-backed slug loaders — this is what fixed the
+  category/city enum drift bug in `1dcc0eb`), `buildEventSchema(categorySlugs, citySlugs)`
+  (strict JSON Schema, `additionalProperties: false`, all 12 fields required,
+  `Price`/`image_url` as `["type", "null"]` unions), and
+  `buildEventResponseFormat(categorySlugs, citySlugs)` (the `response_format`
+  envelope). These are functions, not static exports, because the enum values
+  must reflect live DB content on every call.
+- **Extractor**: `packages/api/src/utils/event-extractor.ts` calls
+  `kiloClient.chat.completions.create({ model: "minimax/minimax-m3", messages: [...], response_format: buildEventResponseFormat(...) })`,
+  parses `completion.choices[0]?.message?.content`, and classifies errors via
+  `error instanceof OpenAI.APIError` + `.status` (401/429/408) rather than
+  substring-matching Gemini's error text. Function signature/return shape
+  (`{ success, events?, error? }`) unchanged from the Gemini version.
+- **Tests**: `packages/api/tests/event-extractor.spec.ts` mocks
+  `../src/utils/llm-client` (`getKiloClient` returns a fake
+  `{ chat: { completions: { create: jest.fn() } } }`) and uses
+  `OpenAI.APIError.generate(...)` to construct realistic API errors for the
+  error-classification tests.
+- **Env**: `KILO_API_KEY` added to `packages/api/.env.example`; `GOOGLE_API_KEY`
+  kept (still used by dedup/moderation/enrichment-until-Phase-2).
 
-### 1.2 Env vars
+Phase 1 has been manually verified against real mining runs (per user
+confirmation) — Phase 2 is cleared to start.
 
-Add to `packages/api/.env.example` (new section, keep `GOOGLE_API_KEY` — still
-needed by `event-deduplicator.ts` and `event-moderator.ts`):
-
-```
-# --- Kilo Gateway (DeepSeek models for mining pipeline) --------------------
-KILO_API_KEY=your-kilo-gateway-key
-```
-
-Add `KILO_API_KEY` to the real `.env` (not committed) and to Cloud Run runtime
-env vars (see `OVERVIEW.md` §12 runtime env table — add a row there too).
-
-### 1.3 New shared Kilo client helper
-
-Create `packages/api/src/utils/kilo-client.ts`:
-
-- Exports a lazily-constructed singleton `OpenAI` client configured with
-  `baseURL: "https://api.kilo.ai/api/gateway"` and `apiKey: process.env.KILO_API_KEY`.
-- Rationale: both extraction and (later) enrichment need the same client
-  construction; avoids duplicating baseURL/key wiring in two files.
-
-### 1.4 Rewrite `packages/api/src/event-schema.ts`
-
-Convert `eventSchema` from Gemini's `Type.OBJECT`/`nullable` shape to plain
-JSON Schema, strict-mode compliant:
-
-- `type: "object"` instead of `Type.OBJECT`, `type: "string"` instead of `Type.STRING`, etc.
-- `Price` and `image_url` become `"type": ["number", "null"]` / `"type": ["string", "null"]`
-  instead of `nullable: true`.
-- Add `"additionalProperties": false` to both the outer object and the `items` object.
-- Drop `propertyOrdering` (Gemini-specific, no equivalent/needed in OpenAI schema).
-- Keep `required` listing all keys (already the case — strict mode compatible).
-- `ExtractedEvent` / `EventExtractionResponse` TypeScript interfaces are unchanged
-  (schema shape describes the same data).
-- Wrap the schema in the `response_format` envelope expected by the SDK, e.g.
-  export a `eventResponseFormat` object:
-  ```ts
-  export const eventResponseFormat = {
-    type: "json_schema",
-    json_schema: {
-      name: "event_extraction",
-      schema: eventSchema,
-      strict: true,
-    },
-  } as const
-  ```
-
-### 1.5 Rewrite `packages/api/src/utils/event-extractor.ts`
-
-- Replace `import { GoogleGenAI } from "@google/genai"` with the shared Kilo
-  client from `kilo-client.ts`.
-- Replace `ai.models.generateContent(...)` call with:
-  ```ts
-  const completion = await kiloClient.chat.completions.create({
-    model: "deepseek/deepseek-v4-pro",
-    messages: [{ role: "user", content: prompt }],
-    response_format: eventResponseFormat,
-  })
-  const responseText = completion.choices[0]?.message?.content
-  ```
-- Keep the exact same function signature and return shape
-  (`{ success, events?, error? }`) — this boundary is mocked by
-  `data-sources.spec.ts`, `mining-utils.spec.ts` and does not need to change,
-  so **no other files besides the extractor itself need edits for this phase**.
-- Preserve existing error classification logic (API key / quota / timeout /
-  generic) — adjust string matching if DeepSeek/OpenAI SDK error messages differ
-  (e.g. OpenAI SDK throws `APIError` with `.status` — consider checking
-  `error.status === 401` for auth, `429` for quota/rate, instead of substring
-  matching on `error.message`, since that was tailored to Gemini's error text).
-- Keep the prompt content itself unchanged (current-year hint, HTML content,
-  instructions) — only the transport/client changes.
-
-### 1.6 Update tests: `packages/api/tests/event-extractor.spec.ts`
-
-- Replace the `jest.mock('@google/genai', ...)` block with a mock of the new
-  `kilo-client.ts` module (or of the `openai` package directly — prefer mocking
-  `kilo-client.ts` since that's the actual import surface `event-extractor.ts`
-  will use).
-- Mock shape: `{ chat: { completions: { create: jest.fn() } } }`.
-- Update all mock response objects from `{ text: JSON.stringify(...) }` to
-  `{ choices: [{ message: { content: JSON.stringify(...) } }] }`.
-- Update error-scenario tests to match whatever error shape the `openai` SDK
-  actually throws (verify empirically once the SDK is installed — likely
-  `OpenAI.APIError` with `.status`/`.message`).
-- All test *assertions* on `result.success`/`result.events`/`result.error`
-  stay the same since the function's external contract is unchanged.
-
-### 1.7 Manual verification (blocks Phase 2)
-
-Before starting Phase 2:
-
-- Set `KILO_API_KEY` in local `.env`.
-- Run unit tests: `pnpm --filter @que-hacer-en/api test`.
-- Manually trigger real mining jobs from the admin UI (`/admin` → Data Sources
-  tab, both "run mining job" on a saved source and ad-hoc `mine-url`) against a
-  few real target URLs.
-- Confirm in logs (`[Event Extractor]`, `[Direct Mining]`, `[Mining]`) that:
-  - Events are extracted with correct field values (title, date, time, slugs, etc.)
-  - JSON parsing succeeds (no schema-shape mismatches from the strict-mode conversion)
-  - Error handling still degrades gracefully on bad input
-- Confirm downstream steps (dedup, enrichment via Gemini still, DB insert) keep
-  working unchanged — this proves the extractor's output contract truly didn't
-  change shape.
-- Only proceed to Phase 2 once several real mining runs are confirmed clean.
-
-## Phase 2 — Event Enrichment (DeepSeek V4 Flash)
-
-Do not start until Phase 1 sign-off above.
+## Phase 2 — Event Enrichment (MiniMax M3)
 
 ### 2.1 Rewrite `packages/api/src/utils/event-enricher.ts`
 
-- Replace `GoogleGenAI` import/usage with the shared `kilo-client.ts` client
-  (already created in Phase 1 — reused here).
-- Convert `enrichmentSchema` (currently inline Gemini-style `Type.OBJECT`) to
-  plain JSON Schema + `response_format` envelope, same conversion pattern as
-  §1.4:
+- Replace `GoogleGenAI`/`Type` import and `new GoogleGenAI({})` usage with the
+  shared `getKiloClient()` from `./llm-client` (already exists from Phase 1 —
+  reused here, no changes needed to that file).
+- Convert the inline `enrichmentSchema` (currently Gemini-style
+  `Type.OBJECT`/`nullable: true`) to plain strict JSON Schema:
   - `title`, `description`, `location`, `address` → `"type": ["string", "null"]`
   - `Price` → `"type": ["number", "null"]`
   - `date_time_confirmed` → `"type": "boolean"`
   - `confirmation_reason` → `"type": "string"`
-  - `additionalProperties: false`, all 6 keys in `required` (strict mode needs
-    every property required, even the nullable ones — nullability is expressed
-    via the type union, not by omitting from `required`).
-- Replace the `ai.models.generateContent(...)` call with
-  `kiloClient.chat.completions.create({ model: "deepseek/deepseek-v4-flash", messages: [...], response_format: enrichmentResponseFormat })`.
-- Parse `completion.choices[0]?.message?.content` instead of `response.text`.
-- Keep the Spanish-language prompt content, the `EnrichmentResult` interface,
-  and the function signature (`enrichEventFromHtml(pageText, originalEvent, eventUrl)`)
-  unchanged — this is mocked directly in `event-processor.spec.ts`, so no
-  changes needed there.
-- Preserve the confirmationReason mandatory-field behavior and the
-  08:00/00:00 unknown-time exception logic already encoded in the prompt.
+  - `additionalProperties: false`
+  - `required` must list **all 6 keys** (strict mode requires every property in
+    `required` even when nullable — nullability comes from the type union, not
+    from omission).
+  - Wrap in a `response_format` envelope analogous to
+    `buildEventResponseFormat` — e.g. a local `enrichmentResponseFormat` object
+    with `json_schema.name: "event_enrichment"`, `strict: true`. Since this
+    schema has no dynamic enum content (unlike the extraction schema), it can
+    be a static const, not a builder function.
+- Replace the `ai.models.generateContent({ model: "gemini-3.1-flash-lite", contents: prompt, config: { responseMimeType, responseSchema } })`
+  call with:
+  ```ts
+  const completion = await getKiloClient().chat.completions.create({
+    model: "minimax/minimax-m3",
+    messages: [{ role: "user", content: prompt }],
+    response_format: enrichmentResponseFormat,
+  })
+  const responseText = completion.choices[0]?.message?.content
+  ```
+- Update error handling: catch `OpenAI.APIError` and classify by `.status`
+  (401/429/408) the same way `event-extractor.ts` does, instead of the current
+  generic `error instanceof Error ? error.message : 'Unknown error'` fallback —
+  for consistency with the extractor and to give clearer log messages. Keep the
+  final catch-all for non-`Error`/non-`APIError` throwables ("Unknown error").
+- No response-text change needed beyond the parse source
+  (`completion.choices[0]?.message?.content` instead of `response.text`) — the
+  existing `JSON.parse` + field-extraction logic (`enrichedFields` loop,
+  `dateTimeConfirmed`, `confirmationReason` defaulting) stays as-is.
+- Keep unchanged: the Spanish-language prompt content (including the 08:00/00:00
+  unknown-time exception logic and the mandatory `confirmation_reason`
+  instruction), the `EnrichmentResult` interface, and the function signature
+  `enrichEventFromHtml(pageHtml, originalEvent, eventUrl)` — this is called
+  as-is from `event-processor.ts:347` and mocked directly in tests, so no
+  changes needed at either call site.
 
 ### 2.2 Update tests: `packages/api/tests/event-enricher.spec.ts`
 
-- Same mocking pattern change as §1.6: mock `kilo-client.ts` instead of
-  `@google/genai`, update mock response shapes from `response.text` to
-  `completion.choices[0].message.content`.
+- Replace the `jest.mock('@google/genai', ...)` block with a mock of
+  `../src/utils/llm-client` (`getKiloClient: jest.fn()` returning
+  `{ chat: { completions: { create: jest.fn() } } }`), matching the pattern in
+  `event-extractor.spec.ts`.
+- Update all mock response objects from `{ text: JSON.stringify(...) }` to
+  `{ choices: [{ message: { content: JSON.stringify(...) } }] }`.
+- Update the "no response" test's expected error message (currently
+  `'No response from Gemini'`) and the API-error test to use
+  `OpenAI.APIError.generate(...)` (see `event-extractor.spec.ts`'s
+  `makeApiError` helper) instead of a plain `Error('API error')`, so the new
+  `.status`-based classification is actually exercised.
+- All test *assertions* on `result.success` / `result.dateTimeConfirmed` /
+  `result.enrichedFields` / `result.confirmationReason` stay the same — the
+  function's external contract is unchanged.
 
 ### 2.3 Manual verification
 
@@ -200,26 +151,23 @@ Do not start until Phase 1 sign-off above.
   distinct `event_url` different from `source_url`).
 - Confirm in logs (`[Procesador de Eventos]` audit line: title/date/time/confirmed/razón)
   that enrichment output is sane, `confirmationReason` is always populated,
-  and `active` flag (`dateTimeConfirmed`) is being set correctly.
+  and the `active` flag (driven by `dateTimeConfirmed`) is being set correctly.
 - Spot-check a few enriched events in the DB/admin panel against their source
   detail pages.
 
 ## Cross-cutting notes
 
-- **Cost/model choice rationale**: DeepSeek V4 Pro replaces Gemini for the
-  higher-stakes first-pass extraction (needs to parse arbitrary/messy HTML
-  reliably); DeepSeek V4 Flash replaces Gemini for the cheaper, more
-  constrained per-event enrichment pass — matches the "cheaper model" ask
-  since Flash is the low-cost tier.
 - **Gemini is not fully removed**: `GOOGLE_API_KEY`, `@google/genai`, and
   Gemini calls remain for `event-deduplicator.ts` and `event-moderator.ts`.
   Do not remove the `@google/genai` dependency or `GOOGLE_API_KEY` env var.
-- **`OVERVIEW.md` update**: after Phase 2 is complete, update OVERVIEW.md's
-  env var tables (§5 API env vars, §12 runtime env vars) to document
-  `KILO_API_KEY`, and note in §"Database Architecture"/pipeline description
-  (if such a section exists) that extraction/enrichment now use DeepSeek via
-  Kilo Gateway rather than Gemini.
+- **`.env.example` comment cleanup**: the existing Kilo Gateway section header
+  in `packages/api/.env.example` says "DeepSeek models" — this is stale (no
+  DeepSeek model was ever used; both extraction and enrichment use
+  `minimax/minimax-m3`). Update the comment when touching this file in Phase 2.
+- **`OVERVIEW.md` update**: after Phase 2 is complete, note in the relevant
+  section that extraction/enrichment both run on Kilo Gateway
+  (`minimax/minimax-m3`), not Gemini — Gemini remains only for dedup/moderation.
 - **No behavior change to dedup gating, timezone conversion, or the
   three-dedup-layer pipeline in `event-processor.ts`** — this migration is
-  scoped strictly to swapping the LLM client/model in the extractor and
-  enricher, not touching orchestration logic.
+  scoped strictly to swapping the LLM client/model in the enricher, not
+  touching orchestration logic.
