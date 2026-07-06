@@ -1,63 +1,73 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from 'openai'
+import { getKiloClient } from '../src/utils/llm-client'
 import { extractEventsFromHtml } from '../src/utils/event-extractor'
+import { query } from '../src/db/client'
 
-// Mock the GoogleGenAI module
-jest.mock('@google/genai', () => ({
-  GoogleGenAI: jest.fn(),
-  Type: {
-    OBJECT: 'object',
-    ARRAY: 'array',
-    STRING: 'string',
-    NUMBER: 'number'
-  }
+// Mock the shared Kilo client module
+jest.mock('../src/utils/llm-client', () => ({
+  getKiloClient: jest.fn()
 }))
 
+// Mock the DB client used to load category/city slugs for the extraction schema
+jest.mock('../src/db/client', () => ({
+  query: jest.fn()
+}))
+
+function makeApiError(status: number, message: string) {
+  return OpenAI.APIError.generate(status, { error: { message } }, message, new Headers())
+}
+
 describe('extractEventsFromHtml', () => {
-  let mockAi: any
-  let mockModels: any
-  let mockGenerateContent: jest.MockedFunction<any>
+  let mockCreate: jest.MockedFunction<any>
 
   beforeEach(() => {
     jest.clearAllMocks()
 
-    // Setup mock chain
-    mockGenerateContent = jest.fn()
-    mockModels = {
-      generateContent: mockGenerateContent
-    }
-    mockAi = {
-      models: mockModels
+    mockCreate = jest.fn()
+    const mockClient = {
+      chat: {
+        completions: {
+          create: mockCreate
+        }
+      }
     }
 
-    // Mock the GoogleGenAI constructor
-    ;(GoogleGenAI as jest.MockedClass<typeof GoogleGenAI>).mockImplementation(() => mockAi)
+    ;(getKiloClient as jest.MockedFunction<typeof getKiloClient>).mockReturnValue(mockClient as any)
+    ;(query as jest.MockedFunction<typeof query>).mockImplementation(async (sql: string) => {
+      if (sql.includes('categories')) return { rows: [{ slug: 'musica' }, { slug: 'arte' }] } as any
+      return { rows: [{ slug: 'bogota' }, { slug: 'medellin' }] } as any
+    })
   })
 
   describe('successful extraction', () => {
     it('should extract events successfully with valid response', async () => {
       const mockResponse = {
-        text: JSON.stringify({
-          events: [
-            {
-              source_url: 'https://example.com',
-              event_url: 'https://example.com/event1',
-              title: 'Test Event',
-              description: 'A test event description',
-              date: '2024-12-01',
-              time: '20:00',
-              location: 'Test Venue',
-              address: 'Test Address',
-              category_slug: 'musica',
-              city_slug: 'bogota',
-              Price: 50000,
-              image_url: 'https://example.com/image.jpg'
-            }
-          ]
-        })
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              events: [
+                {
+                  source_url: 'https://example.com',
+                  event_url: 'https://example.com/event1',
+                  title: 'Test Event',
+                  description: 'A test event description',
+                  date: '2024-12-01',
+                  time: '20:00',
+                  location: 'Test Venue',
+                  address: 'Test Address',
+                  category_slug: 'musica',
+                  city_slug: 'bogota',
+                  Price: 50000,
+                  image_url: 'https://example.com/image.jpg'
+                }
+              ]
+            })
+          }
+        }]
       }
 
-      mockGenerateContent.mockResolvedValue(mockResponse)
+      mockCreate.mockResolvedValue(mockResponse)
 
       const result = await extractEventsFromHtml('<html>Test content</html>', 'https://example.com')
 
@@ -82,12 +92,14 @@ describe('extractEventsFromHtml', () => {
 
     it('should return empty events array when no events found', async () => {
       const mockResponse = {
-        text: JSON.stringify({
-          events: []
-        })
+        choices: [{
+          message: {
+            content: JSON.stringify({ events: [] })
+          }
+        }]
       }
 
-      mockGenerateContent.mockResolvedValue(mockResponse)
+      mockCreate.mockResolvedValue(mockResponse)
 
       const result = await extractEventsFromHtml('<html>No events here</html>', 'https://example.com')
 
@@ -99,19 +111,19 @@ describe('extractEventsFromHtml', () => {
 
   describe('API error scenarios', () => {
     it('should handle API key errors', async () => {
-      const apiKeyError = new Error('API_KEY_INVALID')
-      mockGenerateContent.mockRejectedValue(apiKeyError)
+      const authError = makeApiError(401, 'Invalid API key')
+      mockCreate.mockRejectedValue(authError)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Invalid or missing API key for Gemini API')
+      expect(result.error).toBe('Invalid or missing API key for Kilo Gateway')
       expect(result.events).toBeUndefined()
     })
 
     it('should handle quota exceeded errors', async () => {
-      const quotaError = new Error('Quota exceeded for quota_limit')
-      mockGenerateContent.mockRejectedValue(quotaError)
+      const rateLimitError = makeApiError(429, 'Rate limit exceeded')
+      mockCreate.mockRejectedValue(rateLimitError)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
@@ -121,29 +133,40 @@ describe('extractEventsFromHtml', () => {
     })
 
     it('should handle timeout errors', async () => {
-      const timeoutError = new Error('Request timeout')
-      mockGenerateContent.mockRejectedValue(timeoutError)
+      const timeoutError = makeApiError(408, 'Request timeout')
+      mockCreate.mockRejectedValue(timeoutError)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Request timeout when calling Gemini API')
+      expect(result.error).toBe('Request timeout when calling Kilo Gateway')
       expect(result.events).toBeUndefined()
     })
 
     it('should handle generic API errors', async () => {
-      const genericError = new Error('Some API error occurred')
-      mockGenerateContent.mockRejectedValue(genericError)
+      const genericError = makeApiError(500, 'Some API error occurred')
+      mockCreate.mockRejectedValue(genericError)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Error from Gemini API: Some API error occurred')
+      expect(result.error).toBe(`Error from Kilo Gateway: ${genericError.message}`)
+      expect(result.events).toBeUndefined()
+    })
+
+    it('should handle non-APIError Error exceptions', async () => {
+      const genericError = new Error('Some unexpected error')
+      mockCreate.mockRejectedValue(genericError)
+
+      const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe('Error from Kilo Gateway: Some unexpected error')
       expect(result.events).toBeUndefined()
     })
 
     it('should handle non-Error exceptions', async () => {
-      mockGenerateContent.mockRejectedValue('String error')
+      mockCreate.mockRejectedValue('String error')
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
@@ -156,40 +179,42 @@ describe('extractEventsFromHtml', () => {
   describe('response parsing errors', () => {
     it('should handle empty response text', async () => {
       const mockResponse = {
-        text: ''
+        choices: [{ message: { content: '' } }]
       }
 
-      mockGenerateContent.mockResolvedValue(mockResponse)
+      mockCreate.mockResolvedValue(mockResponse)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('No response received from Gemini API')
+      expect(result.error).toBe('No response received from Kilo Gateway')
       expect(result.events).toBeUndefined()
     })
 
     it('should handle invalid JSON response', async () => {
       const mockResponse = {
-        text: 'invalid json {'
+        choices: [{ message: { content: 'invalid json {' } }]
       }
 
-      mockGenerateContent.mockResolvedValue(mockResponse)
+      mockCreate.mockResolvedValue(mockResponse)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
       expect(result.success).toBe(false)
-      expect(result.error).toBe('Failed to parse JSON response from Gemini API')
+      expect(result.error).toBe('Failed to parse JSON response from Kilo Gateway')
       expect(result.events).toBeUndefined()
     })
 
     it('should handle missing events array in response', async () => {
       const mockResponse = {
-        text: JSON.stringify({
-          someOtherField: 'value'
-        })
+        choices: [{
+          message: {
+            content: JSON.stringify({ someOtherField: 'value' })
+          }
+        }]
       }
 
-      mockGenerateContent.mockResolvedValue(mockResponse)
+      mockCreate.mockResolvedValue(mockResponse)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
@@ -200,12 +225,14 @@ describe('extractEventsFromHtml', () => {
 
     it('should handle non-array events field', async () => {
       const mockResponse = {
-        text: JSON.stringify({
-          events: 'not an array'
-        })
+        choices: [{
+          message: {
+            content: JSON.stringify({ events: 'not an array' })
+          }
+        }]
       }
 
-      mockGenerateContent.mockResolvedValue(mockResponse)
+      mockCreate.mockResolvedValue(mockResponse)
 
       const result = await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
@@ -219,10 +246,10 @@ describe('extractEventsFromHtml', () => {
     it('should log JSON parsing errors', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
       const mockResponse = {
-        text: () => 'invalid json {'
+        choices: [{ message: { content: 'invalid json {' } }]
       }
 
-      mockGenerateContent.mockResolvedValue(mockResponse)
+      mockCreate.mockResolvedValue(mockResponse)
 
       await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 
@@ -237,7 +264,7 @@ describe('extractEventsFromHtml', () => {
     it('should log general errors', async () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
       const apiError = new Error('Test error')
-      mockGenerateContent.mockRejectedValue(apiError)
+      mockCreate.mockRejectedValue(apiError)
 
       await extractEventsFromHtml('<html>Test</html>', 'https://example.com')
 

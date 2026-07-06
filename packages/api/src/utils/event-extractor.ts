@@ -1,8 +1,9 @@
-import { GoogleGenAI } from "@google/genai";
-import { eventSchema, EventExtractionResponse } from "../event-schema";
+import OpenAI from "openai";
+import { getKiloClient } from "./llm-client";
+import { buildEventResponseFormat, getCategorySlugs, getCitySlugs, EventExtractionResponse } from "../event-schema";
 
 /**
- * Extracts events from HTML content using Google's Gemini API with structured output
+ * Extracts events from HTML content using Kilo Gateway (MiniMax M3) with structured output
  */
 export async function extractEventsFromHtml(html: string, sourceUrl: string): Promise<{
   success: boolean;
@@ -12,8 +13,9 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
   const currentYear = new Date().getFullYear();
   try {
 
-    // Initialize the Google GenAI client
-    const ai = new GoogleGenAI({});
+    const kiloClient = getKiloClient();
+
+    const [categorySlugs, citySlugs] = await Promise.all([getCategorySlugs(), getCitySlugs()]);
 
     // Create the prompt for extracting events
     const prompt = `Extract all distinct events from the following HTML content.
@@ -27,22 +29,19 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
 
 
     // Generate content with structured output
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: eventSchema,
-      },
+    const completion = await kiloClient.chat.completions.create({
+      model: "minimax/minimax-m3",
+      messages: [{ role: "user", content: prompt }],
+      response_format: buildEventResponseFormat(categorySlugs, citySlugs),
     });
 
     // Parse the response
-    const responseText = response.text;
-    
+    const responseText = completion.choices[0]?.message?.content;
+
     if (!responseText) {
       return {
         success: false,
-        error: "No response received from Gemini API"
+        error: "No response received from Kilo Gateway"
       };
     }
 
@@ -53,10 +52,9 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
       console.error("[Event Extractor] Failed to parse JSON response:", parseError);
       return {
         success: false,
-        error: "Failed to parse JSON response from Gemini API"
+        error: "Failed to parse JSON response from Kilo Gateway"
       };
     }
-
 
     // Validate the response structure
     if (!parsedResponse.events || !Array.isArray(parsedResponse.events)) {
@@ -73,36 +71,43 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
 
   } catch (error) {
     console.error("[Event Extractor] Error extracting events:", error);
-    
+
     // Handle different types of errors
-    if (error instanceof Error) {
-      if (error.message.includes("API_KEY")) {
+    if (error instanceof OpenAI.APIError) {
+      if (error.status === 401) {
         return {
           success: false,
-          error: "Invalid or missing API key for Gemini API"
+          error: "Invalid or missing API key for Kilo Gateway"
         };
       }
-      
-      if (error.message.includes("quota") || error.message.includes("rate")) {
+
+      if (error.status === 429) {
         return {
           success: false,
           error: "API quota exceeded or rate limit reached"
         };
       }
-      
-      if (error.message.includes("timeout")) {
+
+      if (error.status === 408 || error.message.includes("timeout")) {
         return {
           success: false,
-          error: "Request timeout when calling Gemini API"
+          error: "Request timeout when calling Kilo Gateway"
         };
       }
-      
+
       return {
         success: false,
-        error: `Error from Gemini API: ${error.message}`
+        error: `Error from Kilo Gateway: ${error.message}`
       };
     }
-    
+
+    if (error instanceof Error) {
+      return {
+        success: false,
+        error: `Error from Kilo Gateway: ${error.message}`
+      };
+    }
+
     return {
       success: false,
       error: "Unknown error occurred while extracting events"
