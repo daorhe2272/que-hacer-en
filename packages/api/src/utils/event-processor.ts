@@ -3,7 +3,7 @@ import { ExtractedEvent } from '../event-schema'
 import { CreateEventParams, EventDto } from '../db/repository'
 import { ExistingEventSummary, checkSemanticDuplicates } from './event-deduplicator'
 import { enrichEventFromHtml } from './event-enricher'
-import { extractTextContent, fetchHtmlContent } from './html-fetcher'
+import { fetchHtmlContent } from './html-fetcher'
 import crypto from 'crypto'
 
 function normalize(text: string): string {
@@ -341,9 +341,9 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
       if (candidate.event_url && candidate.event_url !== candidate.source_url) {
         const fetchResult = await fetchHtmlContent(candidate.event_url)
         if (fetchResult.success && fetchResult.fullHtml) {
-          const pageText = extractTextContent(fetchResult.fullHtml)
-          console.log(`[Procesador de Eventos] Texto extraído para enriquecimiento: ${pageText.length.toLocaleString()} caracteres (~${Math.ceil(pageText.length / 4).toLocaleString()} tokens)`)
-          const enrichResult = await enrichEventFromHtml(pageText, candidate, candidate.event_url)
+          const pageHtml = fetchResult.fullHtml
+          console.log(`[Procesador de Eventos] HTML limpio para enriquecimiento: ${pageHtml.length.toLocaleString()} caracteres (~${Math.ceil(pageHtml.length / 4).toLocaleString()} tokens)`)
+          const enrichResult = await enrichEventFromHtml(pageHtml, candidate, candidate.event_url)
           // Permanent log: title, date, time, confirmation result, and the reason
           console.log(`[Procesador de Eventos] "${candidate.title}" | date=${candidate.date} | time=${candidate.time} | confirmed=${enrichResult.dateTimeConfirmed} | razón: ${enrichResult.confirmationReason}`)
           if (enrichResult.success) {

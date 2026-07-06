@@ -5,6 +5,7 @@
 
 import puppeteer, { HTTPRequest, Browser, Page } from 'puppeteer-core'
 import { Agent, fetch as undiciFetch } from 'undici'
+import { cleanHtml } from './html-cleaner'
 
 export interface FetchHtmlResult {
   success: boolean
@@ -48,7 +49,7 @@ export async function fetchHtmlContent(url: string, options: FetchOptions = {}):
     if (staticResult.success && isContentComplete(staticResult.fullHtml || staticResult.content || '')) {
       // Clean HTML content for static fetches too
       const rawHtml = staticResult.fullHtml || staticResult.content || ''
-      const cleanedHtml = cleanHtmlString(rawHtml)
+      const cleanedHtml = cleanHtml(rawHtml)
 
       // Log content stats BEFORE cleanup
       const rawWordCount = rawHtml.split(/\s+/).length
@@ -117,76 +118,6 @@ export async function fetchHtmlContent(url: string, options: FetchOptions = {}):
       error: errorMessage
     }
   }
-}
-
-/**
- * Cleans HTML content by removing JavaScript and styling elements
- */
-async function cleanPageContent(page: Page): Promise<string> {
-  return await page.evaluate(() => {
-    // Remove all script elements
-    const scripts = document.querySelectorAll('script')
-    scripts.forEach(script => script.remove())
-
-    // Remove all style elements
-    const styles = document.querySelectorAll('style')
-    styles.forEach(style => style.remove())
-
-    // Remove all link elements with rel="stylesheet"
-    const styleLinks = document.querySelectorAll('link[rel="stylesheet"]')
-    styleLinks.forEach(link => link.remove())
-
-    // Remove all elements with style attributes (optional - removes inline styles)
-    const styledElements = document.querySelectorAll('[style]')
-    styledElements.forEach(el => el.removeAttribute('style'))
-
-    // Return the cleaned HTML
-    return document.documentElement.outerHTML
-  })
-}
-
-/**
- * Extracts visible text from an HTML document, discarding all tags/attributes.
- * Intended for LLM steps that only need page content, not markup — cuts token
- * usage versus sending cleaned HTML.
- */
-export function extractTextContent(html: string): string {
-  return html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n\s*\n+/g, '\n')
-    .trim()
-}
-
-/**
- * Cleans HTML string content by removing JavaScript and styling elements using regex
- * For use with static HTML fetches that don't go through Puppeteer
- */
-function cleanHtmlString(html: string): string {
-  let cleanedHtml = html
-
-  // Remove script tags and their content
-  cleanedHtml = cleanedHtml.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-
-  // Remove style tags and their content
-  cleanedHtml = cleanedHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-
-  // Remove link tags with rel="stylesheet"
-  cleanedHtml = cleanedHtml.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '')
-
-  // Remove style attributes from elements
-  cleanedHtml = cleanedHtml.replace(/\s+style=["'][^"']*["']/gi, '')
-
-  return cleanedHtml
 }
 
 /**
@@ -476,21 +407,30 @@ async function tryDynamicFetch(url: string, options: {
     let html: string
     try {
       // Log content stats BEFORE cleanup
-      const rawHtml = await page.evaluate(() => document.documentElement.outerHTML);
-      const rawWordCount = rawHtml.split(/\s+/).length;
-      const rawCharCount = rawHtml.length;
-      const rawEstimatedTokens = Math.ceil(rawCharCount / 4);
-      console.log(`[HTML Fetcher] Content stats BEFORE cleanup for ${url}:`);
-      console.log(`  - Characters: ${rawCharCount.toLocaleString()}`);
-      console.log(`  - Words: ${rawWordCount.toLocaleString()}`);
-      console.log(`  - Estimated tokens: ${rawEstimatedTokens.toLocaleString()}`);
+      const rawHtml = await page.evaluate(() => document.documentElement.outerHTML)
+      const rawWordCount = rawHtml.split(/\s+/).length
+      const rawCharCount = rawHtml.length
+      const rawEstimatedTokens = Math.ceil(rawCharCount / 4)
+      console.log(`[HTML Fetcher] Content stats BEFORE cleanup for ${url}:`)
+      console.log(`  - Characters: ${rawCharCount.toLocaleString()}`)
+      console.log(`  - Words: ${rawWordCount.toLocaleString()}`)
+      console.log(`  - Estimated tokens: ${rawEstimatedTokens.toLocaleString()}`)
 
       // Always clean HTML content for data mining purposes
-      html = await cleanPageContent(page)
+      html = cleanHtml(rawHtml)
+
+      // Log content stats AFTER cleanup
+      const cleanedWordCount = html.split(/\s+/).length
+      const cleanedCharCount = html.length
+      const cleanedEstimatedTokens = Math.ceil(cleanedCharCount / 4)
+      console.log(`[HTML Fetcher] Content stats AFTER cleanup for ${url}:`)
+      console.log(`  - Characters: ${cleanedCharCount.toLocaleString()}`)
+      console.log(`  - Words: ${cleanedWordCount.toLocaleString()}`)
+      console.log(`  - Estimated tokens: ${cleanedEstimatedTokens.toLocaleString()}`)
     } catch (contentError) {
       throw new Error(`Failed to extract page content: ${contentError instanceof Error ? contentError.message : 'Unknown error'}`)
     }
-    
+
     // Log the first 200 characters of the cleaned HTML
     const preview = html.substring(0, 200)
     console.log(`[HTML Fetcher] First 200 characters: ${preview}${html.length > 200 ? '...' : ''}`)

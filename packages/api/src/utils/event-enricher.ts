@@ -24,7 +24,7 @@ const enrichmentSchema = {
 }
 
 export async function enrichEventFromHtml(
-  pageText: string,
+  pageHtml: string,
   originalEvent: ExtractedEvent,
   eventUrl: string
 ): Promise<EnrichmentResult> {
@@ -33,7 +33,7 @@ export async function enrichEventFromHtml(
 
     const prompt = `Eres un asistente que mejora datos de eventos. Se te proporciona:
 1. Los datos originales extraídos de una página de internet o un documento con información de eventos.
-2. El texto visible de una página de internet con detalles del evento individual a mejorar.
+2. El HTML (sin scripts, estilos, ni atributos no esenciales) de una página de internet con detalles del evento individual a mejorar.
 
 Instrucciones:
 - Para los campos title, description, location, address, Price: devuelve el valor de la página de detalle SÓLO si es más específico o detallado que el original. Si el original ya es igual de bueno o no hay mejora, devuelve null.
@@ -53,8 +53,8 @@ ${JSON.stringify({
   time: originalEvent.time,
 }, null, 2)}
 
-Texto de la página de detalle (${eventUrl}):
-${pageText}`
+HTML de la página de detalle (${eventUrl}):
+${pageHtml}`
 
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-lite",
