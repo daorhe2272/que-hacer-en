@@ -257,7 +257,8 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
   // STEP 1: Validate required fields + date range filter
   const validCandidates: ExtractedEvent[] = []
   for (const extractedEvent of extractedEvents) {
-    if (!extractedEvent.title || !extractedEvent.date || !extractedEvent.time || !extractedEvent.category_slug || !extractedEvent.city_slug) {
+    if (!extractedEvent.time) extractedEvent.time = '08:00'
+    if (!extractedEvent.title || !extractedEvent.date || !extractedEvent.category_slug || !extractedEvent.city_slug) {
       skippedEvents.push(`${extractedEvent.title} - Missing required fields`)
       continue
     }

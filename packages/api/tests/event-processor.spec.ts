@@ -362,6 +362,22 @@ describe('event-processor', () => {
       expect(result).toHaveLength(0)
     })
 
+    it('should default missing time to the 08:00 sentinel instead of skipping the event', async () => {
+      const eventWithoutTime: ExtractedEvent = { ...validExtractedEvent, time: '' }
+
+      // isDuplicateEvent (no duplicate)
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // fetchExistingEventsForCity
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // createMinedEventDb
+      mockSuccessfulDbInsert(false)
+
+      const result = await processExtractedEvents([eventWithoutTime], adminUserId)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].title).toBe('Valid Event')
+    })
+
     it('should skip DB duplicate events', async () => {
       mockQuery.mockResolvedValueOnce(createMockQueryResult([{ exists: true }])) // isDuplicateEvent
 
