@@ -1,6 +1,6 @@
 import OpenAI from "openai"
 import { getKiloClient } from "./llm-client"
-import { ExtractedEvent } from "../event-schema"
+import { ExtractedEvent, SHARED_FIELD_GUIDELINES } from "../event-schema"
 
 export interface EnrichmentResult {
   success: boolean
@@ -46,12 +46,15 @@ export async function enrichEventFromHtml(
 1. Los datos originales extraídos de una página de internet o un documento con información de eventos.
 2. El HTML (sin scripts, estilos, ni atributos no esenciales) de una página de internet con detalles del evento individual a mejorar.
 
+Significado y formato de los campos:
+${SHARED_FIELD_GUIDELINES}
+
 Instrucciones:
-- Para los campos title, description, location, address, Price: devuelve el valor de la página de detalle SÓLO si es más específico o detallado que el original. Si el original ya es igual de bueno o no hay mejora, devuelve null.
+- Para los campos title, description, location, address, Price: devuelve el valor de la página de detalle SÓLO si es más específico o detallado que el original (según el significado de cada campo arriba). Si el original ya es igual de bueno o no hay mejora, devuelve null.
 - NO modifiques date, time, city_slug, category_slug — son campos estructurales.
 - Verifica que el evento de la página de detalle sea el mismo evento que el original comparando los títulos. Los títulos no necesitan ser idénticos, pero deben referirse al mismo evento. Si no son el mismo evento, devuelve date_time_confirmed = false.
-- Para date_time_confirmed: devuelve true si la fecha de la página de detalle coincide con la fecha original (${originalEvent.date}) Y la hora de la página de detalle coincide con la hora original (${originalEvent.time}). Excepción: si la hora original es "08:00" o "00:00" (valores que indican que la primera extracción no tenía información de hora), asume que esa hora es desconocida — en ese caso, si la fecha coincide y la página de detalle proporciona una hora válida, devuelve true (la hora de la página se considera correcta). Devuelve false si las fechas difieren, los títulos no se refieren al mismo evento, o la página no tiene info de fecha/hora.
-- Para confirmation_reason: explica brevemente en español POR QUÉ estableciste date_time_confirmed en true o false. Indica si los títulos se refieren al mismo evento. Cita textualmente la fecha y hora que encontraste en la página de detalle (o indica "no se encontró fecha/hora en la página") y compárala con los datos originales. Si confirmaste usando la excepción de hora desconocida, menciónalo.
+- Para date_time_confirmed: devuelve true si la fecha de la página de detalle coincide con la fecha original (${originalEvent.date}) Y la hora de la página de detalle coincide con la hora original (${originalEvent.time}). Si la hora original es "08:00" o "00:00", son valores centinela que indican que la primera extracción no encontró una hora real — en ese caso devuelve date_time_confirmed = false. Devuelve false también si las fechas difieren, los títulos no se refieren al mismo evento, o la página no tiene info de fecha/hora.
+- Para confirmation_reason: explica brevemente en español POR QUÉ estableciste date_time_confirmed en true o false. Indica si los títulos se refieren al mismo evento. Cita textualmente la fecha y hora que encontraste en la página de detalle (o indica "no se encontró fecha/hora en la página") y compárala con los datos originales. Si la hora original era un valor centinela (08:00 o 00:00), menciónalo como motivo del false.
 
 Datos originales:
 ${JSON.stringify({

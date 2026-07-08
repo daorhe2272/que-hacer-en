@@ -26,6 +26,21 @@ export async function getCitySlugs(): Promise<string[]> {
 }
 
 /**
+ * Field-level guidance shared by the extraction and enrichment LLM calls (event-extractor.ts
+ * and event-enricher.ts). Both processes read and/or write these fields, so the semantics must
+ * stay identical across calls — defined once here instead of duplicated in each prompt.
+ *
+ * Written in Spanish since both prompts are in Spanish.
+ */
+export const SHARED_FIELD_GUIDELINES = `- title: el título del evento.
+- description: una breve descripción del evento. Si no hay una disponible, escribe una simple a partir del título y el contexto.
+- date: la fecha del evento en formato YYYY-MM-DD.
+- time: la hora de inicio del evento en formato HH:MM (24 horas). "08:00" y "00:00" son valores centinela que indican que no se encontró una hora real — no representan una hora de inicio confirmada.
+- location: el nombre del lugar o recinto.
+- address: la dirección completa del evento. Si no se especifica una dirección, usa el mismo valor que location.
+- Price: el precio de la entrada como número. Usa 0 SÓLO si la página indica explícitamente que el evento es gratuito (p. ej. "gratis", "entrada libre", "free", "$0"). Si no hay información de precio visible, usa null — NO asumas que un evento es gratuito solo porque no se muestra un precio.`;
+
+/**
  * Schema for extracting events from HTML content using structured output
  * (OpenAI-compatible strict JSON schema, used against Kilo Gateway/DeepSeek).
  */
@@ -35,60 +50,21 @@ export function buildEventSchema(categorySlugs: string[], citySlugs: string[]) {
     properties: {
       events: {
         type: "array",
-        description: "A list of event objects.",
         items: {
           type: "object",
           properties: {
-            source_url: {
-              type: "string",
-              description: "The provided URL for data extraction from where all other information stems.",
-            },
-            event_url: {
-              type: "string",
-              description: "The URL for the particular event. Usually takes the form of an anchor tag with an URL that users can click to obtain more information about the event. Defaults to source_url.",
-            },
-            title: {
-              type: "string",
-              description: "Title of the event.",
-            },
-            description: {
-              type: "string",
-              description: "A brief description of the event. If a description is not available, create a simple one from the title and context.",
-            },
-            date: {
-              type: "string",
-              description: "The date of the event in YYYY-MM-DD format.",
-            },
-            time: {
-              type: "string",
-              description: "The start time of the event in HH:MM format.",
-            },
-            location: {
-              type: "string",
-              description: "The name of the venue or location.",
-            },
-            address: {
-              type: "string",
-              description: "The full street address of the event. If no address is provided, it should be the same as the event's location.",
-            },
-            category_slug: {
-              type: "string",
-              description: `Category slug for database lookup: ${categorySlugs.map((slug) => `'${slug}'`).join(", ")}. If none of the categories fit perfectly, choose the closest matching one — never invent a value outside this list.`,
-              enum: categorySlugs,
-            },
-            city_slug: {
-              type: "string",
-              description: `City slug for database lookup: ${citySlugs.map((slug) => `'${slug}'`).join(", ")}. If none of the cities fit perfectly, choose the closest matching one — never invent a value outside this list.`,
-              enum: citySlugs,
-            },
-            Price: {
-              type: ["number", "null"],
-              description: "The ticket price as a number. If the event is free, the value should be 0. If the price is not specified, this value should be null.",
-            },
-            image_url: {
-              type: ["string", "null"],
-              description: "The URL of the event's image. Check for image tags associated with the event and a URL source. If no image URL is found, this should be null.",
-            },
+            source_url: { type: "string" },
+            event_url: { type: "string" },
+            title: { type: "string" },
+            description: { type: "string" },
+            date: { type: "string" },
+            time: { type: "string" },
+            location: { type: "string" },
+            address: { type: "string" },
+            category_slug: { type: "string", enum: categorySlugs },
+            city_slug: { type: "string", enum: citySlugs },
+            Price: { type: ["number", "null"] },
+            image_url: { type: ["string", "null"] },
           },
           required: ["source_url", "event_url", "title", "description", "date", "time", "location", "address", "category_slug", "city_slug", "Price", "image_url"],
           additionalProperties: false,

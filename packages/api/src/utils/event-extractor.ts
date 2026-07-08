@@ -1,11 +1,11 @@
 import OpenAI from "openai";
 import { getKiloClient } from "./llm-client";
-import { buildEventResponseFormat, getCategorySlugs, getCitySlugs, EventExtractionResponse } from "../event-schema";
+import { buildEventResponseFormat, getCategorySlugs, getCitySlugs, EventExtractionResponse, SHARED_FIELD_GUIDELINES } from "../event-schema";
 
 /**
  * Extracts events from HTML content using Kilo Gateway (MiniMax M3) with structured output
  */
-export async function extractEventsFromHtml(html: string, sourceUrl: string): Promise<{
+export async function extractEventsFromHtml(html: string, sourceUrl: string, cityName?: string): Promise<{
   success: boolean;
   events?: EventExtractionResponse["events"];
   error?: string;
@@ -17,15 +17,24 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
 
     const [categorySlugs, citySlugs] = await Promise.all([getCategorySlugs(), getCitySlugs()]);
 
-    // Create the prompt for extracting events
-    const prompt = `Extract all distinct events from the following HTML content.
-    The source URL is: ${sourceUrl}
-    The current year is ${currentYear}. For events that have a defined date but no year specified, assume the year is ${currentYear}.
+    // Create the prompt for extracting events.
+    const prompt = `Extrae todos los eventos distintos del siguiente contenido HTML.
+    La URL de origen es: ${sourceUrl}
+    El año actual es ${currentYear}. Para eventos con fecha definida pero sin año especificado, asume que el año es ${currentYear}.
+    ${cityName ? `Estos eventos probablemente se llevan a cabo en ${cityName}. Usa esto como contexto para determinar location, address y city_slug.` : ""}
 
-    HTML content:
+    Para cada evento, completa los campos de la siguiente manera:
+    - source_url: la URL de origen indicada arriba, sin modificar.
+    - event_url: la URL de la página de detalle propia de este evento (p. ej. un enlace con más información sobre el mismo). Si no existe una página de detalle propia, usa el mismo valor que source_url.
+${SHARED_FIELD_GUIDELINES}
+    - category_slug: debe ser exactamente uno de estos valores: ${categorySlugs.map((slug) => `'${slug}'`).join(", ")}. Si ninguno encaja perfectamente, elige el más cercano — nunca inventes un valor fuera de esta lista.
+    - city_slug: debe ser exactamente uno de estos valores: ${citySlugs.map((slug) => `'${slug}'`).join(", ")}. Si ninguno encaja perfectamente, elige el más cercano — nunca inventes un valor fuera de esta lista.
+    - image_url: la URL de la imagen del evento, si se encuentra una (revisa etiquetas de imagen y su src/URL). Si no se encuentra ninguna, usa null.
+
+    Contenido HTML:
     ${html}
 
-    Please extract all events and return them in the specified JSON format. If no events are found, return an empty array.`;
+    Extrae todos los eventos y devuélvelos en el formato JSON especificado. Si no se encuentra ningún evento, devuelve un arreglo vacío.`;
 
 
     // Generate content with structured output
@@ -34,6 +43,15 @@ export async function extractEventsFromHtml(html: string, sourceUrl: string): Pr
       messages: [{ role: "user", content: prompt }],
       response_format: buildEventResponseFormat(categorySlugs, citySlugs),
     });
+
+    // Guard against malformed responses from Kilo Gateway (e.g. missing `choices`)
+    if (!completion.choices || completion.choices.length === 0) {
+      console.error("[Event Extractor] Kilo Gateway response missing choices:", JSON.stringify(completion));
+      return {
+        success: false,
+        error: "Kilo Gateway returned a response with no choices"
+      };
+    }
 
     // Parse the response
     const responseText = completion.choices[0]?.message?.content;

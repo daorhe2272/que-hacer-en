@@ -356,8 +356,11 @@ router.post('/:id/mine', async (req, res) => {
     }
 
     // Check if data source exists and is active
-    const sourceCheck = await query<{ url: string, active: boolean }>(
-      `SELECT url, active FROM data_sources WHERE id = $1`,
+    const sourceCheck = await query<{ url: string, active: boolean, city_name: string | null }>(
+      `SELECT ds.url, ds.active, c.name as city_name
+       FROM data_sources ds
+       LEFT JOIN cities c ON ds.city_id = c.id
+       WHERE ds.id = $1`,
       [id]
     )
     if (sourceCheck.rows.length === 0) {
@@ -386,7 +389,7 @@ router.post('/:id/mine', async (req, res) => {
       // Extract events from the HTML content using Gemini
       if (fetchResult.fullHtml) {
         console.log(`[Mining] Starting event extraction from HTML content`)
-        const extractionResult = await extractEventsFromHtml(fetchResult.fullHtml, source.url)
+        const extractionResult = await extractEventsFromHtml(fetchResult.fullHtml, source.url, source.city_name || undefined)
 
         if (extractionResult.success && extractionResult.events) {
           console.log(`[Mining] Successfully extracted ${extractionResult.events.length} events`)

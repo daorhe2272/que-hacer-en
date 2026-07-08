@@ -353,13 +353,17 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
             if (enrichResult.enrichedFields.location) eventData.location = enrichResult.enrichedFields.location
             if (enrichResult.enrichedFields.address) eventData.address = enrichResult.enrichedFields.address
             if (enrichResult.enrichedFields.Price !== undefined) eventData.price = enrichResult.enrichedFields.Price
-            active = enrichResult.dateTimeConfirmed
+            const hasSentinelTime = candidate.time === '08:00' || candidate.time === '00:00'
+            active = enrichResult.dateTimeConfirmed && !hasSentinelTime
           } else {
             console.warn(`[Procesador de Eventos] Enriquecimiento falló para "${candidate.title}": ${enrichResult.error}`)
           }
         } else {
           console.warn(`[Procesador de Eventos] Fetch falló para evento URL "${candidate.event_url}": ${fetchResult.error}`)
         }
+      }
+      if (!eventData.location || !eventData.address) {
+        active = false
       }
 
       // STEP 6: Store in database
