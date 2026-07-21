@@ -1,8 +1,12 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
 
 export default function ScrollToHash() {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   useEffect(() => {
     // Check if there's a hash in the URL
     const hash = window.location.hash
@@ -11,7 +15,7 @@ export default function ScrollToHash() {
       const timer = setTimeout(() => {
         const element = document.getElementById(hash.substring(1))
         if (element) {
-          element.scrollIntoView({ 
+          element.scrollIntoView({
             behavior: 'smooth',
             block: 'start'
           })
@@ -22,7 +26,7 @@ export default function ScrollToHash() {
     }
     // Return undefined cleanup function when no hash
     return undefined
-  }, [])
+  }, [pathname, searchParams])
 
   return null // This component doesn't render anything
 }

@@ -22,7 +22,7 @@ export default function ClientFilters({ city, selectedCategory, selectedRange }:
     }
     usp.delete('page')
     const query = usp.toString()
-    router.push(`/eventos/${city}${query ? `?${query}` : ''}`)
+    router.push(`/eventos/${city}${query ? `?${query}` : ''}#events`)
   }
 
   function handleRangeClick(key: DateRangePreset) {

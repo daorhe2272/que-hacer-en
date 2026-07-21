@@ -201,3 +201,5 @@ jobs:
             NODE_ENV=production
             API_PORT=4001
             WEB_PORT=4000
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
