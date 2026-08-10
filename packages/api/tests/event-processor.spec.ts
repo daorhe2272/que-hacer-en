@@ -514,6 +514,61 @@ describe('event-processor', () => {
       )
     })
 
+    it('should apply enriched time and store active when sentinel time is replaced', async () => {
+      const sentinelEvent = { ...enrichableEvent, time: '08:00' }
+      mockFetchHtmlContent.mockResolvedValueOnce({
+        success: true, fullHtml: '<html>detail page</html>', method: 'static', content: ''
+      })
+      mockEnrichEventFromHtml.mockResolvedValueOnce({
+        success: true, enrichedFields: { time: '19:00', description: 'Better description' }, dateTimeConfirmed: true,
+        confirmationReason: 'La hora original era un centinela (08:00) y la página de detalle muestra 19:00'
+      })
+
+      // isDuplicateEvent
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // fetchExistingEventsForCity
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // createMinedEventDb with active=true
+      mockSuccessfulDbInsert(true)
+
+      const result = await processExtractedEvents([sentinelEvent], adminUserId)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].active).toBe(true)
+      // The INSERT must use the enriched time (19:00) instead of the sentinel.
+      // 19:00 local (Bogotá, UTC-5) → 00:00 UTC on the following day.
+      const insertCall = mockQuery.mock.calls.find(call => call[0]?.includes?.('INSERT INTO events'))
+      expect(insertCall).toBeDefined()
+      const params = insertCall![1] as any[]
+      const startsAt = params[7] as string
+      const nextDay = new Date(futureDate + 'T00:00:00')
+      nextDay.setDate(nextDay.getDate() + 1)
+      expect(startsAt).toBe(`${nextDay.toISOString().split('T')[0]}T00:00:00.000Z`)
+    })
+
+    it('should keep event inactive when sentinel time is not enriched', async () => {
+      const sentinelEvent = { ...enrichableEvent, time: '08:00' }
+      mockFetchHtmlContent.mockResolvedValueOnce({
+        success: true, fullHtml: '<html>detail page</html>', method: 'static', content: ''
+      })
+      mockEnrichEventFromHtml.mockResolvedValueOnce({
+        success: true, enrichedFields: { description: 'Better description' }, dateTimeConfirmed: true,
+        confirmationReason: 'La página de detalle no muestra una hora real'
+      })
+
+      // isDuplicateEvent
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // fetchExistingEventsForCity
+      mockQuery.mockResolvedValueOnce(createMockQueryResult([]))
+      // createMinedEventDb with active=false
+      mockSuccessfulDbInsert(false)
+
+      const result = await processExtractedEvents([sentinelEvent], adminUserId)
+
+      expect(result).toHaveLength(1)
+      expect(result[0].active).toBe(false)
+    })
+
     it('should store enriched fields as inactive when date+time mismatch', async () => {
       mockFetchHtmlContent.mockResolvedValueOnce({
         success: true, fullHtml: '<html>detail page</html>', method: 'static', content: ''

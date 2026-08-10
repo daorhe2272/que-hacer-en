@@ -386,7 +386,7 @@ router.post('/:id/mine', async (req, res) => {
     if (fetchResult.success) {
       console.log(`[Mining] Successfully fetched content from ${source.url}`)
 
-      // Extract events from the HTML content using Gemini
+      // Extract events from the HTML content using Kilo Gateway (DeepSeek V4 Flash 0731)
       if (fetchResult.fullHtml) {
         console.log(`[Mining] Starting event extraction from HTML content`)
         const extractionResult = await extractEventsFromHtml(fetchResult.fullHtml, source.url, source.city_name || undefined)

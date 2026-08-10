@@ -107,6 +107,89 @@ describe('extractEventsFromHtml', () => {
       expect(result.events).toEqual([])
       expect(result.error).toBeUndefined()
     })
+
+    it('should handle a bare events array (DeepSeek V4 Flash 0731 shape)', async () => {
+      const event = {
+        source_url: 'https://example.com',
+        event_url: 'https://example.com/event1',
+        title: 'Test Event',
+        description: 'A test event description',
+        date: '2024-12-01',
+        time: '20:00',
+        location: 'Test Venue',
+        address: 'Test Address',
+        category_slug: 'musica',
+        city_slug: 'bogota',
+        Price: 50000,
+        image_url: 'https://example.com/image.jpg'
+      }
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: JSON.stringify([event])
+          }
+        }]
+      }
+
+      mockCreate.mockResolvedValue(mockResponse)
+
+      const result = await extractEventsFromHtml('<html>Test content</html>', 'https://example.com')
+
+      expect(result.success).toBe(true)
+      expect(result.events).toHaveLength(1)
+      expect(result.events![0]).toEqual(event)
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should treat an empty object as no events found', async () => {
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: JSON.stringify({})
+          }
+        }]
+      }
+
+      mockCreate.mockResolvedValue(mockResponse)
+
+      const result = await extractEventsFromHtml('<html>No events here</html>', 'https://example.com')
+
+      expect(result.success).toBe(true)
+      expect(result.events).toEqual([])
+      expect(result.error).toBeUndefined()
+    })
+
+    it('should handle a single unwrapped event object', async () => {
+      const event = {
+        source_url: 'https://example.com',
+        event_url: 'https://example.com/event1',
+        title: 'Test Event',
+        description: 'A test event description',
+        date: '2024-12-01',
+        time: '20:00',
+        location: 'Test Venue',
+        address: 'Test Address',
+        category_slug: 'musica',
+        city_slug: 'bogota',
+        Price: 50000,
+        image_url: 'https://example.com/image.jpg'
+      }
+      const mockResponse = {
+        choices: [{
+          message: {
+            content: JSON.stringify(event)
+          }
+        }]
+      }
+
+      mockCreate.mockResolvedValue(mockResponse)
+
+      const result = await extractEventsFromHtml('<html>Test content</html>', 'https://example.com')
+
+      expect(result.success).toBe(true)
+      expect(result.events).toEqual([event])
+      expect(result.error).toBeUndefined()
+    })
   })
 
   describe('API error scenarios', () => {

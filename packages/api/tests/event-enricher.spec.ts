@@ -76,6 +76,54 @@ describe('event-enricher', () => {
     expect(result.enrichedFields.location).toBeUndefined()
   })
 
+  it('should include image_url when the original was null and the detail page has an image', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            title: null,
+            description: null,
+            location: null,
+            address: null,
+            Price: null,
+            image_url: 'https://example.com/event1/cover.jpg',
+            date_time_confirmed: true,
+            confirmation_reason: 'La fecha y hora coinciden',
+          })
+        }
+      }]
+    })
+
+    const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+    expect(result.success).toBe(true)
+    expect(result.enrichedFields.image_url).toBe('https://example.com/event1/cover.jpg')
+  })
+
+  it('should omit image_url when the detail page has no image for the event', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            title: null,
+            description: null,
+            location: null,
+            address: null,
+            Price: null,
+            image_url: null,
+            date_time_confirmed: true,
+            confirmation_reason: 'La fecha y hora coinciden',
+          })
+        }
+      }]
+    })
+
+    const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+    expect(result.success).toBe(true)
+    expect(result.enrichedFields.image_url).toBeUndefined()
+  })
+
   it('should omit fields when LLM returns null', async () => {
     mockCreate.mockResolvedValue({
       choices: [{
@@ -98,6 +146,57 @@ describe('event-enricher', () => {
     expect(result.success).toBe(true)
     expect(result.dateTimeConfirmed).toBe(true)
     expect(Object.keys(result.enrichedFields)).toHaveLength(0)
+  })
+
+  it('should enrich time when original time was a sentinel and detail page shows a real time', async () => {
+    const sentinelEvent: ExtractedEvent = { ...originalEvent, time: '08:00' }
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            title: null,
+            description: null,
+            location: null,
+            address: null,
+            Price: null,
+            time: '19:30',
+            date_time_confirmed: true,
+            confirmation_reason: 'La hora original era un centinela (08:00) y la página de detalle muestra 19:30',
+          })
+        }
+      }]
+    })
+
+    const result = await enrichEventFromHtml(detailHtml, sentinelEvent, sentinelEvent.event_url)
+
+    expect(result.success).toBe(true)
+    expect(result.dateTimeConfirmed).toBe(true)
+    expect(result.enrichedFields.time).toBe('19:30')
+  })
+
+  it('should omit time when the detail page has no real time', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            title: null,
+            description: null,
+            location: null,
+            address: null,
+            Price: null,
+            time: null,
+            date_time_confirmed: false,
+            confirmation_reason: 'No se encontró fecha/hora en la página',
+          })
+        }
+      }]
+    })
+
+    const result = await enrichEventFromHtml(detailHtml, originalEvent, originalEvent.event_url)
+
+    expect(result.success).toBe(true)
+    expect(result.dateTimeConfirmed).toBe(false)
+    expect(result.enrichedFields.time).toBeUndefined()
   })
 
   it('should set dateTimeConfirmed = true when LLM confirms match', async () => {

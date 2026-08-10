@@ -17,6 +17,32 @@ function timeMatches(candidateTime: string, existingTime: string): boolean {
   return candidateTime === existingTime
 }
 
+/**
+ * Runs `fn` for each item with at most `limit` in-flight calls, preserving input
+ * order in the returned array. Errors must be contained inside `fn` (e.g. return
+ * a tagged result) so a single failure doesn't reject the whole batch.
+ */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let next = 0
+
+  async function worker() {
+    while (next < items.length) {
+      const index = next++
+      results[index] = await fn(items[index], index)
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  )
+  return results
+}
+
 export function convertExtractedEventToDbFormat(extractedEvent: ExtractedEvent): CreateEventParams {
   return {
     title: extractedEvent.title,
@@ -274,6 +300,7 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
   }
 
   // STEP 2: Within-batch deduplication
+  console.log(`[Procesador de Eventos] Deduplicación iniciada (${validCandidates.length} candidatos)`)
   const uniqueCandidates = deduplicateWithinBatch(validCandidates)
 
   // STEP 3: DB exact-match duplicate check
@@ -332,9 +359,17 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
   const semanticallyUniqueCandidates = nonDbDuplicateCandidates.filter(
     (_, index) => !duplicateIndices.has(index)
   )
+  console.log(`[Procesador de Eventos] Deduplicación completada (${semanticallyUniqueCandidates.length} candidatos finales)`)
 
-  // STEP 5: Enrichment (sequential per event)
-  for (const candidate of semanticallyUniqueCandidates) {
+  // STEP 5: Enrichment (bounded parallel — each candidate is independent;
+  // dedup already ran, so fetch + LLM + insert can safely overlap).
+  const ENRICHMENT_CONCURRENCY = 5
+
+  type ProcessingResult =
+    | { kind: 'stored'; event: EventDto }
+    | { kind: 'skipped'; reason: string }
+
+  async function processCandidate(candidate: ExtractedEvent): Promise<ProcessingResult> {
     try {
       const eventData = convertExtractedEventToDbFormat(candidate)
       let active = false
@@ -345,15 +380,23 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
           const pageHtml = fetchResult.fullHtml
           console.log(`[Procesador de Eventos] HTML limpio para enriquecimiento: ${pageHtml.length.toLocaleString()} caracteres (~${Math.ceil(pageHtml.length / 4).toLocaleString()} tokens)`)
           const enrichResult = await enrichEventFromHtml(pageHtml, candidate, candidate.event_url)
+          // Enriched time takes priority over the original when the detail page shows a
+          // real time (e.g. the original was a sentinel like 08:00/00:00).
+          const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/
+          const enrichedTime = enrichResult.enrichedFields.time
+          const timeIsValid = enrichedTime !== undefined && timeRegex.test(enrichedTime)
+          const effectiveTime = timeIsValid ? enrichedTime : candidate.time
           // Permanent log: title, date, time, confirmation result, and the reason
-          console.log(`[Procesador de Eventos] "${candidate.title}" | date=${candidate.date} | time=${candidate.time} | confirmed=${enrichResult.dateTimeConfirmed} | razón: ${enrichResult.confirmationReason}`)
+          console.log(`[Procesador de Eventos] "${candidate.title}" | date=${candidate.date} | time=${candidate.time} | time_efectiva=${effectiveTime} | confirmed=${enrichResult.dateTimeConfirmed} | razón: ${enrichResult.confirmationReason}`)
           if (enrichResult.success) {
             if (enrichResult.enrichedFields.title) eventData.title = enrichResult.enrichedFields.title
             if (enrichResult.enrichedFields.description) eventData.description = enrichResult.enrichedFields.description
             if (enrichResult.enrichedFields.location) eventData.location = enrichResult.enrichedFields.location
             if (enrichResult.enrichedFields.address) eventData.address = enrichResult.enrichedFields.address
             if (enrichResult.enrichedFields.Price !== undefined) eventData.price = enrichResult.enrichedFields.Price
-            const hasSentinelTime = candidate.time === '08:00' || candidate.time === '00:00'
+            if (enrichResult.enrichedFields.image_url) eventData.image = enrichResult.enrichedFields.image_url
+            if (timeIsValid) eventData.time = enrichedTime
+            const hasSentinelTime = effectiveTime === '08:00' || effectiveTime === '00:00'
             active = enrichResult.dateTimeConfirmed && !hasSentinelTime
           } else {
             console.warn(`[Procesador de Eventos] Enriquecimiento falló para "${candidate.title}": ${enrichResult.error}`)
@@ -368,13 +411,19 @@ export async function processExtractedEvents(extractedEvents: ExtractedEvent[], 
 
       // STEP 6: Store in database
       const storedEvent = await createMinedEventDb(eventData, adminUserId, candidate.event_url, active)
-      storedEvents.push(storedEvent)
-
       console.log(`[Procesador de Eventos] Evento almacenado exitosamente: ${candidate.title} (active=${active})`)
+      return { kind: 'stored', event: storedEvent }
     } catch (error) {
       console.error(`[Procesador de Eventos] Error al procesar evento: ${candidate.title}`, error)
-      skippedEvents.push(`${candidate.title} - Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      return { kind: 'skipped', reason: `${candidate.title} - Error: ${error instanceof Error ? error.message : 'Unknown error'}` }
     }
+  }
+
+  // Results come back in input order, so stored/skipped bookkeeping stays deterministic.
+  const results = await mapWithConcurrency(semanticallyUniqueCandidates, ENRICHMENT_CONCURRENCY, processCandidate)
+  for (const result of results) {
+    if (result.kind === 'stored') storedEvents.push(result.event)
+    else skippedEvents.push(result.reason)
   }
 
   console.log(`[Procesador de Eventos] Procesamiento completado. Almacenados: ${storedEvents.length}, Omitidos: ${skippedEvents.length}`)

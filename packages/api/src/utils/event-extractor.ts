@@ -1,9 +1,47 @@
 import OpenAI from "openai";
 import { getKiloClient } from "./llm-client";
-import { buildEventResponseFormat, getCategorySlugs, getCitySlugs, EventExtractionResponse, SHARED_FIELD_GUIDELINES } from "../event-schema";
+import { buildEventResponseFormat, getCategorySlugs, getCitySlugs, ExtractedEvent, EventExtractionResponse, SHARED_FIELD_GUIDELINES } from "../event-schema";
 
 /**
- * Extracts events from HTML content using Kilo Gateway (MiniMax M3) with structured output
+ * Coerces provider-specific JSON shapes into the canonical { events: [...] } form.
+ *
+ * Providers behind the OpenAI-compatible gateway interpret the strict json_schema
+ * envelope differently:
+ *   - MiniMax M3 wrapped events in the declared object: { "events": [...] }
+ *   - DeepSeek V4 Flash 0731 returns the bare array: [ {...}, {...} ]
+ *   - Some models emit {} when no events are found, or a single unwrapped event object.
+ * Returns null when the parsed value is not any known shape (genuinely malformed).
+ */
+function normalizeExtractionResponse(parsed: unknown): EventExtractionResponse | null {
+  if (Array.isArray(parsed)) {
+    return { events: parsed as EventExtractionResponse["events"] }
+  }
+
+  if (typeof parsed !== "object" || parsed === null) {
+    return null
+  }
+
+  const obj = parsed as Record<string, unknown>
+
+  if (Array.isArray(obj.events)) {
+    return { events: obj.events as EventExtractionResponse["events"] }
+  }
+
+  // Single unwrapped event object, identified by the presence of event fields.
+  if (typeof obj.source_url === "string" && typeof obj.title === "string") {
+    return { events: [obj as unknown as ExtractedEvent] }
+  }
+
+  // Empty object → the model found no events.
+  if (Object.keys(obj).length === 0) {
+    return { events: [] }
+  }
+
+  return null
+}
+
+/**
+ * Extracts events from HTML content using Kilo Gateway (DeepSeek V4 Flash 0731) with structured output
  */
 export async function extractEventsFromHtml(html: string, sourceUrl: string, cityName?: string): Promise<{
   success: boolean;
@@ -39,7 +77,7 @@ ${SHARED_FIELD_GUIDELINES}
 
     // Generate content with structured output
     const completion = await kiloClient.chat.completions.create({
-      model: "minimax/minimax-m3",
+      model: "deepseek/deepseek-v4-flash-0731",
       messages: [{ role: "user", content: prompt }],
       response_format: buildEventResponseFormat(categorySlugs, citySlugs),
     });
@@ -63,9 +101,9 @@ ${SHARED_FIELD_GUIDELINES}
       };
     }
 
-    let parsedResponse: EventExtractionResponse;
+    let parsed: unknown
     try {
-      parsedResponse = JSON.parse(responseText);
+      parsed = JSON.parse(responseText);
     } catch (parseError) {
       console.error("[Event Extractor] Failed to parse JSON response:", parseError);
       return {
@@ -74,8 +112,8 @@ ${SHARED_FIELD_GUIDELINES}
       };
     }
 
-    // Validate the response structure
-    if (!parsedResponse.events || !Array.isArray(parsedResponse.events)) {
+    const normalized = normalizeExtractionResponse(parsed)
+    if (!normalized) {
       return {
         success: false,
         error: "Invalid response structure: missing events array"
@@ -84,7 +122,7 @@ ${SHARED_FIELD_GUIDELINES}
 
     return {
       success: true,
-      events: parsedResponse.events
+      events: normalized.events
     };
 
   } catch (error) {

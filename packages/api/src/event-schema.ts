@@ -38,7 +38,8 @@ export const SHARED_FIELD_GUIDELINES = `- title: el título del evento.
 - time: la hora de inicio del evento en formato HH:MM (24 horas). "08:00" y "00:00" son valores centinela que indican que no se encontró una hora real — no representan una hora de inicio confirmada.
 - location: el nombre del lugar o recinto.
 - address: la dirección completa del evento. Si no se especifica una dirección, usa el mismo valor que location.
-- Price: el precio de la entrada como número. Usa 0 SÓLO si la página indica explícitamente que el evento es gratuito (p. ej. "gratis", "entrada libre", "free", "$0"). Si no hay información de precio visible, usa null — NO asumas que un evento es gratuito solo porque no se muestra un precio.`;
+- Price: el precio de la entrada como número. Usa 0 SÓLO si la página indica explícitamente que el evento es gratuito (p. ej. "gratis", "entrada libre", "free", "$0"). Si no hay información de precio visible, usa null — NO asumas que un evento es gratuito solo porque no se muestra un precio.
+- image_url: la URL de la imagen del evento, si se encuentra una. Si no se encuentra ninguna, usa null.`;
 
 /**
  * Schema for extracting events from HTML content using structured output
