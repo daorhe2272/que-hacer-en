@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cityName = cityNames[city]
   const title = `Eventos en ${cityName}`
   const description = `Descubre los mejores eventos y actividades en ${cityName}. Conciertos, festivales, obras de teatro y mucho más.`
-  const url = `${process.env.NEXT_PUBLIC_WEB_URL || 'https://quehaceren.co'}/eventos/${city}`
+  const url = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/eventos/${city}`
   
   return {
     title,
@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'website',
       images: [
         {
-          url: `${process.env.NEXT_PUBLIC_WEB_URL || 'https://quehaceren.co'}/og-image.jpg`,
+          url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/og-image.jpg`,
           width: 1200,
           height: 630,
           alt: `Eventos en ${cityName} - ¿Qué hay pa&apos; hacer?`,
@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title,
       description,
-      images: [`${process.env.NEXT_PUBLIC_WEB_URL || 'https://quehaceren.co'}/og-image.jpg`],
+      images: [`${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/og-image.jpg`],
       creator: '@quehaceren',
       site: '@quehaceren',
     },

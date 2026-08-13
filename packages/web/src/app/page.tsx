@@ -10,13 +10,13 @@ export const metadata: Metadata = {
   openGraph: {
     title: '¿Qué hay pa\' hacer? - Descubre los mejores eventos en Colombia',
     description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti. Conciertos, festivales, arte y cultura en toda Colombia.',
-    url: process.env.NEXT_PUBLIC_WEB_URL,
+    url: process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com',
     siteName: '¿Qué hay pa\' hacer?',
     locale: 'es_CO',
     type: 'website',
     images: [
       {
-        url: `${process.env.NEXT_PUBLIC_WEB_URL}/og-image.jpg`,
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/og-image.jpg`,
         width: 1200,
         height: 630,
         alt: '¿Qué hay pa\' hacer? - Eventos en Colombia',
@@ -27,12 +27,12 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: '¿Qué hay pa\' hacer? - Descubre los mejores eventos en Colombia',
     description: 'Selecciona tu ciudad y descubre los mejores eventos y actividades cerca de ti.',
-    images: [`${process.env.NEXT_PUBLIC_WEB_URL}/og-image.jpg`],
+    images: [`${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/og-image.jpg`],
     creator: '@quehaceren',
     site: '@quehaceren',
   },
   alternates: {
-    canonical: process.env.NEXT_PUBLIC_WEB_URL,
+    canonical: process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com',
   },
 }
 

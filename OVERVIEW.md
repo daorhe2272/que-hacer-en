@@ -89,6 +89,7 @@ The project will be developed in phases:
   - `PORT` (default 4000)
   - `NEXT_PUBLIC_API_URL` (e.g., `http://localhost:4001`)
   - `NEXT_PUBLIC_WEB_URL` (e.g., `http://localhost:4000`)
+  - `NEXT_PUBLIC_SITE_URL` (public/canonical site URL for SEO metadata, sitemap, and robots; e.g., `https://pahacer.com`)
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `REVALIDATE_SECRET` (secret token for on-demand revalidation)
@@ -303,7 +304,8 @@ The entrypoint (`entrypoint.sh`) starts Express and Next.js in the background, t
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
 | `NEXT_PUBLIC_API_URL` | Public API URL (proxied through nginx) |
-| `NEXT_PUBLIC_WEB_URL` | Public web URL |
+| `NEXT_PUBLIC_WEB_URL` | Public web URL (used by API for revalidation requests) |
+| `NEXT_PUBLIC_SITE_URL` | Public/canonical site URL (SEO metadata, sitemap, robots) |
 | `REVALIDATE_SECRET` | Shared secret for on-demand ISR revalidation |
 | `CORS_ORIGINS` | Allowed CORS origins for the API |
 | `GOOGLE_API_KEY` | Gemini API key (mining pipeline: dedup + moderation) |

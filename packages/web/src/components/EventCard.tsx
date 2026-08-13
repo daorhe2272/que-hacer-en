@@ -26,7 +26,7 @@ export default function EventCard({ event }: EventCardProps) {
   const manageMenuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
-  const shareUrl = `${process.env.NEXT_PUBLIC_WEB_URL}/eventos/${event.city}/${event.id}`
+  const shareUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/eventos/${event.city}/${event.id}`
 
   async function handleShare(e: React.MouseEvent) {
     e.preventDefault()

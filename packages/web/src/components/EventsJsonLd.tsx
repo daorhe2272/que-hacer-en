@@ -7,7 +7,7 @@ interface EventsJsonLdProps {
 }
 
 export default function EventsJsonLd({ events, cityName, city }: EventsJsonLdProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_WEB_URL
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'
   
   // Create JSON-LD for EventListing page
   const eventListingSchema = {
