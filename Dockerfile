@@ -12,9 +12,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/api/package.json ./packages/api/
 COPY packages/web/package.json ./packages/web/
-# Reason: app's manifest is required for --frozen-lockfile to match the lockfile,
-# but no app source is ever copied into the image (see .dockerignore).
-COPY packages/app/package.json ./packages/app/
 
 RUN pnpm install --frozen-lockfile
 

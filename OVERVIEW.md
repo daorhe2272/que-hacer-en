@@ -8,13 +8,15 @@ All user-facing content will be in Spanish.
 
 ## 2. General Architecture
 
-The project is structured as a **TypeScript monorepo** managed with a package manager like `pnpm` or `yarn workspaces`. This approach enables maximum code reuse and a streamlined development process across different parts of the application.
+The project is structured as a **TypeScript monorepo** managed with `pnpm` workspaces. This approach enables maximum code reuse and a streamlined development process across different parts of the application.
 
-The architecture is composed of three main packages:
+The architecture is composed of three workspace packages:
 
 *   `/api`: A **Node.js/Express.js** backend that serves as the central REST API for the application. It handles business logic and data retrieval.
 *   `/web`: A **Next.js** application for the web frontend. It leverages Server-Side Rendering (SSR) to ensure optimal performance and SEO.
-*   `/app`: An **Expo (React Native)** application for the native mobile clients (iOS & Android). This package will share a significant amount of UI components and logic with the `/web` package.
+*   `/shared`: A **TypeScript** package with types and utilities shared between `api` and `web`.
+
+A native mobile app (React Native/Expo) is planned for a future phase (see Phase 7) but has not been scaffolded yet.
 
 ### SEO Strategy
 
@@ -25,7 +27,7 @@ A core architectural requirement is strong SEO performance. To achieve this, the
 *   **Language**: TypeScript
 *   **Monorepo Manager**: pnpm / yarn
 *   **Frontend (Web)**: React, Next.js
-*   **Frontend (Mobile)**: React Native, Expo
+*   **Frontend (Mobile, planned)**: React Native, Expo
 *   **Backend**: Node.js, Express.js
 *   **Database**: PostgreSQL (Supabase) with full migration and seeding system
 *   **Authentication**: Supabase Auth with Google OAuth integration
@@ -106,12 +108,7 @@ The project will be developed in phases:
   - `NEXT_PUBLIC_WEB_URL` (URL of web app for revalidation requests)
   - `REVALIDATE_SECRET` (secret token for on-demand revalidation, must match web)
   - `GOOGLE_API_KEY` (Gemini, used by the mining pipeline's dedup/moderation steps)
-  - `KILO_API_KEY` (Kilo Gateway, used by the mining pipeline's extraction/enrichment steps, model `minimax/minimax-m3`)
-
-- App (`packages/app`)
-  - `EXPO_PUBLIC_API_URL`
-  - `EXPO_PUBLIC_SUPABASE_URL`
-  - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+  - `KILO_API_KEY` (Kilo Gateway, used by the mining pipeline's extraction/enrichment steps, model `deepseek/deepseek-v4-flash-0731`)
 
 - Quick usage (PowerShell)
   - API (run): `pnpm --filter @que-hacer-en/api start`
@@ -141,7 +138,7 @@ Notes: prefer `CORS_ORIGINS`.
 ### Conventions
 
 *   **File Naming**: `kebab-case.ts` for general files, `PascalCase.tsx` for React components.
-*   **Component Structure**: Components should be organized by feature. Shared components will reside in a common `components` directory within the `web` and `app` packages.
+*   **Component Structure**: Components should be organized by feature. Shared components will reside in a common `components` directory within the `web` package.
 *   **Commits**: The [Conventional Commits](https://www.conventionalcommits.org/) standard should be followed (e.g., `feat:`, `fix:`, `docs:`, `chore:`).
 *   **API**: All communication between the frontend and backend will be done via a RESTful API with clear and consistent JSON responses.
 *   **Project Planning**: Comprehensive task tracking in `TASKS.md` and strategic questions in `QUESTIONS.md` guide development priorities and ensure professional-level quality.
@@ -309,7 +306,7 @@ The entrypoint (`entrypoint.sh`) starts Express and Next.js in the background, t
 | `REVALIDATE_SECRET` | Shared secret for on-demand ISR revalidation |
 | `CORS_ORIGINS` | Allowed CORS origins for the API |
 | `GOOGLE_API_KEY` | Gemini API key (mining pipeline: dedup + moderation) |
-| `KILO_API_KEY` | Kilo Gateway API key (mining pipeline: extraction + enrichment, `minimax/minimax-m3`) |
+| `KILO_API_KEY` | Kilo Gateway API key (mining pipeline: extraction + enrichment, `deepseek/deepseek-v4-flash-0731`) |
 
 ## 13. Environment & Configuration Notes
 

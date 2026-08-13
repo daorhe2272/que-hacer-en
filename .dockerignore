@@ -43,7 +43,3 @@ docs
 
 # CI/CD
 .github
-
-# Expo
-packages/app/*
-!packages/app/package.json

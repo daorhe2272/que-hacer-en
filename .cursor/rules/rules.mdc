@@ -23,8 +23,8 @@ alwaysApply: true
 - Never create a file longer than 800 lines. Refactor by splitting into modules if needed.
 - Organize code into clearly separated modules, grouped by feature or responsibility.
 - Use clear, consistent imports (prefer relative imports within packages).
-- Follow the monorepo structure: `/packages/api`, `/packages/web`, `/packages/app`.
-- Shared components between web and app should be properly abstracted.
+- Follow the monorepo structure: `/packages/api`, `/packages/web`, `/packages/shared`.
+- Reusable code shared across packages should be abstracted into `/packages/shared`.
 
 ## TypeScript Standards
 - Always use TypeScript with strict mode enabled.

@@ -13,7 +13,7 @@ flowchart TD
 
     Fetch --> Clean["2 · Clean HTML\nhtml-cleaner.ts\nstrip script/style/comments,\nkeep only href/src/role/datetime,\ncollapse whitespace"]
 
-    Clean --> Extract["3 · Extract events (LLM)\nevent-extractor.ts\nKilo Gateway · minimax-m3\nstructured JSON output"]
+    Clean --> Extract["3 · Extract events (LLM)\nevent-extractor.ts\nKilo Gateway · deepseek-v4-flash-0731\nstructured JSON output"]
 
     Extract -.->|"live enum constraint"| Slugs[("cities / categories\nslug lookup (Postgres)")]
 
@@ -25,7 +25,7 @@ flowchart TD
 
     Dedup2 --> Dedup3["4d · Semantic dedup (LLM)\nevent-deduplicator.ts\nGemini 3.1 flash-lite\nonly runs when city+date+time collide\nwith an existing event"]
 
-    Dedup3 --> Enrich["4e · Enrichment (per event, sequential)\nevent-enricher.ts\nre-fetch + re-clean the event's own\ndetail page → Kilo Gateway · minimax-m3\nimproves fields IF strictly better;\nnever touches date/time/city/category;\nmust return date_time_confirmed + reason"]
+    Dedup3 --> Enrich["4e · Enrichment (per event, sequential)\nevent-enricher.ts\nre-fetch + re-clean the event's own\ndetail page → Kilo Gateway · deepseek-v4-flash-0731\nimproves fields IF strictly better;\nnever touches date/time/city/category;\nmust return date_time_confirmed + reason"]
 
     Enrich --> Gate{"4f · Auto-activation gate"}
     Gate -->|"date/time confirmed AND\nnot a sentinel time AND\nlocation+address present"| Active["active = true\n(visible immediately)"]
