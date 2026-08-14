@@ -1,6 +1,6 @@
 import { Router, Request } from 'express'
 import { authenticate } from '../middleware/auth'
-import { getAdminStatsDb, listInactiveEventsDb } from '../db/repository'
+import { getAdminStatsDb, listInactiveEventsDb, listUsersDb } from '../db/repository'
 import { mineUrlsDirectlyStreaming } from '../utils/mining-utils'
 
 // Type helper for authenticated requests where user.id and role are guaranteed to exist
@@ -90,6 +90,53 @@ adminRouter.get('/events/inactive', authenticate, async (req, res) => {
     }
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch inactive events' })
+  }
+})
+
+adminRouter.get('/users', authenticate, async (req, res) => {
+  try {
+    const authReq = assertAuthenticatedAdmin(req)
+    const userRole = authReq.user.role
+
+    if (userRole !== 'admin') {
+      res.status(403).json({ error: 'Admin access required' })
+      return
+    }
+
+    const { page, limit } = req.query
+    const params = {
+      page: typeof page === 'string' ? parseInt(page, 10) : 1,
+      limit: typeof limit === 'string' ? parseInt(limit, 10) : 20
+    }
+
+    const useDb = process.env.NODE_ENV !== 'test'
+
+    if (useDb) {
+      const { users, total } = await listUsersDb(params)
+      const totalPages = Math.ceil(total / params.limit)
+      res.json({
+        users,
+        pagination: {
+          page: params.page,
+          limit: params.limit,
+          total,
+          totalPages
+        }
+      })
+    } else {
+      // Mock users for tests
+      res.json({
+        users: [],
+        pagination: {
+          page: params.page,
+          limit: params.limit,
+          total: 0,
+          totalPages: 0
+        }
+      })
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch users' })
   }
 })
 

@@ -5,6 +5,7 @@ import { CATEGORIES } from '@que-hacer-en/shared'
 import type { Event } from '@/types/event'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import DataSourcesTab from '@/components/DataSourcesTab'
+import UsersTab from '@/components/UsersTab'
 import { useState, useEffect, useCallback } from 'react'
 export const dynamic = 'force-dynamic'
 
@@ -202,109 +203,6 @@ function DashboardTab() {
               <div className="text-xs opacity-90">Análisis</div>
             </button>
           </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function UsersTab() {
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Gestión de Usuarios</h2>
-        <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-          Agregar Nuevo Usuario
-        </button>
-      </div>
-
-      <div className="mb-4 flex flex-wrap gap-2">
-        <input
-          type="text"
-          placeholder="Buscar usuarios..."
-          className="px-3 py-2 border border-gray-300 rounded-lg flex-1 min-w-64"
-        />
-        <select className="px-3 py-2 border border-gray-300 rounded-lg">
-          <option>Todos los Roles</option>
-          <option>Asistente</option>
-          <option>Organizador</option>
-          <option>Admin</option>
-        </select>
-        <button className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
-          Filtrar
-        </button>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Usuario</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Rol</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Unido</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            <tr className="hover:bg-gray-50">
-              <td className="px-4 py-3">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3">
-                    J
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">john@example.com</div>
-                    <div className="text-xs text-gray-500">John Doe</div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Organizer</span>
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-600">2024-01-15</td>
-              <td className="px-4 py-3">
-                <div className="flex space-x-2">
-                  <button className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
-                  <button className="text-red-600 hover:text-red-800 text-sm">Desactivar</button>
-                </div>
-              </td>
-            </tr>
-            <tr className="hover:bg-gray-50">
-              <td className="px-4 py-3">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium mr-3">
-                    A
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">admin@example.com</div>
-                    <div className="text-xs text-gray-500">Admin User</div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">Admin</span>
-              </td>
-              <td className="px-4 py-3 text-sm text-gray-600">2023-12-01</td>
-              <td className="px-4 py-3">
-                <div className="flex space-x-2">
-                  <button className="text-blue-600 hover:text-blue-800 text-sm">Editar</button>
-                  <button className="text-gray-600 hover:text-gray-800 text-sm">Ver Registros</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-4 flex justify-between items-center">
-        <div className="text-sm text-gray-600">
-          Mostrando 2 de 1,234 usuarios
-        </div>
-        <div className="flex space-x-2">
-          <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Anterior</button>
-          <button className="px-3 py-1 bg-blue-500 text-white rounded">1</button>
-          <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">2</button>
-          <button className="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50">Siguiente</button>
         </div>
       </div>
     </div>

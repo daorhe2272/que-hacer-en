@@ -55,6 +55,14 @@ export interface EventDto {
   moderation_reason?: string
 }
 
+export interface AdminUserDto {
+  id: string
+  email: string | null
+  displayName: string | null
+  role: 'attendee' | 'organizer' | 'admin'
+  createdAt: string
+}
+
 export async function listEventsDb(params: ListParams): Promise<{ events: EventDto[], total: number }>{
   const { city, category, q, from, to, minPrice, maxPrice, page = 1, limit = 20, sort, order = 'asc' } = params
 
@@ -814,6 +822,37 @@ export async function getAdminStatsDb(): Promise<{ totalUsers: number; activeEve
   } catch (err) {
     return { totalUsers: 0, activeEvents: 0, pendingReviews: 0, lastMiningTime: null }
   }
+}
+
+export async function listUsersDb(params: { page?: number; limit?: number }): Promise<{ users: AdminUserDto[]; total: number }> {
+  const { page = 1, limit = 20 } = params
+  const offset = (page - 1) * limit
+
+  const countRes = await query<{ count: string }>(
+    `SELECT COUNT(*)::text AS count FROM users`
+  )
+  const total = Number(countRes.rows[0]?.count || '0')
+
+  const rows = await query<{ id: string, email: string | null, display_name: string | null, role: string, created_at: string }>(
+    `SELECT id,
+            email,
+            display_name,
+            role::text as role,
+            created_at
+     FROM users
+     ORDER BY created_at DESC, id ASC
+     LIMIT ${limit} OFFSET ${offset}`
+  )
+
+  const users: AdminUserDto[] = rows.rows.map(r => ({
+    id: r.id,
+    email: r.email,
+    displayName: r.display_name,
+    role: r.role as AdminUserDto['role'],
+    createdAt: r.created_at
+  }))
+
+  return { users, total }
 }
 
 export async function listInactiveEventsDb(params: { city?: string; q?: string; page?: number; limit?: number }): Promise<{ events: EventDto[], total: number }> {

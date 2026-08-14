@@ -23,7 +23,8 @@ jest.mock('../src/middleware/auth', () => ({
 // Mock database client
 jest.mock('../src/db/repository', () => ({
   getAdminStatsDb: jest.fn(),
-  listInactiveEventsDb: jest.fn()
+  listInactiveEventsDb: jest.fn(),
+  listUsersDb: jest.fn()
 }))
 
 // Mock mining utils
@@ -33,11 +34,12 @@ jest.mock('../src/utils/mining-utils', () => ({
   mineUrlsDirectlyStreaming: jest.fn()
 }))
 
-import { getAdminStatsDb, listInactiveEventsDb } from '../src/db/repository'
+import { getAdminStatsDb, listInactiveEventsDb, listUsersDb } from '../src/db/repository'
 import { mineUrlsDirectlyStreaming } from '../src/utils/mining-utils'
 
 const mockGetAdminStatsDb = getAdminStatsDb as jest.MockedFunction<typeof getAdminStatsDb>
 const mockListInactiveEventsDb = listInactiveEventsDb as jest.MockedFunction<typeof listInactiveEventsDb>
+const mockListUsersDb = listUsersDb as jest.MockedFunction<typeof listUsersDb>
 const mockMineUrlsDirectlyStreaming = mineUrlsDirectlyStreaming as jest.MockedFunction<typeof mineUrlsDirectlyStreaming>
 
 describe('Admin Router', () => {
@@ -286,6 +288,154 @@ describe('Admin Router', () => {
 
       expect(response.body).toEqual({
         error: 'Failed to fetch inactive events'
+      })
+    })
+  })
+
+  describe('GET /api/admin/users', () => {
+    it('should return users in test mode', async () => {
+      process.env.NODE_ENV = 'test'
+
+      const response = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        users: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0
+        }
+      })
+    })
+
+    it('should return users in production mode', async () => {
+      process.env.NODE_ENV = 'production'
+
+      const mockUsers = [
+        {
+          id: 'user-1',
+          email: 'john@example.com',
+          displayName: 'John Doe',
+          role: 'organizer' as const,
+          createdAt: '2024-01-15T10:00:00.000Z'
+        },
+        {
+          id: 'user-2',
+          email: 'admin@example.com',
+          displayName: null,
+          role: 'admin' as const,
+          createdAt: '2023-12-01T10:00:00.000Z'
+        }
+      ]
+
+      mockListUsersDb.mockResolvedValue({
+        users: mockUsers,
+        total: 2
+      })
+
+      const response = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(200)
+
+      expect(response.body).toEqual({
+        users: mockUsers,
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 2,
+          totalPages: 1
+        }
+      })
+
+      expect(mockListUsersDb).toHaveBeenCalledWith({
+        page: 1,
+        limit: 20
+      })
+    })
+
+    it('should handle query parameters correctly', async () => {
+      process.env.NODE_ENV = 'production'
+
+      mockListUsersDb.mockResolvedValue({
+        users: [],
+        total: 0
+      })
+
+      const response = await request(app)
+        .get('/api/admin/users?page=2&limit=10')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(200)
+
+      expect(mockListUsersDb).toHaveBeenCalledWith({
+        page: 2,
+        limit: 10
+      })
+
+      expect(response.body).toEqual({
+        users: [],
+        pagination: {
+          page: 2,
+          limit: 10,
+          total: 0,
+          totalPages: 0
+        }
+      })
+    })
+
+    it('should calculate total pages correctly', async () => {
+      process.env.NODE_ENV = 'production'
+
+      mockListUsersDb.mockResolvedValue({
+        users: [],
+        total: 45
+      })
+
+      const response = await request(app)
+        .get('/api/admin/users?limit=10')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(200)
+
+      expect(response.body.pagination.totalPages).toBe(5)
+    })
+
+    it('should return 403 for non-admin user', async () => {
+      const response = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', 'Bearer organizer-token')
+        .expect(403)
+
+      expect(response.body).toEqual({
+        error: 'Admin access required'
+      })
+    })
+
+    it('should return 401 without authorization', async () => {
+      const response = await request(app)
+        .get('/api/admin/users')
+        .expect(401)
+
+      expect(response.body).toEqual({
+        error: 'Unauthorized'
+      })
+    })
+
+    it('should handle database errors gracefully', async () => {
+      process.env.NODE_ENV = 'production'
+
+      mockListUsersDb.mockRejectedValue(new Error('Database error'))
+
+      const response = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(500)
+
+      expect(response.body).toEqual({
+        error: 'Failed to fetch users'
       })
     })
   })

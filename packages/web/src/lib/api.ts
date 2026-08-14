@@ -452,6 +452,37 @@ export async function getCities(): Promise<City[]> {
   }
 }
 
+export type AdminUser = {
+  id: string
+  email: string | null
+  displayName: string | null
+  role: 'attendee' | 'organizer' | 'admin'
+  createdAt: string
+}
+
+export async function getAdminUsers(params?: { page?: number; limit?: number }): Promise<{ users: AdminUser[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> {
+  try {
+    const headers = await buildAuthHeadersClient()
+    const usp = new URLSearchParams()
+    if (params?.page) usp.set('page', String(params.page))
+    if (params?.limit) usp.set('limit', String(params.limit))
+    const query = usp.toString()
+    const url = `${CLIENT_API_URL}/api/admin/users${query ? `?${query}` : ''}`
+
+    const res = await fetch(url, { cache: 'no-store', headers })
+
+    if (!res.ok) {
+      throw new Error(`Error al cargar usuarios (${res.status})`)
+    }
+
+    const data = await res.json()
+    return { users: data.users || [], pagination: data.pagination }
+  } catch (err) {
+    console.error('getAdminUsers error:', err)
+    throw new Error(err instanceof Error ? err.message : 'Error al cargar usuarios')
+  }
+}
+
 export async function getInactiveEvents(params?: { city?: string; q?: string; page?: number; limit?: number }): Promise<{ events: Event[], pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
   try {
     const headers = await buildAuthHeadersClient()
