@@ -117,6 +117,7 @@ export const mockDataSources = [
     city_name: 'Bogotá',
     city_slug: 'bogota',
     source_type: 'regular',
+    mining_frequency_days: 1,
     last_mined: '2024-01-01T00:00:00.000Z',
     mining_status: 'completed',
     active: true,
@@ -131,6 +132,7 @@ export const mockDataSources = [
     city_name: null,
     city_slug: null,
     source_type: 'occasional',
+    mining_frequency_days: 0,
     last_mined: null,
     mining_status: 'pending',
     active: true,
@@ -187,6 +189,23 @@ export function createMockQuery() {
       return { rows: [{ count: '2' } as T], rowCount: 1 }
     }
 
+    if (sql.includes('FROM data_sources ds') && sql.includes('mining_frequency_days')) {
+      // Mock the mine-due query: return only sources that are active, have a
+      // frequency > 0, and whose last_mined is older than their frequency interval.
+      const now = Date.now()
+      const due = mockDataSources.filter(ds => {
+        if (!ds.active || !ds.mining_frequency_days || ds.mining_frequency_days <= 0) return false
+        if (!ds.last_mined) return true
+        return now - new Date(ds.last_mined).getTime() >= ds.mining_frequency_days * 86400000
+      })
+      return { rows: due.map(ds => ({ id: ds.id })) as T[], rowCount: due.length }
+    }
+
+    if (sql.includes('FROM users WHERE role')) {
+      // Mock the scheduled-mining admin user lookup
+      return { rows: [{ id: 'admin-id' } as T], rowCount: 1 }
+    }
+
     if (sql.includes('FROM data_sources ds') && sql.includes('LEFT JOIN cities c')) {
       // Mock data sources listing
       return { rows: mockDataSources as T[], rowCount: 2 }
@@ -209,12 +228,13 @@ export function createMockQuery() {
         url: args[0],
         city_id: args[1],
         source_type: args[2],
+        mining_frequency_days: args[3],
         last_mined: null,
         mining_status: 'pending',
         active: true,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        created_by: args[3]
+        created_by: args[4]
       }
       return { rows: [newDataSource as T], rowCount: 1 }
     }

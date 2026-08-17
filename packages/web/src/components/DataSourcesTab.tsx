@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { getDataSources, createDataSource, deleteDataSource, triggerDataSourceMining, getCities, mineUrlStreaming, type DataSource, type City } from '@/lib/api'
+import { getDataSources, createDataSource, updateDataSource, deleteDataSource, triggerDataSourceMining, getCities, mineUrlStreaming, type DataSource, type UpdateDataSourceData, type City } from '@/lib/api'
 
 export default function DataSourcesTab() {
   const [dataSources, setDataSources] = useState<DataSource[]>([])
@@ -17,6 +17,7 @@ export default function DataSourcesTab() {
   const [newSourceUrl, setNewSourceUrl] = useState('')
   const [newSourceType, setNewSourceType] = useState<'regular' | 'occasional'>('regular')
   const [newSourceCity, setNewSourceCity] = useState('')
+  const [newSourceFrequency, setNewSourceFrequency] = useState(0)
   const [filterSourceType, setFilterSourceType] = useState<'regular' | 'occasional'>('regular')
   const [filterCity, setFilterCity] = useState('bogota')
   const [filterActive, setFilterActive] = useState<boolean | ''>(true)
@@ -37,6 +38,16 @@ export default function DataSourcesTab() {
     status: 'idle',
     message: 'Sin actividad de minería'
   })
+
+  // Edit data source state
+  const [sourceToEdit, setSourceToEdit] = useState<DataSource | null>(null)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [editUrl, setEditUrl] = useState('')
+  const [editSourceType, setEditSourceType] = useState<'regular' | 'occasional'>('regular')
+  const [editSourceCity, setEditSourceCity] = useState('')
+  const [editFrequency, setEditFrequency] = useState(0)
+  const [editActive, setEditActive] = useState(true)
+  const [editLoading, setEditLoading] = useState(false)
 
   const loadDataSources = useCallback(async () => {
     try {
@@ -88,7 +99,8 @@ export default function DataSourcesTab() {
     try {
       const data: Parameters<typeof createDataSource>[0] = {
         url: newSourceUrl.trim(),
-        source_type: newSourceType
+        source_type: newSourceType,
+        mining_frequency_days: newSourceFrequency
       }
       if (newSourceType === 'regular' && newSourceCity) {
         data.city_slug = newSourceCity
@@ -98,6 +110,7 @@ export default function DataSourcesTab() {
       setShowAddSourceDialog(false)
       setNewSourceUrl('')
       setNewSourceCity('')
+      setNewSourceFrequency(0)
       loadDataSources()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear fuente de datos')
@@ -211,6 +224,59 @@ export default function DataSourcesTab() {
       return true
     } catch {
       return false
+    }
+  }
+
+  const formatFrequency = (days: number) => {
+    if (days === 0) return 'Manual'
+    if (days === 1) return 'Diaria'
+    return `Cada ${days} días`
+  }
+
+  const openEditDialog = (source: DataSource) => {
+    setSourceToEdit(source)
+    setEditUrl(source.url)
+    setEditSourceType(source.source_type)
+    setEditSourceCity(source.city_slug || '')
+    setEditFrequency(source.mining_frequency_days)
+    setEditActive(source.active)
+    setShowEditDialog(true)
+    setError(null)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!sourceToEdit) return
+
+    if (!editUrl.trim() || !isValidUrl(editUrl)) {
+      setError('Por favor ingresa una URL válida')
+      return
+    }
+    if (editSourceType === 'regular' && !editSourceCity) {
+      setError('Las fuentes regulares requieren una ciudad')
+      return
+    }
+
+    setEditLoading(true)
+    setError(null)
+    try {
+      const data: UpdateDataSourceData = {
+        url: editUrl.trim(),
+        source_type: editSourceType,
+        mining_frequency_days: editFrequency,
+        active: editActive
+      }
+      if (editSourceType === 'regular' && editSourceCity) {
+        data.city_slug = editSourceCity
+      }
+
+      await updateDataSource(sourceToEdit.id, data)
+      setShowEditDialog(false)
+      setSourceToEdit(null)
+      loadDataSources()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar fuente de datos')
+    } finally {
+      setEditLoading(false)
     }
   }
 
@@ -639,6 +705,7 @@ export default function DataSourcesTab() {
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">URL</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Estado</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Última Minería</th>
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Frecuencia</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900">Acciones</th>
                 </tr>
               </thead>
@@ -683,22 +750,36 @@ export default function DataSourcesTab() {
                         : 'Nunca'
                       }
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {formatFrequency(source.mining_frequency_days)}
+                    </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleDeleteSource(source)}
-                        className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors duration-200 flex items-center"
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Eliminar
-                      </button>
+                      <div className="flex items-center space-x-4">
+                        <button
+                          onClick={() => openEditDialog(source)}
+                          className="text-primary-600 hover:text-primary-800 text-sm font-medium transition-colors duration-200 flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSource(source)}
+                          className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors duration-200 flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Eliminar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {filteredSources.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
+                    <td colSpan={6} className="px-6 py-12 text-center">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1041,6 +1122,23 @@ export default function DataSourcesTab() {
                   </select>
                 </div>
               )}
+
+              <div>
+                <label htmlFor="source-frequency" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Frecuencia de Minería (días)
+                </label>
+                <input
+                  id="source-frequency"
+                  type="number"
+                  min={0}
+                  value={newSourceFrequency}
+                  onChange={(e) => setNewSourceFrequency(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Cada cuántos días se minará automáticamente. Usa 0 para minería manual solamente.
+                </p>
+              </div>
             </div>
 
             {/* Button Section */}
@@ -1051,6 +1149,7 @@ export default function DataSourcesTab() {
                   setShowAddSourceDialog(false)
                   setNewSourceUrl('')
                   setNewSourceCity('')
+                  setNewSourceFrequency(0)
                 }}
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1067,6 +1166,143 @@ export default function DataSourcesTab() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
                 Agregar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Source Dialog */}
+      {showEditDialog && sourceToEdit && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-gradient-to-br from-white to-gray-50 p-8 rounded-2xl max-w-lg w-full mx-4 shadow-2xl border border-gray-100 transform transition-all duration-300 ease-out scale-100 animate-slideIn">
+            {/* Header Section with Icon */}
+            <div className="flex items-center mb-6">
+              <div className="flex items-center justify-center w-12 h-12 bg-primary-100 rounded-full mr-4 shadow-sm">
+                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Editar Fuente</h3>
+                <p className="text-sm text-gray-600 mt-1">Actualiza los datos de la fuente</p>
+              </div>
+            </div>
+
+            {/* Input Section */}
+            <div className="mb-6 space-y-4">
+              <div>
+                <label htmlFor="edit-source-url" className="block text-sm font-semibold text-gray-700 mb-2">
+                  URL de la Fuente
+                </label>
+                <input
+                  id="edit-source-url"
+                  type="url"
+                  value={editUrl}
+                  onChange={(e) => setEditUrl(e.target.value)}
+                  placeholder="https://ejemplo.com/eventos"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="edit-source-type" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Tipo de Fuente
+                </label>
+                <select
+                  id="edit-source-type"
+                  value={editSourceType}
+                  onChange={(e) => setEditSourceType(e.target.value as 'regular' | 'occasional')}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                >
+                  <option value="regular">Regular - Fuentes específicas de ciudad</option>
+                  <option value="occasional">Ocasional - Fuentes temporales o generales</option>
+                </select>
+              </div>
+
+              {editSourceType === 'regular' && (
+                <div>
+                  <label htmlFor="edit-source-city" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Ciudad
+                  </label>
+                  <select
+                    id="edit-source-city"
+                    value={editSourceCity}
+                    onChange={(e) => setEditSourceCity(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                  >
+                    <option value="">Seleccionar ciudad...</option>
+                    {cities.map(city => (
+                      <option key={city.slug} value={city.slug}>{city.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="edit-source-frequency" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Frecuencia de Minería (días)
+                </label>
+                <input
+                  id="edit-source-frequency"
+                  type="number"
+                  min={0}
+                  value={editFrequency}
+                  onChange={(e) => setEditFrequency(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors shadow-sm"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  Cada cuántos días se minará automáticamente. Usa 0 para minería manual solamente.
+                </p>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  id="edit-source-active"
+                  type="checkbox"
+                  checked={editActive}
+                  onChange={(e) => setEditActive(e.target.checked)}
+                  className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                />
+                <label htmlFor="edit-source-active" className="ml-2 text-sm font-semibold text-gray-700">
+                  Fuente activa
+                </label>
+              </div>
+            </div>
+
+            {/* Button Section */}
+            <div className="flex justify-end space-x-3">
+              <button
+                className="px-6 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 font-semibold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center"
+                onClick={() => {
+                  setShowEditDialog(false)
+                  setSourceToEdit(null)
+                }}
+                disabled={editLoading}
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cancelar
+              </button>
+              <button
+                className="px-6 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-semibold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={editLoading || !editUrl.trim() || !isValidUrl(editUrl) || (editSourceType === 'regular' && !editSourceCity)}
+                onClick={handleSaveEdit}
+              >
+                {editLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Guardar
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -1,11 +1,38 @@
+import crypto from 'crypto'
 import { Router } from 'express'
-import { authenticate, requireRole } from '../middleware/auth'
+
 import { query } from '../db/client'
-import { fetchHtmlContent } from '../utils/html-fetcher'
-import { extractEventsFromHtml } from '../utils/event-extractor'
-import { processExtractedEvents } from '../utils/event-processor'
+import { authenticate, requireRole } from '../middleware/auth'
+import { mineDataSourceById, mineDueDataSources } from '../utils/data-source-mining'
 
 const router: Router = Router()
+
+// Constant-time secret comparison to avoid leaking timing information on mismatch.
+function secretsMatch(provided: string, expected: string): boolean {
+  const a = crypto.createHash('sha256').update(provided).digest()
+  const b = crypto.createHash('sha256').update(expected).digest()
+  return crypto.timingSafeEqual(a, b)
+}
+
+// POST /api/data-sources/mine-due - Scheduled batch mining triggered by Google
+// Cloud Scheduler. Deliberately registered BEFORE the JWT middleware: the scheduler
+// has no user token, so it authenticates with a shared secret header instead.
+router.post('/mine-due', async (req, res) => {
+  try {
+    const expectedSecret = process.env.SCHEDULED_MINING_SECRET
+    const providedSecret = req.header('x-scheduled-mining-secret')
+
+    if (!expectedSecret || !providedSecret || !secretsMatch(providedSecret, expectedSecret)) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+
+    const result = await mineDueDataSources()
+    return res.json(result)
+  } catch (error) {
+    console.error('Error running scheduled mining:', error)
+    return res.status(500).json({ error: 'Error interno del servidor' })
+  }
+})
 
 // Apply authentication and admin middleware to all routes
 router.use(authenticate)
@@ -19,6 +46,7 @@ export interface DataSource {
   city_name?: string
   city_slug?: string
   source_type: 'regular' | 'occasional'
+  mining_frequency_days: number
   last_mined: string | null
   mining_status: 'pending' | 'in_progress' | 'completed' | 'failed'
   active: boolean
@@ -31,13 +59,26 @@ export interface CreateDataSourceRequest {
   url: string
   city_slug?: string
   source_type: 'regular' | 'occasional'
+  mining_frequency_days?: number
 }
 
 export interface UpdateDataSourceRequest {
   url?: string
   city_slug?: string
   source_type?: 'regular' | 'occasional'
+  mining_frequency_days?: number
   active?: boolean
+}
+
+// Validates that a mining frequency is an integer >= 0; returns null when valid,
+// otherwise an error message. Missing/undefined is treated as the default 0.
+function parseMiningFrequency(value: unknown): { value?: number; error?: string } {
+  if (value === undefined) return { value: 0 }
+  const n = Number(value)
+  if (!Number.isInteger(n) || n < 0) {
+    return { error: 'La frecuencia de minería debe ser un entero mayor o igual a 0' }
+  }
+  return { value: n }
 }
 
 // GET /api/data-sources - List all data sources with optional filtering
@@ -84,6 +125,7 @@ router.get('/', async (req, res) => {
       city_name: string | null
       city_slug: string | null
       source_type: string
+      mining_frequency_days: number
       last_mined: string | null
       mining_status: string
       active: boolean
@@ -92,7 +134,7 @@ router.get('/', async (req, res) => {
       created_by: string
     }>(
       `SELECT ds.id, ds.url, ds.city_id, c.name as city_name, c.slug as city_slug, ds.source_type,
-              ds.last_mined, ds.mining_status, ds.active, ds.created_at, ds.updated_at, ds.created_by
+              ds.mining_frequency_days, ds.last_mined, ds.mining_status, ds.active, ds.created_at, ds.updated_at, ds.created_by
        FROM data_sources ds
        LEFT JOIN cities c ON ds.city_id = c.id
        ${whereSql}
@@ -108,6 +150,7 @@ router.get('/', async (req, res) => {
       city_name: r.city_name || undefined,
       city_slug: r.city_slug || undefined,
       source_type: r.source_type as 'regular' | 'occasional',
+      mining_frequency_days: r.mining_frequency_days,
       last_mined: r.last_mined,
       mining_status: r.mining_status as 'pending' | 'in_progress' | 'completed' | 'failed',
       active: r.active,
@@ -134,7 +177,7 @@ router.get('/', async (req, res) => {
 // POST /api/data-sources - Create new data source
 router.post('/', async (req, res) => {
   try {
-    const { url, city_slug, source_type }: CreateDataSourceRequest = req.body
+    const { url, city_slug, source_type, mining_frequency_days }: CreateDataSourceRequest = req.body
     const userId = req.user?.id
 
     if (!url || !source_type) {
@@ -143,6 +186,11 @@ router.post('/', async (req, res) => {
 
     if (!['regular', 'occasional'].includes(source_type)) {
       return res.status(400).json({ error: 'Tipo de fuente debe ser "regular" o "occasional"' })
+    }
+
+    const frequency = parseMiningFrequency(mining_frequency_days)
+    if (frequency.error) {
+      return res.status(400).json({ error: frequency.error })
     }
 
     // Validate URL format
@@ -178,6 +226,7 @@ router.post('/', async (req, res) => {
       city_id: number | null
       city_name: string | null
       source_type: string
+      mining_frequency_days: number
       last_mined: string | null
       mining_status: string
       active: boolean
@@ -185,10 +234,10 @@ router.post('/', async (req, res) => {
       updated_at: string
       created_by: string
     }>(
-      `INSERT INTO data_sources (url, city_id, source_type, created_by)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, url, city_id, source_type, last_mined, mining_status, active, created_at, updated_at, created_by`,
-      [url, cityId, source_type, userId]
+      `INSERT INTO data_sources (url, city_id, source_type, mining_frequency_days, created_by)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, url, city_id, source_type, mining_frequency_days, last_mined, mining_status, active, created_at, updated_at, created_by`,
+      [url, cityId, source_type, frequency.value, userId]
     )
 
     const row = result.rows[0]
@@ -209,6 +258,7 @@ router.post('/', async (req, res) => {
       city_id: row.city_id,
       city_name: city_name || undefined,
       source_type: row.source_type as 'regular' | 'occasional',
+      mining_frequency_days: row.mining_frequency_days,
       last_mined: row.last_mined,
       mining_status: row.mining_status as 'pending' | 'in_progress' | 'completed' | 'failed',
       active: row.active,
@@ -228,7 +278,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { url, city_slug, source_type, active }: UpdateDataSourceRequest = req.body
+    const { url, city_slug, source_type, mining_frequency_days, active }: UpdateDataSourceRequest = req.body
 
     if (!id) {
       return res.status(400).json({ error: 'ID de fuente requerido' })
@@ -275,6 +325,15 @@ router.put('/:id', async (req, res) => {
       values.push(source_type)
     }
 
+    if (mining_frequency_days !== undefined) {
+      const frequency = parseMiningFrequency(mining_frequency_days)
+      if (frequency.error) {
+        return res.status(400).json({ error: frequency.error })
+      }
+      updates.push(`mining_frequency_days = $${paramIndex++}`)
+      values.push(frequency.value)
+    }
+
     if (active !== undefined) {
       updates.push(`active = $${paramIndex++}`)
       values.push(active)
@@ -309,6 +368,7 @@ router.put('/:id', async (req, res) => {
       city_id: row.city_id,
       city_name: city_name || undefined,
       source_type: row.source_type,
+      mining_frequency_days: row.mining_frequency_days,
       last_mined: row.last_mined,
       mining_status: row.mining_status,
       active: row.active,
@@ -355,115 +415,30 @@ router.post('/:id/mine', async (req, res) => {
       return res.status(400).json({ error: 'ID de fuente requerido' })
     }
 
-    // Check if data source exists and is active
-    const sourceCheck = await query<{ url: string, active: boolean, city_name: string | null }>(
-      `SELECT ds.url, ds.active, c.name as city_name
-       FROM data_sources ds
-       LEFT JOIN cities c ON ds.city_id = c.id
-       WHERE ds.id = $1`,
-      [id]
-    )
-    if (sourceCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Fuente de datos no encontrada' })
+    const result = await mineDataSourceById(id, req.user!.id)
+
+    if (result.status === 'not_found') {
+      return res.status(404).json({ error: result.error })
     }
 
-    const source = sourceCheck.rows[0]
-    if (!source.active) {
-      return res.status(400).json({ error: 'La fuente de datos no está activa' })
+    if (result.status === 'inactive') {
+      return res.status(400).json({ error: result.error })
     }
 
-    // Update mining status to in_progress
-    await query(
-      `UPDATE data_sources SET mining_status = 'in_progress' WHERE id = $1`,
-      [id]
-    )
-
-    console.log(`[Mining] Starting mining process for data source ${id} with URL: ${source.url}`)
-
-    // Fetch HTML content from the URL
-    const fetchResult = await fetchHtmlContent(source.url)
-
-    if (fetchResult.success) {
-      console.log(`[Mining] Successfully fetched content from ${source.url}`)
-
-      // Extract events from the HTML content using Kilo Gateway (DeepSeek V4 Flash 0731)
-      if (fetchResult.fullHtml) {
-        console.log(`[Mining] Starting event extraction from HTML content`)
-        const extractionResult = await extractEventsFromHtml(fetchResult.fullHtml, source.url, source.city_name || undefined)
-
-        if (extractionResult.success && extractionResult.events) {
-          console.log(`[Mining] Successfully extracted ${extractionResult.events.length} events`)
-          console.log(`[Mining] Raw JSON output:`, JSON.stringify(extractionResult.events, null, 2))
-
-          // Process and store events in database
-          const storedEvents = await processExtractedEvents(extractionResult.events, req.user!.id)
-          console.log(`[Mining] Successfully stored ${storedEvents.length} events in database`)
-
-          // Update mining status to completed with timestamp and event count
-          await query(
-            `UPDATE data_sources SET mining_status = 'completed', last_mined = now() WHERE id = $1`,
-            [id]
-          )
-
-          return res.json({
-            message: 'Minería completada exitosamente',
-            data_source_id: id,
-            success: true,
-            events_extracted: extractionResult.events.length,
-            events_stored: storedEvents.length,
-            events_failed: extractionResult.events.length - storedEvents.length
-          })
-        } else {
-          console.error(`[Mining] Failed to extract events: ${extractionResult.error}`)
-
-          // Update mining status to completed with timestamp (even if no events found)
-          await query(
-            `UPDATE data_sources SET mining_status = 'completed', last_mined = now() WHERE id = $1`,
-            [id]
-          )
-
-          return res.json({
-            message: 'Minería completada - no se encontraron eventos',
-            data_source_id: id,
-            success: true,
-            events_extracted: 0,
-            events_stored: 0,
-            events_failed: 0
-          })
-        }
-      }
-
-      console.log(`[Mining] Mining completed successfully for data source ${id}`)
-      return res.status(500).json({ error: 'Error interno del servidor' })
-    } else {
-      console.error(`[Mining] Failed to fetch content from ${source.url}: ${fetchResult.error}`)
-
-      // Update mining status to failed
-      await query(
-        `UPDATE data_sources SET mining_status = 'failed' WHERE id = $1`,
-        [id]
-      )
-
-      console.log(`[Mining] Mining failed for data source ${id}`)
-      return res.status(500).json({ error: 'Error interno del servidor' })
+    if (result.status === 'failed') {
+      return res.status(500).json({ error: result.error || 'Error interno del servidor' })
     }
 
+    return res.json({
+      message: result.extractionSuccess ? 'Minería completada exitosamente' : 'Minería completada - no se encontraron eventos',
+      data_source_id: id,
+      success: true,
+      events_extracted: result.eventsExtracted ?? 0,
+      events_stored: result.eventsStored ?? 0,
+      events_failed: result.eventsFailed ?? 0
+    })
   } catch (error) {
    console.error('Error triggering mining:', error)
-
-   // Try to update status to failed if we have the ID
-   try {
-     const { id } = req.params
-     if (id) {
-       await query(
-         `UPDATE data_sources SET mining_status = 'failed' WHERE id = $1`,
-         [id]
-       )
-     }
-   } catch (updateError) {
-     console.error('Error updating mining status to failed:', updateError)
-   }
-
    return res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

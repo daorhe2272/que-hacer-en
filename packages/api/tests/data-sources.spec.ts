@@ -3,7 +3,14 @@ import request from 'supertest'
 import express from 'express'
 import dataSourcesRouter from '../src/routes/data-sources'
 import { query } from '../src/db/client'
-import { createMockQuery } from './test-helpers/mock-database'
+import { fetchHtmlContent } from '../src/utils/html-fetcher'
+import { extractEventsFromHtml } from '../src/utils/event-extractor'
+import { processExtractedEvents } from '../src/utils/event-processor'
+import { createMockQuery, mockDataSources } from './test-helpers/mock-database'
+
+const mockFetchHtmlContent = jest.mocked(fetchHtmlContent)
+const mockExtractEventsFromHtml = jest.mocked(extractEventsFromHtml)
+const mockProcessExtractedEvents = jest.mocked(processExtractedEvents)
 
 // Mock the authenticate middleware to avoid Supabase calls
 jest.mock('../src/middleware/auth', () => ({
@@ -247,6 +254,33 @@ describe('Data Sources Router', () => {
       expect(response.body).toHaveProperty('error')
     })
 
+    it('should create data source with mining frequency', async () => {
+      const newDataSource = {
+        url: 'https://example.com/frequency-source',
+        source_type: 'regular',
+        city_slug: 'bogota',
+        mining_frequency_days: 3
+      }
+
+      const response = await request(app)
+        .post('/api/data-sources')
+        .set('Authorization', 'Bearer admin-token')
+        .send(newDataSource)
+        .expect(201)
+
+      expect(response.body).toHaveProperty('mining_frequency_days', 3)
+    })
+
+    it('should return 400 for invalid mining frequency', async () => {
+      const response = await request(app)
+        .post('/api/data-sources')
+        .set('Authorization', 'Bearer admin-token')
+        .send({ url: 'https://example.com/test', source_type: 'occasional', mining_frequency_days: -1 })
+        .expect(400)
+
+      expect(response.body).toHaveProperty('error')
+    })
+
     it('should handle database INSERT failure gracefully', async () => {
       // Mock the sequence: city lookup succeeds, duplicate check succeeds (no duplicate), INSERT returns no rows
       mockQuery
@@ -329,6 +363,30 @@ describe('Data Sources Router', () => {
         .put('/api/data-sources/ds-001')
         .set('Authorization', 'Bearer admin-token')
         .send({})
+        .expect(400)
+
+      expect(response.body).toHaveProperty('error')
+    })
+
+    it('should update mining_frequency_days', async () => {
+      mockQuery
+        .mockImplementationOnce(() => ({ rows: [{ created_by: 'admin-id' }], rowCount: 1 })) // Existing check
+        .mockImplementationOnce(() => ({ rows: [{ ...mockDataSources[0], mining_frequency_days: 7 }], rowCount: 1 })) // Update
+
+      const response = await request(app)
+        .put('/api/data-sources/ds-001')
+        .set('Authorization', 'Bearer admin-token')
+        .send({ mining_frequency_days: 7 })
+        .expect(200)
+
+      expect(response.body).toHaveProperty('mining_frequency_days', 7)
+    })
+
+    it('should return 400 for invalid mining frequency in update', async () => {
+      const response = await request(app)
+        .put('/api/data-sources/ds-001')
+        .set('Authorization', 'Bearer admin-token')
+        .send({ mining_frequency_days: -1 })
         .expect(400)
 
       expect(response.body).toHaveProperty('error')
@@ -424,6 +482,135 @@ describe('Data Sources Router', () => {
       const response = await request(app)
         .post('/api/data-sources/ds-001/mine')
         .set('Authorization', 'Bearer admin-token')
+        .expect(500)
+
+      expect(response.body).toHaveProperty('error')
+    })
+
+    it('should return 500 when fetching HTML content fails', async () => {
+      mockFetchHtmlContent.mockResolvedValueOnce({
+        success: false,
+        error: 'Failed to fetch content'
+      })
+
+      const response = await request(app)
+        .post('/api/data-sources/ds-001/mine')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(500)
+
+      expect(response.body).toHaveProperty('error', 'Failed to fetch content')
+    })
+
+    it('should report completed when extraction finds no events', async () => {
+      mockExtractEventsFromHtml.mockResolvedValueOnce({
+        success: false,
+        error: 'Extraction failed'
+      })
+
+      const response = await request(app)
+        .post('/api/data-sources/ds-001/mine')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(200)
+
+      expect(response.body).toHaveProperty('message', 'Minería completada - no se encontraron eventos')
+      expect(response.body).toHaveProperty('events_extracted', 0)
+      expect(response.body).toHaveProperty('events_stored', 0)
+      expect(response.body).toHaveProperty('events_failed', 0)
+    })
+
+    it('should return 500 when event processing throws', async () => {
+      mockProcessExtractedEvents.mockRejectedValueOnce(new Error('Processing failed'))
+
+      const response = await request(app)
+        .post('/api/data-sources/ds-001/mine')
+        .set('Authorization', 'Bearer admin-token')
+        .expect(500)
+
+      expect(response.body).toHaveProperty('error', 'Processing failed')
+    })
+  })
+
+  describe('POST /api/data-sources/mine-due', () => {
+    const originalSecret = process.env.SCHEDULED_MINING_SECRET
+
+    beforeAll(() => {
+      process.env.SCHEDULED_MINING_SECRET = 'test-scheduled-secret'
+    })
+
+    afterAll(() => {
+      if (originalSecret === undefined) {
+        delete process.env.SCHEDULED_MINING_SECRET
+      } else {
+        process.env.SCHEDULED_MINING_SECRET = originalSecret
+      }
+    })
+
+    it('should return 401 when the secret header is missing', async () => {
+      const response = await request(app)
+        .post('/api/data-sources/mine-due')
+        .expect(401)
+
+      expect(response.body).toEqual({ error: 'Unauthorized' })
+    })
+
+    it('should return 401 when the secret header is wrong', async () => {
+      const response = await request(app)
+        .post('/api/data-sources/mine-due')
+        .set('x-scheduled-mining-secret', 'wrong-secret')
+        .expect(401)
+
+      expect(response.body).toEqual({ error: 'Unauthorized' })
+    })
+
+    it('should mine due data sources with a valid secret', async () => {
+      const response = await request(app)
+        .post('/api/data-sources/mine-due')
+        .set('x-scheduled-mining-secret', 'test-scheduled-secret')
+        .expect(200)
+
+      expect(response.body).toHaveProperty('success', true)
+      expect(response.body).toHaveProperty('sourcesDue', 1)
+      expect(response.body).toHaveProperty('sourcesCompleted', 1)
+      expect(response.body).toHaveProperty('sourcesFailed', 0)
+    })
+
+    it('should report success when no sources are due', async () => {
+      mockQuery.mockImplementationOnce(() => ({ rows: [], rowCount: 0 }))
+
+      const response = await request(app)
+        .post('/api/data-sources/mine-due')
+        .set('x-scheduled-mining-secret', 'test-scheduled-secret')
+        .expect(200)
+
+      expect(response.body).toHaveProperty('success', true)
+      expect(response.body).toHaveProperty('sourcesDue', 0)
+    })
+
+    it('should count a source that fails to fetch as failed', async () => {
+      mockFetchHtmlContent.mockResolvedValueOnce({
+        success: false,
+        error: 'Failed to fetch content'
+      })
+
+      const response = await request(app)
+        .post('/api/data-sources/mine-due')
+        .set('x-scheduled-mining-secret', 'test-scheduled-secret')
+        .expect(200)
+
+      expect(response.body).toHaveProperty('success', true)
+      expect(response.body).toHaveProperty('sourcesDue', 1)
+      expect(response.body).toHaveProperty('sourcesCompleted', 0)
+      expect(response.body).toHaveProperty('sourcesFailed', 1)
+    })
+
+    it('should return 500 when no admin user exists for scheduled mining', async () => {
+      mockQuery
+        .mockImplementationOnce(() => ({ rows: [{ id: 'ds-001' }], rowCount: 1 })) // Due query
+        .mockImplementationOnce(() => ({ rows: [], rowCount: 0 })) // Admin user lookup
+
+      const response = await request(app)
+        .post('/api/data-sources/mine-due')
+        .set('x-scheduled-mining-secret', 'test-scheduled-secret')
         .expect(500)
 
       expect(response.body).toHaveProperty('error')

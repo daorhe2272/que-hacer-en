@@ -23,6 +23,9 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 ## ✅ Completed: Observability & Quality
   The CI/CD pipeline has been successfully implemented using GitHub Actions, covering linting, testing, and building on pull requests, with integrated coverage reports. E2E tests are configured to run headlessly on Linux across multiple browsers (Chromium, Firefox, WebKit) against production builds, with artifact uploading for Playwright reports and traces on failure. The complete CI workflow utilizes pnpm and Node 22 with caching, triggered by pull requests and pushes to master, and includes concurrency and cancellation for obsolete PR executions.
 
+## ✅ Completed: Scheduled Mining Frequency
+  Added per-source mining frequency for the daily mining job: `mining_frequency_days` column on `data_sources` (0 = manual only, N = every N days), a shared `mineDataSourceById`/`mineDueDataSources` helper (refactored from the `/:id/mine` route), and a secret-protected `POST /api/data-sources/mine-due` endpoint for Google Cloud Scheduler. `last_mined` is stamped when mining starts to prevent double-mining and self-heal stuck sources. Frequency is editable via the admin UI (create/edit + list column); full API/UI types and tests included.
+
 ## Tasks for immediate implementation:
 - [ ] Cambiar logo de la página por uno que refleje el nuevo nombre "¿Qué Hay Pa' Hacer?"
 - [ ] Revisión de eventos debe distinguir entre precio 0 ó nulo.

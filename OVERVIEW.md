@@ -109,6 +109,7 @@ The project will be developed in phases:
   - `REVALIDATE_SECRET` (secret token for on-demand revalidation, must match web)
   - `GOOGLE_API_KEY` (Gemini, used by the mining pipeline's dedup/moderation steps)
   - `KILO_API_KEY` (Kilo Gateway, used by the mining pipeline's extraction/enrichment steps, model `deepseek/deepseek-v4-flash-0731`)
+  - `SCHEDULED_MINING_SECRET` (shared secret for the scheduled daily mining job; Google Cloud Scheduler sends it in the `x-scheduled-mining-secret` header)
 
 - Quick usage (PowerShell)
   - API (run): `pnpm --filter @que-hacer-en/api start`
@@ -237,6 +238,11 @@ The project enforces quality via automated pipelines:
 - `PUT /api/events/manage/:id`: update event (owner or admin)
 - `DELETE /api/events/manage/:id`: delete event (owner or admin)
 - `GET /api/admin/stats`: get admin statistics (admin role required)
+
+#### Scheduled Mining (no user JWT)
+- `POST /api/data-sources/mine-due`: mines every data source that is due. Authenticated via the `x-scheduled-mining-secret` header (must match `SCHEDULED_MINING_SECRET`). A source is due when it is active, has `mining_frequency_days > 0`, and `last_mined` is older than its configured interval (or never mined).
+
+The `data_sources` table includes a `mining_frequency_days` column (INT, default `0`): `0` means the source is never auto-mined (manual mining only); a positive value mines it every N days. `last_mined` is stamped when mining *starts* (not only on completion), which prevents double-mining and self-heals stuck/crashed sources — they simply become due again once the interval passes.
 
 ## 11. User Features & Interface
 

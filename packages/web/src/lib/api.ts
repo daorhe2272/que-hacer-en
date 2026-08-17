@@ -279,6 +279,7 @@ export type DataSource = {
   city_name?: string
   city_slug?: string
   source_type: 'regular' | 'occasional'
+  mining_frequency_days: number
   last_mined: string | null
   mining_status: 'pending' | 'in_progress' | 'completed' | 'failed'
   active: boolean
@@ -301,12 +302,14 @@ export type CreateDataSourceData = {
   url: string
   city_slug?: string
   source_type: 'regular' | 'occasional'
+  mining_frequency_days?: number
 }
 
 export type UpdateDataSourceData = {
   url?: string
   city_slug?: string
   source_type?: 'regular' | 'occasional'
+  mining_frequency_days?: number
   active?: boolean
 }
 
