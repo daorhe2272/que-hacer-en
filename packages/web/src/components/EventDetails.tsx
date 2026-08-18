@@ -245,7 +245,7 @@ export default function EventDetails({ event, cityName, cityId }: EventDetailsPr
             <div className="absolute top-6 right-6 flex items-center space-x-3">
               <ShareButton
                 title={event.title}
-                url={`${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/eventos/${cityId}/${event.id}`}
+                url={`${process.env.NEXT_PUBLIC_SITE_URL}/eventos/${cityId}/${event.id}`}
                 size="md"
               />
 

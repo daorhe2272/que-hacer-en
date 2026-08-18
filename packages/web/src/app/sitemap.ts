@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next'
 const cities = ['bogota', 'medellin', 'cali', 'barranquilla', 'cartagena'] as const
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'
+  const base = process.env.NEXT_PUBLIC_SITE_URL
 
   const routes: MetadataRoute.Sitemap = [
     // Main pages

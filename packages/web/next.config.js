@@ -6,6 +6,7 @@ const nextConfig = {
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pahacer.com',
   },
   images: {
     // En CI/E2E deshabilitamos la optimización para evitar fetch a remotos en tests

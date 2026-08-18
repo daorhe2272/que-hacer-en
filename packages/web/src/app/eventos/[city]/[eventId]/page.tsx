@@ -46,7 +46,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!validCities.includes(city)) {
     return {
-      title: 'Ciudad no encontrada'
+      title: 'Ciudad no encontrada',
+      robots: { index: false }
     }
   }
 
@@ -54,7 +55,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!event) {
     return {
-      title: 'Evento no encontrado'
+      title: 'Evento no encontrado',
+      robots: { index: false }
     }
   }
 
@@ -63,7 +65,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = event.description.length > 160
     ? `${event.description.substring(0, 157)}...`
     : event.description
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/eventos/${city}/${eventId}`
+  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/eventos/${city}/${eventId}`
 
   return {
     title,
@@ -78,7 +80,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'article',
       images: [
         {
-          url: event.image || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/og-image.jpg`,
+          url: event.image || `${process.env.NEXT_PUBLIC_SITE_URL}/og-image.jpg`,
           width: 1200,
           height: 630,
           alt: event.title,
@@ -89,7 +91,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title,
       description,
-      images: [event.image || `${process.env.NEXT_PUBLIC_SITE_URL || 'https://pahacer.com'}/og-image.jpg`],
+      images: [event.image || `${process.env.NEXT_PUBLIC_SITE_URL}/og-image.jpg`],
       creator: '@quehaceren',
       site: '@quehaceren',
     },

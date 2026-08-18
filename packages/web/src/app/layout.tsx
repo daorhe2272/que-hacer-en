@@ -3,6 +3,7 @@ import './globals.css'
 import { SessionProvider } from '@/lib/session'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.pahacer.com'),
   title: {
     template: '%s | Qué hacer en...',
     default: 'Qué hacer en... | Descubre eventos en tu ciudad',
