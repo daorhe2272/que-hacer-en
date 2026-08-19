@@ -11,6 +11,7 @@
     "db:migrate": "node ./dist/db/migrate.js",
     "db:seed": "node ./dist/db/seed.js",
     "db:setup": "pnpm build && pnpm db:migrate && pnpm db:seed",
+    "mine:agent": "tsx src/mining-agent/cli.ts",
     "lint": "eslint src --ext .ts",
     "test": "jest",
     "test:coverage": "jest --ci --coverage",
@@ -18,6 +19,8 @@
   },
   "dependencies": {
     "@google/genai": "^1.24.0",
+    "@langchain/core": "^1.2.8",
+    "@langchain/langgraph": "^1.4.10",
     "@que-hacer-en/shared": "workspace:*",
     "@supabase/supabase-js": "^2.45.4",
     "cors": "^2.8.5",
@@ -31,7 +34,7 @@
     "pg": "^8.16.3",
     "puppeteer-core": "^24.24.1",
     "undici": "^7.16.0",
-    "zod": "^4.0.16"
+    "zod": "^4.2.0"
   },
   "devDependencies": {
     "@jest/globals": "^30.0.5",

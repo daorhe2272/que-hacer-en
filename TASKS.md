@@ -30,6 +30,13 @@ This file outlines the development tasks for the "Qué hacer en..." project. We 
 - [ ] Cambiar logo de la página por uno que refleje el nuevo nombre "¿Qué Hay Pa' Hacer?"
 - [ ] Revisión de eventos debe distinguir entre precio 0 ó nulo.
 
+## In progress: Mining Agent (parallel LangGraph pipeline)
+  Experimental LangGraph-based re-implementation of the event mining workflow, developed in parallel to the original pipeline. Not wired to any routes or the scheduled job yet.
+- [x] Scaffold `packages/api/src/mining-agent` with deps `@langchain/langgraph` + `@langchain/core`
+- [x] Step 1: `acquire` node (from-scratch `fetchHtml` with static/dynamic fallback + `pruneHtml`) + `analyze` node (stats + structured logging), graph, CLI (`pnpm --filter @que-hacer-en/api mine:agent --url <url>`)
+- [x] Tests for acquire (fetch + prune) and the compiled graph
+- [ ] Later: extraction, dedup, enrichment, insert nodes; PDF source type; retries/checkpointing
+
 ## Pending tasks:
 - [ ] Mejorar UX de confirmación de email en registro
 - [ ] Página "Forgot Password" con reset por email

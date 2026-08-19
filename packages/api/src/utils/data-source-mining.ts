@@ -19,14 +19,6 @@ export interface MineDataSourceResult {
  * Mines a single data source end-to-end, keeping data_sources.mining_status and
  * last_mined up to date. Shared by the single-source route (POST /:id/mine) and
  * the scheduled batch job (POST /mine-due).
- *
- * The full DIAGRAM.md pipeline runs transitively through the three delegated calls:
- *  1. fetchHtmlContent()  — static fetch (undici) with Puppeteer fallback for
- *                           dynamic/SPA sites, plus HTML cleaning (html-cleaner).
- *  2. extractEventsFromHtml() — LLM extraction of events (Kilo Gateway, structured JSON).
- *  3. processExtractedEvents() — validation/date filter, in-batch + DB exact-match +
- *                           semantic (Gemini) dedup, per-event enrichment (re-fetch +
- *                           re-clean detail page + LLM), auto-activation gate, insert.
  */
 export interface MineDueResult {
   success: boolean
@@ -84,7 +76,7 @@ async function getScheduledAdminUserId(): Promise<string> {
  * NOT checked: last_mined is stamped when mining starts, so a mid-run source isn't due,
  * and a crashed source becomes due again once the interval passes (self-healing).
  */
-export async function mineDueDataSources(adminUserId?: string, concurrency = 2): Promise<MineDueResult> {
+export async function mineDueDataSources(adminUserId?: string, concurrency = 5): Promise<MineDueResult> {
   const dueRes = await query<{ id: string }>(
     `SELECT ds.id
      FROM data_sources ds
@@ -95,7 +87,7 @@ export async function mineDueDataSources(adminUserId?: string, concurrency = 2):
      ORDER BY ds.last_mined ASC NULLS FIRST`
   )
 
-  const dueIds = dueRes.rows.map(r => r.id)
+  const dueIds = dueRes.rows.map((r: { id: string }) => r.id)
   if (dueIds.length === 0) {
     return { success: true, sourcesChecked: 0, sourcesDue: 0, sourcesCompleted: 0, sourcesFailed: 0, eventsExtracted: 0, eventsStored: 0, details: 'No hay fuentes de datos pendientes de minería' }
   }
