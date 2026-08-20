@@ -1,4 +1,5 @@
 import { StateGraph, START, END } from '@langchain/langgraph'
+
 import { StateAnnotation } from './state'
 import { createAcquireNode, type AcquireNodeDeps } from './nodes/acquire'
 import { createAnalyzeNode } from './nodes/analyze'
@@ -15,5 +16,3 @@ export function buildMiningGraph(options: MiningGraphOptions = {}) {
 
   return graph.compile()
 }
-
-export type MiningGraph = ReturnType<typeof buildMiningGraph>

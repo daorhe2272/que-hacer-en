@@ -1,17 +1,11 @@
 import { Annotation } from '@langchain/langgraph'
+
 import type { AcquisitionResult, SourceType } from './acquire/types'
 
 export interface MiningStats {
   success: boolean
-  method?: 'static' | 'dynamic'
-  durationMs: number
-  rawChars: number
-  rawWords: number
   rawEstimatedTokens: number
-  prunedChars: number
-  prunedWords: number
   prunedEstimatedTokens: number
-  reductionPct: number
   error?: string
 }
 

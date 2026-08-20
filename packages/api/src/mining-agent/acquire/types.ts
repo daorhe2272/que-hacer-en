@@ -9,6 +9,7 @@ export interface RawFetchResult {
 export interface FetchResult extends RawFetchResult {
   method?: 'static' | 'dynamic'
   durationMs: number
+  staticRejectedReason?: string
 }
 
 export interface PrunedDocument {

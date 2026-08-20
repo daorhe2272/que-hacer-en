@@ -1,15 +1,11 @@
 /**
  * HTML source acquisition for the mining agent.
- *
- * Fetching and pruning are kept as separate exported functions (so the raw
- * extraction can later be mirrored by other source types, e.g. pdf) but every
- * workflow that acquires an HTML document runs both: acquireHtml() composes
- * fetch + prune into a single acquisition step.
  */
 
-import puppeteer, { Browser, Page } from 'puppeteer-core'
 import { Agent, fetch as undiciFetch } from 'undici'
-import type { FetchResult, PrunedDocument, RawFetchResult } from './types'
+import puppeteer, { Browser, Page } from 'puppeteer-core'
+
+import type { AcquisitionResult, FetchResult, PrunedDocument, RawFetchResult } from './types'
 
 const ATTRS_TO_KEEP = ['href', 'src', 'role', 'datetime']
 const ATTR_PATTERN = /\s+([a-zA-Z0-9-:]+)(=("[^"]*"|'[^']*'))?/g
@@ -41,69 +37,16 @@ interface DynamicFetchOptions {
   userAgent: string
 }
 
-export function pruneHtml(html: string): PrunedDocument {
-  const content = cleanHtml(html)
-  return {
-    content,
-    rawLength: html.length,
-    rawWords: countWords(html),
-    prunedLength: content.length,
-    prunedWords: countWords(content),
-  }
-}
-
-function countWords(text: string): number {
-  return text.trim() ? text.split(/\s+/).length : 0
-}
-
-export async function acquireHtml(url: string, options: AcquireHtmlOptions = {}): Promise<{
-  success: boolean
-  sourceType: 'html'
-  url: string
-  method?: 'static' | 'dynamic'
-  durationMs: number
-  rawLength: number
-  prunedLength: number
-  error?: string
-  document?: PrunedDocument
-}> {
-  const { fetcher = fetchHtml, ...fetchOptions } = options
-  const fetched = await fetcher(url, fetchOptions)
-  if (!fetched.success || !fetched.html) {
-    return {
-      success: false,
-      sourceType: 'html',
-      url,
-      durationMs: fetched.durationMs,
-      rawLength: 0,
-      prunedLength: 0,
-      error: fetched.error ?? 'Fetch failed',
-    }
-  }
-  const document = pruneHtml(fetched.html)
-  return {
-    success: true,
-    sourceType: 'html',
-    url,
-    method: fetched.method,
-    durationMs: fetched.durationMs,
-    rawLength: document.rawLength,
-    prunedLength: document.prunedLength,
-    document,
-  }
-}
-
 /**
- * Fetches a URL as raw HTML. Tries a static fetch first (undici, relaxed SSL)
- * and falls back to a headless browser when the response looks like an
- * incomplete SPA shell.
+ * Fetches a URL as raw HTML. Tries a static fetch first and falls back to a headless browser
+ * when the response looks like an incomplete SPA shell.
  */
 export async function fetchHtml(url: string, options: FetchHtmlOptions = {}): Promise<FetchResult> {
   const start = Date.now()
   try {
     new URL(url)
     const {
-      timeout = 15000,
+      timeout = 5000,
       waitForSelector,
       waitForTimeout = 3000,
       blockResources = true,
@@ -113,12 +56,20 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}): Pr
     const staticResult = await tryStaticFetch(url, userAgent)
 
     if (staticResult.success && isContentComplete(staticResult.html ?? '')) {
+      console.log(`[mining-agent] fetch static ok ${url}`)
       return { ...staticResult, method: 'static', durationMs: Date.now() - start }
     }
 
     if (!staticResult.success) {
-      return { ...staticResult, durationMs: Date.now() - start }
+      console.log(`[mining-agent] fetch static failed ${url}: ${staticResult.error}`)
+      return {
+        ...staticResult,
+        durationMs: Date.now() - start,
+        staticRejectedReason: staticResult.error ?? 'Static fetch failed',
+      }
     }
+
+    console.log(`[mining-agent] fetch static incomplete ${url}, falling back to dynamic`)
 
     const dynamicResult = await tryDynamicFetch(url, {
       timeout,
@@ -128,7 +79,18 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}): Pr
       userAgent,
     })
 
-    return { ...dynamicResult, method: 'dynamic', durationMs: Date.now() - start }
+    if (dynamicResult.success) {
+      console.log(`[mining-agent] fetch dynamic ok ${url}`)
+    } else {
+      console.log(`[mining-agent] fetch dynamic failed ${url}: ${dynamicResult.error}`)
+    }
+
+    return {
+      ...dynamicResult,
+      method: 'dynamic',
+      durationMs: Date.now() - start,
+      staticRejectedReason: 'incomplete',
+    }
   } catch (error) {
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ERR_INVALID_URL') {
       return { success: false, error: 'Invalid URL format', durationMs: Date.now() - start }
@@ -139,37 +101,6 @@ export async function fetchHtml(url: string, options: FetchHtmlOptions = {}): Pr
       durationMs: Date.now() - start,
     }
   }
-}
-
-function cleanHtml(html: string): string {
-  const withoutScriptsAndStyles = html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, ' ')
-
-  return collapseWhitespace(stripAttributes(withoutScriptsAndStyles))
-}
-
-function stripAttributes(html: string): string {
-  return html.replace(/<([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[a-zA-Z0-9-:]+(?:=(?:"[^"]*"|'[^']*'))?)*)(\s*\/?)>/g, (_match, tag, attrs, selfClose) => {
-    const kept: string[] = []
-    let attrMatch: RegExpExecArray | null
-    ATTR_PATTERN.lastIndex = 0
-    while ((attrMatch = ATTR_PATTERN.exec(attrs))) {
-      const name = attrMatch[1].toLowerCase()
-      if (ATTRS_TO_KEEP.includes(name)) kept.push(attrMatch[2] ? `${name}=${attrMatch[3]}` : name)
-    }
-    const attrString = kept.length > 0 ? ` ${kept.join(' ')}` : ''
-    return `<${tag}${attrString}${selfClose.trim()}>`
-  })
-}
-
-function collapseWhitespace(html: string): string {
-  return html
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n\s*\n+/g, '\n')
-    .trim()
 }
 
 /**
@@ -227,6 +158,16 @@ async function tryStaticFetch(url: string, userAgent: string): Promise<RawFetchR
   }
 }
 
+async function createPage(browser: Browser, options: DynamicFetchOptions): Promise<Page> {
+  const page = await browser.newPage()
+  await page.setUserAgent(options.userAgent)
+  await page.setViewport({ width: 1920, height: 1080 })
+  if (options.blockResources) {
+    await setupResourceBlocking(page)
+  }
+  return page
+}
+
 async function tryDynamicFetch(url: string, options: DynamicFetchOptions): Promise<RawFetchResult> {
   let browser: Browser | null = null
   let page: Page | null = null
@@ -255,17 +196,10 @@ async function tryDynamicFetch(url: string, options: DynamicFetchOptions): Promi
       ],
     })
 
-    page = await browser.newPage()
-    await page.setUserAgent(options.userAgent)
-    await page.setViewport({ width: 1920, height: 1080 })
-    if (options.blockResources) {
-      await setupResourceBlocking(page)
-    }
+    page = await createPage(browser, options)
 
-    let navigated = false
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: options.timeout })
-      navigated = true
     } catch (firstError) {
       // A detached frame often poisons the page for any further use; recover with a fresh one.
       if (firstError instanceof Error && /detached/i.test(firstError.message)) {
@@ -274,18 +208,9 @@ async function tryDynamicFetch(url: string, options: DynamicFetchOptions): Promi
         } catch {
           // best-effort
         }
-        page = await browser.newPage()
-        await page.setUserAgent(options.userAgent)
-        await page.setViewport({ width: 1920, height: 1080 })
-        if (options.blockResources) {
-          await setupResourceBlocking(page)
-        }
+        page = await createPage(browser, options)
       }
       await page.goto(url, { waitUntil: 'networkidle2', timeout: options.timeout * 1.5 })
-      navigated = true
-    }
-    if (!navigated) {
-      throw new Error('Navigation failed after retries')
     }
 
     try {
@@ -331,4 +256,77 @@ async function setupResourceBlocking(page: Page): Promise<void> {
       request.continue()
     }
   })
+}
+
+export function pruneHtml(html: string): PrunedDocument {
+  const content = cleanHtml(html)
+  return {
+    content,
+    rawLength: html.length,
+    rawWords: countWords(html),
+    prunedLength: content.length,
+    prunedWords: countWords(content),
+  }
+}
+
+function cleanHtml(html: string): string {
+  const withoutScriptsAndStyles = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, ' ')
+
+  return collapseWhitespace(stripAttributes(withoutScriptsAndStyles))
+}
+
+function stripAttributes(html: string): string {
+  return html.replace(/<([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[a-zA-Z0-9-:]+(?:=(?:"[^"]*"|'[^']*'))?)*)(\s*\/?)>/g, (_match, tag, attrs, selfClose) => {
+    const kept: string[] = []
+    let attrMatch: RegExpExecArray | null
+    ATTR_PATTERN.lastIndex = 0
+    while ((attrMatch = ATTR_PATTERN.exec(attrs))) {
+      const name = attrMatch[1].toLowerCase()
+      if (ATTRS_TO_KEEP.includes(name)) kept.push(attrMatch[2] ? `${name}=${attrMatch[3]}` : name)
+    }
+    const attrString = kept.length > 0 ? ` ${kept.join(' ')}` : ''
+    return `<${tag}${attrString}${selfClose.trim()}>`
+  })
+}
+
+function collapseWhitespace(html: string): string {
+  return html
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n')
+    .trim()
+}
+
+function countWords(text: string): number {
+  return text.trim() ? text.split(/\s+/).length : 0
+}
+
+export async function acquireHtml(url: string, options: AcquireHtmlOptions = {}): Promise<AcquisitionResult> {
+  const { fetcher = fetchHtml, ...fetchOptions } = options
+  const fetched = await fetcher(url, fetchOptions)
+  if (!fetched.success || !fetched.html) {
+    return {
+      success: false,
+      sourceType: 'html',
+      url,
+      durationMs: fetched.durationMs,
+      rawLength: 0,
+      prunedLength: 0,
+      error: fetched.error ?? 'Fetch failed',
+    }
+  }
+  const document = pruneHtml(fetched.html)
+  return {
+    success: true,
+    sourceType: 'html',
+    url,
+    method: fetched.method,
+    durationMs: fetched.durationMs,
+    rawLength: document.rawLength,
+    prunedLength: document.prunedLength,
+    document,
+  }
 }

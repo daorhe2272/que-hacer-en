@@ -11,11 +11,7 @@ async function main(): Promise<void> {
   }
 
   const graph = buildMiningGraph()
-  const stream = await graph.stream({ url })
-
-  for await (const chunk of stream) {
-    console.log(JSON.stringify(chunk))
-  }
+  await graph.invoke({ url })
 }
 
 main().catch(error => {

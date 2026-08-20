@@ -25,9 +25,8 @@ describe('mining-agent graph', () => {
     expect(finalState.result?.document?.content).toContain('<h1>Concierto de Rock</h1>')
     expect(finalState.result?.document?.content).not.toContain('track()')
     expect(finalState.stats?.success).toBe(true)
-    expect(finalState.stats?.rawChars).toBe(FIXTURE_HTML.length)
-    expect(finalState.stats?.prunedChars).toBe(finalState.result?.document?.prunedLength)
-    expect(finalState.stats?.prunedWords).toBeGreaterThan(0)
+    expect(finalState.stats?.rawEstimatedTokens).toBeGreaterThan(0)
+    expect(finalState.stats?.prunedEstimatedTokens).toBeGreaterThan(0)
     expect(logSpy).toHaveBeenCalled()
 
     fetcher.mockClear()
@@ -109,10 +108,8 @@ describe('mining-agent analyze node', () => {
     })
 
     expect(update.stats?.success).toBe(true)
-    expect(update.stats?.rawChars).toBe(1000)
-    expect(update.stats?.prunedChars).toBe(200)
-    expect(update.stats?.rawWords).toBe(0)
-    expect(update.stats?.reductionPct).toBe(80)
+    expect(update.stats?.rawEstimatedTokens).toBe(250)
+    expect(update.stats?.prunedEstimatedTokens).toBe(50)
 
     logSpy.mockRestore()
   })
@@ -134,7 +131,8 @@ describe('mining-agent analyze node', () => {
       stats: undefined,
     })
 
-    expect(update.stats?.reductionPct).toBe(0)
+    expect(update.stats?.rawEstimatedTokens).toBe(0)
+    expect(update.stats?.prunedEstimatedTokens).toBe(0)
 
     logSpy.mockRestore()
   })
